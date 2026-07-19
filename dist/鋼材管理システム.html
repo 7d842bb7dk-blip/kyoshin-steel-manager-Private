@@ -1,0 +1,1055 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>鋼材管理システム | STEEL MANAGER</title>
+<style>
+:root{
+  --bg:#edf0f3; --bg2:#e4e8ed;
+  --panel:#ffffff; --panel-2:#f5f7f9;
+  --ink:#191d24; --ink-soft:#5d6675; --ink-faint:#929aa8;
+  --line:#d7dce3; --line-soft:#e6eaef;
+  --sidebar:#14171d; --sidebar-2:#0f1217; --sidebar-line:#262b33;
+  --strip:#15171c; --strip-line:#2a2d34;
+  --side-ink:#c4cbd6; --side-ink-faint:#7e8696;
+  --accent:#df1f26; --accent-d:#bb1820; --accent-soft:#fde3e4;
+  --steel:#2f6f8f; --steel-d:#245a74;
+  --ok:#2e8b57; --warn:#c0392b;
+  --shadow:0 1px 2px rgba(20,23,29,.06),0 8px 24px -12px rgba(20,23,29,.18);
+  --shadow-lg:0 24px 60px -28px rgba(20,23,29,.45);
+  --r:16px; --r-sm:12px;
+  --jp:"Hiragino Maru Gothic ProN","Hiragino Maru Gothic Pro","M PLUS Rounded 1c","Rounded Mplus 1c","Hiragino Kaku Gothic ProN","Hiragino Sans","Yu Gothic","YuGothic","Meiryo","Noto Sans JP",sans-serif;
+  --mono:ui-monospace,"SF Mono","SFMono-Regular","Cascadia Mono","Roboto Mono",Consolas,"Courier New",monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  font-family:var(--jp); color:var(--ink); background:var(--bg);
+  -webkit-font-smoothing:antialiased; font-size:14px; line-height:1.5;
+  display:flex; flex-direction:column; height:100vh; overflow:hidden;
+}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+
+/* ============ SIDEBAR ============ */
+.sidebar{
+  background:linear-gradient(180deg,var(--sidebar),var(--sidebar-2));
+  color:var(--side-ink); display:flex; flex-direction:column;
+  border-right:1px solid #000; position:relative;
+}
+.sidebar::after{content:"";position:absolute;inset:0;pointer-events:none;
+  background-image:linear-gradient(rgba(255,255,255,.014) 1px,transparent 1px);
+  background-size:100% 6px;mix-blend-mode:overlay;opacity:.5}
+
+/* ----- LOGO (差し替え可能ブロック) ----- */
+.brand{padding:22px 20px 20px;border-bottom:1px solid var(--sidebar-line);display:flex;gap:13px;align-items:center}
+.brand-mark{width:42px;height:42px;flex:0 0 auto}
+.brand-txt{display:flex;flex-direction:column;line-height:1.15}
+.brand-name{font-size:15px;font-weight:800;letter-spacing:.04em;color:#fff}
+.brand-sub{font-family:var(--mono);font-size:9.5px;letter-spacing:.22em;color:var(--accent);text-transform:uppercase;margin-top:3px}
+.brand-co{font-size:10.5px;color:var(--side-ink-faint);margin-top:5px;letter-spacing:.02em}
+
+.nav{padding:14px 12px;flex:1;overflow:auto}
+.nav-label{font-family:var(--mono);font-size:9.5px;letter-spacing:.18em;color:var(--side-ink-faint);text-transform:uppercase;padding:8px 10px 7px}
+.nav-item{display:flex;align-items:center;gap:11px;padding:9.5px 11px;border-radius:var(--r-sm);color:var(--side-ink);
+  cursor:pointer;font-size:13.5px;font-weight:600;position:relative;transition:background .14s,color .14s;margin-bottom:2px}
+.nav-item svg{width:18px;height:18px;opacity:.78;flex:0 0 auto}
+.nav-item:hover{background:rgba(255,255,255,.05);color:#fff}
+.nav-item.active{background:rgba(232,130,30,.14);color:#fff}
+.nav-item.active svg{opacity:1;color:var(--accent)}
+.nav-item.active::before{content:"";position:absolute;left:-12px;top:7px;bottom:7px;width:3px;background:var(--accent);border-radius:0 3px 3px 0}
+
+.side-foot{padding:14px 16px;border-top:1px solid var(--sidebar-line);font-size:11px;color:var(--side-ink-faint)}
+.side-foot .row{display:flex;justify-content:space-between;padding:3px 0}
+.side-foot b{color:var(--side-ink);font-family:var(--mono);font-weight:600}
+.dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--ok);margin-right:6px;vertical-align:middle}
+.dot.warn{background:var(--accent)}
+
+/* ============ MAIN ============ */
+.main{display:flex;flex-direction:column;overflow:hidden;background:var(--bg)}
+.topbar{height:62px;flex:0 0 auto;background:var(--panel);border-bottom:1px solid var(--line);
+  display:flex;align-items:center;justify-content:space-between;padding:0 26px;position:relative;z-index:2}
+.topbar::after{content:"";position:absolute;left:0;right:0;bottom:0;height:1px;background:linear-gradient(90deg,var(--accent),transparent 38%)}
+.tb-title{display:flex;flex-direction:column}
+.tb-title h1{font-size:17px;font-weight:800;letter-spacing:.01em}
+.tb-crumb{font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;color:var(--ink-faint);text-transform:uppercase;margin-top:1px}
+.tb-actions{display:flex;gap:9px;align-items:center}
+
+.content{flex:1;overflow:auto;padding:24px 26px 48px}
+.view{display:none}
+.view.active{display:block;animation:fade .3s ease both}
+@keyframes fade{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:none}}
+
+/* ----- buttons / inputs ----- */
+.btn{font-family:var(--jp);font-size:13px;font-weight:700;border:1px solid var(--line);background:var(--panel);
+  color:var(--ink);padding:8.5px 15px;border-radius:var(--r-sm);cursor:pointer;display:inline-flex;align-items:center;gap:7px;
+  transition:.13s;white-space:nowrap}
+.btn svg{width:15px;height:15px}
+.btn:hover{border-color:#bcc4cf;background:var(--panel-2)}
+.btn:active{transform:translateY(1px)}
+.btn.primary{background:var(--accent);border-color:var(--accent-d);color:#fff;box-shadow:0 2px 10px -4px var(--accent)}
+.btn.primary:hover{background:var(--accent-d)}
+.btn.steel{background:var(--steel);border-color:var(--steel-d);color:#fff}
+.btn.steel:hover{background:var(--steel-d)}
+.btn.ghost{background:transparent;border-color:transparent;color:var(--ink-soft)}
+.btn.ghost:hover{background:var(--bg2);color:var(--ink)}
+.btn.sm{padding:6px 11px;font-size:12px}
+.btn.danger{color:var(--warn);border-color:#e6c4c0}
+.btn.danger:hover{background:#fbecea}
+
+label.fld{display:flex;flex-direction:column;gap:6px}
+.fld-lab{font-size:11.5px;font-weight:700;color:var(--ink-soft);letter-spacing:.02em}
+.fld-lab .req{color:var(--accent);margin-left:2px}
+select,input[type=text],input[type=number]{
+  font-family:var(--jp);font-size:13.5px;color:var(--ink);background:var(--panel);
+  border:1px solid var(--line);border-radius:var(--r-sm);padding:8.5px 11px;width:100%;transition:.13s;height:38px}
+select:focus,input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+input.num,select.num{font-family:var(--mono)}
+select:disabled{background:var(--panel-2);color:var(--ink-faint);cursor:not-allowed}
+
+/* ----- cards / panels ----- */
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow)}
+.panel-h{padding:14px 18px;border-bottom:1px solid var(--line-soft);display:flex;align-items:center;justify-content:space-between}
+.panel-h h2{font-size:13.5px;font-weight:800;letter-spacing:.01em;display:flex;align-items:center;gap:9px}
+.panel-h .tag{font-family:var(--mono);font-size:10px;letter-spacing:.12em;color:var(--ink-faint);text-transform:uppercase}
+.sec-ico{width:17px;height:17px;color:var(--steel)}
+
+/* ----- filter grid ----- */
+.filter-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:14px;padding:18px}
+.filter-foot{display:flex;justify-content:space-between;align-items:center;padding:0 18px 16px}
+.filter-hint{font-size:11.5px;color:var(--ink-faint)}
+
+/* ----- KPI ----- */
+.kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:18px 0}
+.kpi{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px;position:relative;overflow:hidden;box-shadow:var(--shadow)}
+.kpi::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--steel)}
+.kpi.amber::before{background:var(--accent)}
+.kpi.amber .kpi-val{color:var(--accent-d)}
+.kpi-lab{font-size:11px;font-weight:700;color:var(--ink-soft);letter-spacing:.03em;text-transform:uppercase;display:flex;align-items:center;gap:7px}
+.kpi-lab svg{width:14px;height:14px;opacity:.6}
+.kpi-val{font-family:var(--mono);font-size:30px;font-weight:700;letter-spacing:-.02em;margin-top:9px;line-height:1}
+.kpi-unit{font-size:14px;color:var(--ink-faint);margin-left:3px;font-weight:600}
+.kpi-sub{font-size:11px;color:var(--ink-faint);margin-top:6px}
+
+/* ----- table ----- */
+.tbl-wrap{overflow:auto;border-radius:0 0 var(--r) var(--r)}
+table.dt{width:100%;border-collapse:collapse;font-size:13px}
+table.dt thead th{position:sticky;top:0;background:var(--panel-2);text-align:left;font-size:10.5px;font-weight:800;
+  letter-spacing:.05em;color:var(--ink-soft);text-transform:uppercase;padding:11px 14px;border-bottom:1.5px solid var(--line);white-space:nowrap;z-index:1}
+table.dt thead th.r,table.dt tbody td.r{text-align:right}
+table.dt tbody td{padding:11px 14px;border-bottom:1px solid var(--line-soft);white-space:nowrap;vertical-align:middle}
+table.dt tbody tr{transition:background .1s}
+table.dt tbody tr:hover{background:#fafbfc}
+table.dt tbody tr:last-child td{border-bottom:none}
+.pill{display:inline-flex;align-items:center;font-family:var(--mono);font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;letter-spacing:.02em}
+.pill.mat{background:#eaf2f6;color:var(--steel-d)}
+.pill.fin{background:var(--panel-2);color:var(--ink-soft);border:1px solid var(--line)}
+.pill.loc{background:#f3eee6;color:#8a6320}
+.tnum{font-family:var(--mono);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.muted{color:var(--ink-faint)}
+.tfoot td{background:var(--panel-2);font-weight:800;border-top:2px solid var(--line)!important;padding:13px 14px}
+.row-acts{display:flex;gap:5px;justify-content:flex-end}
+.icobtn{width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center;border:1px solid var(--line);
+  background:var(--panel);border-radius:6px;cursor:pointer;color:var(--ink-soft);transition:.12s}
+.icobtn:hover{border-color:#bcc4cf;color:var(--ink);background:var(--panel-2)}
+.icobtn.del:hover{color:var(--warn);border-color:#e6c4c0;background:#fbecea}
+.icobtn svg{width:15px;height:15px}
+
+.empty{padding:54px 20px;text-align:center;color:var(--ink-faint)}
+.empty svg{width:44px;height:44px;opacity:.35;margin-bottom:12px}
+.empty p{font-size:13.5px}
+
+/* ----- calculator ----- */
+.calc-grid{display:grid;grid-template-columns:1.05fr .95fr;gap:18px;align-items:start}
+.calc-form{display:grid;grid-template-columns:1fr 1fr;gap:14px;padding:18px}
+.calc-form .full{grid-column:1/-1}
+.result-card{background:linear-gradient(165deg,#171b22,#0f1217);color:#fff;border-radius:var(--r);overflow:hidden;box-shadow:var(--shadow-lg);position:relative}
+.result-card::after{content:"";position:absolute;inset:0;pointer-events:none;
+  background-image:radial-gradient(circle at 88% 8%,rgba(223,31,38,.28),transparent 42%)}
+.rc-h{padding:16px 20px;border-bottom:1px solid #262b33;font-size:11px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--side-ink-faint);position:relative}
+.rc-body{padding:20px;display:flex;flex-direction:column;gap:2px;position:relative}
+.rc-cost{font-family:var(--mono);font-size:42px;font-weight:700;letter-spacing:-.02em;color:#fff;line-height:1.05}
+.rc-cost small{font-size:18px;color:var(--accent);font-weight:700;margin-right:4px}
+.rc-costlab{font-size:11px;color:var(--side-ink-faint);letter-spacing:.1em;text-transform:uppercase;margin-bottom:4px}
+.rc-rows{margin-top:18px;border-top:1px solid #262b33;padding-top:6px}
+.rc-row{display:flex;justify-content:space-between;align-items:baseline;padding:10px 0;border-bottom:1px solid #1d222a}
+.rc-row:last-child{border-bottom:none}
+.rc-k{font-size:12.5px;color:var(--side-ink)}
+.rc-v{font-family:var(--mono);font-size:17px;font-weight:700;color:#fff;font-variant-numeric:tabular-nums}
+.rc-v small{font-size:11px;color:var(--side-ink-faint);font-weight:600;margin-left:3px}
+.formula{margin-top:16px;background:rgba(255,255,255,.04);border:1px solid #262b33;border-radius:8px;padding:13px 15px;position:relative}
+.formula .ttl{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);margin-bottom:7px;font-weight:700}
+.formula code{font-family:var(--mono);font-size:12px;color:#d7deea;display:block;line-height:1.7;word-break:break-word}
+
+/* ----- masters ----- */
+.mgrid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.mgrid .span2{grid-column:1/-1}
+.kv{font-size:13px}
+.note{font-size:12px;color:var(--ink-soft);background:var(--panel-2);border:1px solid var(--line-soft);border-radius:8px;padding:12px 14px;line-height:1.65}
+.note b{color:var(--ink)}
+
+/* ----- modal ----- */
+.overlay{position:fixed;inset:0;background:rgba(15,18,23,.5);backdrop-filter:blur(3px);display:none;align-items:center;justify-content:center;z-index:50;padding:20px}
+.overlay.show{display:flex;animation:fade .18s ease both}
+.modal{background:var(--panel);border-radius:14px;width:640px;max-width:100%;max-height:92vh;overflow:auto;box-shadow:var(--shadow-lg);animation:pop .2s cubic-bezier(.2,.8,.3,1) both}
+@keyframes pop{from{opacity:0;transform:scale(.97) translateY(10px)}to{opacity:1;transform:none}}
+.modal-h{padding:18px 22px;border-bottom:1px solid var(--line-soft);display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:var(--panel);z-index:1}
+.modal-h h3{font-size:16px;font-weight:800;display:flex;align-items:center;gap:9px}
+.modal-h h3 .sec-ico{color:var(--accent)}
+.modal-body{padding:22px;display:grid;grid-template-columns:1fr 1fr;gap:15px}
+.modal-body .full{grid-column:1/-1}
+.modal-foot{padding:16px 22px;border-top:1px solid var(--line-soft);display:flex;justify-content:space-between;align-items:center;gap:10px;position:sticky;bottom:0;background:var(--panel)}
+.preview{grid-column:1/-1;background:var(--panel-2);border:1px solid var(--line-soft);border-radius:9px;padding:13px 16px;display:flex;gap:22px;flex-wrap:wrap}
+.preview .pv{display:flex;flex-direction:column}
+.preview .pk{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-faint);font-weight:700}
+.preview .pvv{font-family:var(--mono);font-size:17px;font-weight:700;margin-top:3px}
+.preview .pvv.cost{color:var(--accent-d)}
+.x{width:32px;height:32px;border:none;background:var(--bg2);border-radius:7px;cursor:pointer;color:var(--ink-soft);display:flex;align-items:center;justify-content:center}
+.x:hover{background:#d4d9e0;color:var(--ink)}
+.x svg{width:17px;height:17px}
+
+/* toast */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--sidebar);color:#fff;
+  padding:12px 20px;border-radius:10px;font-size:13.5px;font-weight:600;box-shadow:var(--shadow-lg);z-index:80;opacity:0;transition:.28s;display:flex;align-items:center;gap:9px}
+.toast.show{transform:translateX(-50%);opacity:1}
+.toast svg{width:17px;height:17px;color:var(--accent)}
+
+::-webkit-scrollbar{width:11px;height:11px}
+::-webkit-scrollbar-thumb{background:#c2c9d2;border-radius:6px;border:3px solid var(--bg)}
+::-webkit-scrollbar-thumb:hover{background:#a9b2bd}
+.content::-webkit-scrollbar-track{background:var(--bg)}
+
+@media(max-width:1100px){
+  body{grid-template-columns:1fr}
+  .sidebar{display:none}
+  .filter-grid{grid-template-columns:repeat(3,1fr)}
+  .kpis{grid-template-columns:1fr}
+  .calc-grid,.mgrid{grid-template-columns:1fr}
+}
+/* ============ KYO-SHIN SKIN ============ */
+.strip{height:30px;flex:0 0 auto;background:#101216;border-top:3px solid var(--accent);display:flex;align-items:center;justify-content:space-between;
+  padding:0 18px;color:#aeb6c2;font-size:11px;letter-spacing:.02em;border-bottom:1px solid var(--strip-line)}
+.strip .s-l{display:flex;align-items:center;gap:9px}
+.strip .s-dot{width:7px;height:7px;border-radius:50%;background:#3ec06f;box-shadow:0 0 0 3px rgba(62,192,111,.18)}
+.strip .s-l span{color:#7e8696}
+.strip b{color:#e7ebf1;font-weight:700;letter-spacing:.02em}
+.strip .s-r{font-family:var(--mono);color:#6f7787;letter-spacing:.08em;font-size:10.5px}
+
+header.header{flex:0 0 auto;background:var(--panel);border-bottom:2px solid #16181d;
+  display:flex;align-items:center;gap:18px;padding:13px 22px;position:relative;z-index:3}
+header.header::after{content:"";position:absolute;left:0;bottom:-2px;height:2px;width:176px;background:var(--accent)}
+.brandwrap{display:flex;align-items:center;gap:11px}
+.brandmark{width:40px;height:40px;flex:0 0 auto;display:block}
+.brandname{font-size:23px;font-weight:800;letter-spacing:-.005em;color:#1b1d22;line-height:1;
+  font-family:Verdana,"Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif}
+.brandname .hy{color:var(--accent)}
+.brandlogo{height:34px;width:auto;display:block;flex:0 0 auto}
+.hdr-div{width:1px;height:34px;background:#1b1d22;flex:0 0 auto}
+.hdr-title{display:flex;flex-direction:column;line-height:1.2}
+.hdr-title .t{font-size:16.5px;font-weight:800;color:#15171c;letter-spacing:.01em;display:inline-flex;align-items:center;gap:8px}
+.hdr-title .t::before{content:"";width:9px;height:9px;border-radius:2px;background:var(--accent);flex:0 0 auto}
+.hdr-title .s{font-size:11.5px;color:var(--ink-faint);margin-top:3px}
+.hdr-right{margin-left:auto;display:flex;align-items:center;gap:9px}
+.chip{display:inline-flex;align-items:center;gap:7px;background:var(--panel-2);border:1px solid var(--line);
+  border-radius:8px;padding:6px 12px;font-size:11.5px;color:var(--ink-soft);font-weight:600;white-space:nowrap}
+.chip b{font-family:var(--mono);color:var(--ink);font-weight:700;font-variant-numeric:tabular-nums}
+.chip .dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--ok)}
+.chip .dot.warn{background:var(--accent)}
+.chip.date{font-family:var(--mono);letter-spacing:.03em;color:#fff;background:#1b1d22;border-color:#1b1d22}
+.admin-btn{display:inline-flex;align-items:center;gap:7px;font-family:var(--jp);font-size:12.5px;font-weight:700;border:1px solid var(--line);background:var(--panel);color:var(--ink-soft);padding:7px 13px;border-radius:8px;cursor:pointer;transition:.13s;white-space:nowrap;margin-left:2px}
+.admin-btn svg{width:15px;height:15px}
+.admin-btn:hover{border-color:#1b1d22;color:#1b1d22;background:var(--panel-2)}
+.admin-btn.on{background:var(--accent);border-color:var(--accent-d);color:#fff;box-shadow:0 3px 11px -4px var(--accent)}
+.admin-btn.on:hover{background:var(--accent-d);color:#fff;border-color:var(--accent-d)}
+
+nav.tabs{flex:0 0 auto;background:var(--panel);border-bottom:2px solid #16181d;
+  display:flex;align-items:center;gap:8px;padding:9px 22px;overflow-x:auto;position:relative;z-index:2}
+nav.tabs .tlabel{font-size:10.5px;font-weight:800;color:#1b1d22;letter-spacing:.14em;text-transform:uppercase;margin-right:8px;flex:0 0 auto;display:inline-flex;align-items:center;gap:7px}
+nav.tabs .tlabel::before{content:"";width:3px;height:12px;border-radius:2px;background:var(--accent)}
+.tab{display:inline-flex;align-items:center;gap:8px;padding:8px 16px;border-radius:999px;border:1px solid var(--line);
+  background:var(--panel);color:var(--ink-soft);font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;transition:.13s;flex:0 0 auto}
+.tab svg{width:16px;height:16px;opacity:.65}
+.tab:hover{background:var(--panel-2);border-color:var(--accent);color:var(--accent)}
+.tab.active{background:var(--accent);border-color:var(--accent-d);color:#fff;box-shadow:0 3px 11px -4px var(--accent)}
+.tab.active svg{opacity:1}
+
+main.content{flex:1;overflow:auto;padding:20px 22px 48px;background:var(--bg)}
+.viewhdr{display:flex;align-items:center;gap:12px;margin-bottom:16px}
+.viewhdr h1{font-size:17px;font-weight:800;letter-spacing:.01em;color:var(--ink)}
+.viewhdr .crumb{font-family:var(--mono);font-size:10px;letter-spacing:.1em;color:var(--ink-faint);text-transform:uppercase;
+  padding:3px 9px;background:#1b1d22;border:1px solid #1b1d22;border-radius:6px;color:#fff}
+.viewhdr .vh-bar{flex:1;height:1px;background:var(--line)}
+
+/* tag / pill tuning to match Kyo-shin */
+.pill.mat{background:#e9f0f8;color:#235a8c}
+.pill.loc{background:#eef1f4;color:#566079}
+.kpi.amber::before{background:var(--accent)}
+.note{background:#fdfaef;border-color:#efe6c6}
+
+@media(max-width:1100px){
+  header.header{flex-wrap:wrap;gap:12px}
+  .hdr-right{width:100%;margin-left:0;flex-wrap:wrap}
+}
+@media(max-width:760px){
+  .hdr-div,.hdr-title{display:none}
+}
+/* 管理者ロック */
+.pin-modal{width:380px;max-width:calc(100% - 40px)}
+.pin-body{padding:24px 22px 8px;text-align:center}
+.pin-msg{font-size:13px;color:var(--ink-soft);margin-bottom:16px}
+.pin-input{width:210px;margin:0 auto;text-align:center;font-family:var(--mono);font-size:26px;letter-spacing:.35em;height:54px;padding:8px 12px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--panel);color:var(--ink)}
+.pin-input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.pin-err{color:var(--warn);font-size:12.5px;font-weight:700;margin-top:12px;min-height:18px;visibility:hidden}
+.pin-err.show{visibility:visible}
+.pin-modal.shake{animation:shake .34s cubic-bezier(.36,.07,.19,.97) both}
+@keyframes shake{10%,90%{transform:translateX(-2px)}20%,80%{transform:translateX(4px)}30%,50%,70%{transform:translateX(-7px)}40%,60%{transform:translateX(7px)}}
+/* ===== friendly icons ===== */
+.fld-lab{display:flex;align-items:center}
+.lab-ico{width:13px;height:13px;color:var(--steel);opacity:.85;margin-right:6px;flex:0 0 auto}
+.fld-lab .req{margin-left:1px}
+.chip svg.cic{width:14px;height:14px;opacity:.72;margin-right:5px;flex:0 0 auto}
+.chip.date svg.cic{opacity:.9}
+.kpi-ico{position:absolute;top:15px;right:15px;width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:#eaf1f7;color:var(--steel)}
+.kpi-ico svg{width:19px;height:19px}
+.kpi.amber .kpi-ico{background:var(--accent-soft);color:var(--accent-d)}
+.kpi-val{max-width:calc(100% - 44px)}
+.pill svg{width:11px;height:11px;margin-right:4px;flex:0 0 auto}
+.rc-k{display:inline-flex;align-items:center;gap:8px}
+.rc-k svg{width:15px;height:15px;color:var(--side-ink-faint);flex:0 0 auto}
+.preview .pk{display:inline-flex!important;align-items:center;gap:5px}
+.preview .pk svg{width:12px;height:12px;opacity:.7;flex:0 0 auto}
+/* ============ POP styling ============ */
+.btn{border-radius:999px}
+.btn:hover{transform:translateY(-1px)}
+.icobtn{border-radius:50%}
+.chip{border-radius:999px}
+.admin-btn{border-radius:999px}
+.modal{border-radius:18px}
+.hdr-title .t::before{border-radius:50%;width:10px;height:10px}
+.tab:hover{transform:translateY(-1px)}
+.panel{box-shadow:0 1px 2px rgba(20,23,29,.04),0 14px 30px -18px rgba(20,23,29,.16)}
+.kpi{transition:transform .16s ease, box-shadow .16s ease}
+.kpi:hover{transform:translateY(-3px);box-shadow:0 18px 34px -18px rgba(20,23,29,.28)}
+.kpi::before{display:none}
+.kpis .kpi{border:1.5px solid transparent}
+.kpis .kpi:nth-child(1){background:#eef4fc;border-color:#dce8f7}
+.kpis .kpi:nth-child(2){background:#eaf7f1;border-color:#cfebde}
+.kpis .kpi:nth-child(3){background:#fdeded;border-color:#f7d6d6}
+.kpis .kpi:nth-child(1) .kpi-val{color:#2f6aa6}
+.kpis .kpi:nth-child(2) .kpi-val{color:#1f8056}
+.kpis .kpi:nth-child(2) .kpi-ico{background:#d4efe1;color:#1f8056}
+/* colourful category tags */
+.pill.loc{background:#e7f5ef;color:#1f8056}
+.pill.fin{background:#f1ecfb;color:#6b4fab;border:none}
+.pill.m-ss400{background:#e8edfb;color:#3a4fb0}
+.pill.m-sus304{background:#e3f5ee;color:#1f8a5b}
+.pill.m-sus316l{background:#eee9fb;color:#6b4fab}
+.pill.m-sus310s{background:#e2f3f8;color:#1f7896}
+.pill.m-a6063{background:#fdeede;color:#c06a16}
+/* ===== steel cross-section icons ===== */
+.shape-ic{display:inline-block;width:17px;height:17px;margin-right:6px;vertical-align:-4px}
+.shape-ic svg{display:block;width:100%;height:100%}
+.rc-shape{display:flex;align-items:center;gap:12px;padding:12px 14px;margin-bottom:14px;background:rgba(255,255,255,.05);border:1px solid #2a303a;border-radius:12px}
+.rc-shape .sh-ic{width:42px;height:42px;flex:0 0 auto;background:#fff;border-radius:11px;padding:7px;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px -3px rgba(0,0,0,.4)}
+.rc-shape .sh-ic svg{width:100%;height:100%}
+.rc-shape .sh-txt{display:flex;flex-direction:column;line-height:1.3}
+.rc-shape .sh-name{font-size:14.5px;font-weight:800;color:#fff}
+.rc-shape .sh-sub{font-size:11px;color:var(--side-ink-faint);margin-top:1px}
+/* ===== 使い方ガイド ===== */
+.help-btn{display:inline-flex;align-items:center;gap:6px;font-family:var(--jp);font-size:12.5px;font-weight:700;border:1px solid var(--line);background:var(--panel);color:var(--ink-soft);padding:7px 13px;border-radius:999px;cursor:pointer;transition:.13s;white-space:nowrap}
+.help-btn svg{width:15px;height:15px}
+.help-btn:hover{border-color:var(--steel);color:var(--steel);background:var(--panel-2);transform:translateY(-1px)}
+.help-modal{width:600px;max-width:calc(100% - 36px)}
+.help-body{padding:20px 22px 8px}
+.help-intro{font-size:13px;color:var(--ink-soft);background:var(--panel-2);border:1px solid var(--line-soft);border-radius:12px;padding:13px 15px;margin-bottom:14px;line-height:1.7}
+.help-intro b{color:var(--ink)}
+.help-sec{padding:13px 0;border-bottom:1px solid var(--line-soft)}
+.help-sec:last-of-type{border-bottom:none}
+.help-h{display:flex;align-items:center;gap:10px;font-size:14px;font-weight:800;color:var(--ink);margin-bottom:7px}
+.help-ic{width:30px;height:30px;border-radius:9px;display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;background:#eef2f7;color:var(--steel)}
+.help-ic svg{width:17px;height:17px}
+.help-ic.blue{background:#eaf1fb;color:#2f6aa6}
+.help-ic.green{background:#e6f5ef;color:#1f8056}
+.help-ic.amber{background:var(--accent-soft);color:var(--accent-d)}
+.help-ic.purple{background:#f1ecfb;color:#6b4fab}
+.help-ic.red{background:#fdecec;color:var(--accent-d)}
+.help-p{font-size:13px;color:var(--ink-soft);line-height:1.78;padding-left:40px}
+.help-p b{color:var(--ink);font-weight:700}
+.help-tip{display:flex;gap:10px;align-items:flex-start;font-size:12.5px;color:#6b5a12;background:#fdfaef;border:1px solid #efe6c6;border-radius:12px;padding:12px 14px;margin-top:14px;line-height:1.65}
+.help-tip svg{width:17px;height:17px;flex:0 0 auto;margin-top:1px;color:#caa42a}
+.help-foot-note{font-size:11.5px;color:var(--ink-faint)}
+
+</style>
+</head>
+<body>
+
+<!-- ============================== TOP STRIP ============================== -->
+<div class="strip">
+  <div class="s-l"><span class="s-dot"></span><b>鋼材管理システム</b><span>社内システム ・ オフライン稼働</span></div>
+  <div class="s-r">STEEL MANAGER v1.0</div>
+</div>
+
+<!-- ============================== HEADER ============================== -->
+<header class="header">
+  <!-- ▼▼▼ ロゴ差し替えブロック：御社のロゴ画像（PNG/SVG）を頂ければ、この .brandwrap 内を <img src="logo.png" class="brandmark"> に置き換えます ▼▼▼ -->
+  <div class="brandwrap">
+    <img class="brandlogo" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAANEAAAAsCAYAAAD7Nl0oAAABCGlDQ1BJQ0MgUHJvZmlsZQAAeJxjYGA8wQAELAYMDLl5JUVB7k4KEZFRCuwPGBiBEAwSk4sLGHADoKpv1yBqL+viUYcLcKakFicD6Q9ArFIEtBxopAiQLZIOYWuA2EkQtg2IXV5SUAJkB4DYRSFBzkB2CpCtkY7ETkJiJxcUgdT3ANk2uTmlyQh3M/Ck5oUGA2kOIJZhKGYIYnBncAL5H6IkfxEDg8VXBgbmCQixpJkMDNtbGRgkbiHEVBYwMPC3MDBsO48QQ4RJQWJRIliIBYiZ0tIYGD4tZ2DgjWRgEL7AwMAVDQsIHG5TALvNnSEfCNMZchhSgSKeDHkMyQx6QJYRgwGDIYMZAKbWPz9HbOBQAAA8XElEQVR4nO29ebxlVXXv+51zrmZ35+xz6pzqqL6j6AUKQQRBQRSCAcUo2KBovDbxRhPD1eT6NM+baFS8mIDpRK/SJIISIXaICgkgCAha9FVFUVRRRVVRzel2t7o5x/tjrbXPrhKNn2u8uS8fZ31m7X3WXs1ca44xxxi/0SwlkpKgAU1gAQEMoGIEIRUDyken4EkMUQvSON+nbE6B+OD8/DsJKAueBSfgNcCFkAi4CLwZIfQU4RiIB74PzoJnEHEooxHAFafXxaeSgWuWO2jINDgcQf+I8qjZ8/RvKx8woMmKPT0pdlBgFWSA9M/l0AiG8pZdMTCDaA87eN7yPPQvBGpgU/ll4Fq2GKkCzODvBzc1+P3gJ/Ob9h/ZvBiPjIJAiokS5XAYXJaCyefU84DJlL1f+Y7c8ZkrmNOZZihoo+IuyvmEuoKnNKlLSXWK8TQ4ixWIjI/RAX4CadLDqym2N5uy8D1/wEn/5Z35VbUCZ1FaE8cxfhhwIOX8/JYBtmAan5x/Ke5HqeKTAUJ3OfF5MEvBCnD0mcUqTQwIujgzfa7OdE78A48MVdyCKp9hsd0NfFequJzKNxpXME55feHn37K4Ps+U19a/YPfftP9zzStXaA9A5WtwQRL4pgriSHtT4IegYe4LjuPYBcvxHvkpzclJajZGiUHjocgAh/UE7UEagR/4dG2Kc1BVBusFTCSK2rLVHH7SyfkoCimEs6AVYRgesKj/wlas5rYYtSEnToScyozD4PJziS767LE/Q7gFoxgNnhqQYI6+5CuvZwBdbiw+ZeBvd9Dfgi62apRyYGePAwdKFxcakDBSDKoYY3lt+I0c+r+l6YqDSqF5QQo6KVQLDd0YplvEGzcKM/shSODoJWr1Ja9lsqZIlRB6HoFfw6ARLErlqo9NwAc8pagCdQ2+WGxgmGmOc/g5r4a1axW+z64dO179rZtvlpmZGQCiKCLN0lkJ8PNaQVizahqzKlVfNXKARQ0qiIYDl/EBda6/zUFgIbRgSjVXg6j88IB84TG5zEbjUAOd59mmim2UXTnQeRftyJQjwZGo/Lv0f6evFuZdFwz5m/Z/QzvQaFADykdJONt2yAN/+wU2f+lLgknBxHDiEQy/+HimjSK2AplDihUWD0TyU3kayBKMBd9AKjDlhPDoY+D88yBNQBxPbNp40x/+0QeYmpm5wKYZlUoF3/MPGKjq/zewQedk5AMhs7zR/125whDR/W2iIVOFEDhYH1JuVuQ4B9b1RZwYSDSkCjyXdyP56ZX8rFpV8qM5qA/yablKiHKFhHHFVDgsri91SsYBjUL3z/UbSfR/R9NSzoam+K/YYB3sm5TJb3+P9Lv/Sufbt8Fzu4Qgg9Xz1KrfvRC3dAlxUKElERkZ1s+JDHKmQeWCQGlIM3ChJhsbY9UF58PyJYrmEA+t/+kz73//+5mZmeGP//iP/6nT6RDH8c/wy8/8oRxWWVAxxqYENiUkQ6kMdNkdohQZihhFF00XRw9HXBBqzjhZocra3KBSad7JP0WndMmK4+jbTzmV69nuii4D391Bv5W/o7FKk6FJ0biCQQa7KyROzjw5sxo3y8Tql9J3f9N+3U1bKAjTka/pfv41S2HzZh7/6g2s6UZUN2xiz+f+FmZaQiWAY44kPOZI4gVjRAiCRYyQpJBaUCYH5pQB5UHHQTQyB7V6JZzzCgg0nekpHn70kSVPb9vK5PQ0P/rRj3j44YclCAJE/i0KcRgysCl0O9Cege4k9CYhnoG0C5lFCTg8LF5h31iGiKm5HibqQq8NvW7eox70YohSSFNwGagEV0AXihRDSg5lZIWIKOVBKe0Km0sVf8vApxT7FZ9CDohoNAaNjyYoZmFQ0vTVtlJrKPj9lzMaf9N+3c1zOFAW14vRQYOsFeE1PNizSzrfuJmhHc+gJ/Yw1qiS3noXnP1qOH4Mxheo5W99k/xk8wbmBwbPCiiNMRZPcto2HsykMOxDZW6VLc0hjnjPu2FsSNmqz7annvvqJz/5SaI4wng+zz33HJ/45F9w4wk3YozB8zyMyYHlOI4JwxAAZy1aA9YiDz8saqILCLhJCDzQQ4APzTE47DAlkmCqAVHUoh540OrC5s3CdCeH1zstCMJcZ8ssjIzmFDynDsuXKFMwbI0gt3dEFyuE5FBboaM5KXin2GQzMIZZe2sA0EizfHHRApIKni5FbM46ptAOEic4B8qo/JdBm2/QzfBraiLSX9C0/vkKZLmfUgqlVP+7c440TQnDkGeffXbdtm3bHmg2mzdMTU1dWK/XH7TWzut2u0vWrl07MjY2Ng1gjOkff/A1rLVorX9mLO12m61bt97U6/VeBuCcazrnCIJge6PRuH7RokUfbDQaOOf6xyZJQhAE/XM45/rjB0jTFN8/0Kwom7W2T5uedRGIQocV6IFXrcCuXcIjD7Hzrn9lpDXBvIYPLqL39Fb48lfg8OPA8+GFJzD/9NNxO6dI9uwjJKCb9RivNbFRm8RZhhsw3YZpFZKtPQJedDJUGuyd6XD1P1z7umd37QKlSbOUJEt57LHHuPnmm+WNb3yjKh9ct9ulXq/P3pjnQ9yDqSkevumbdL57O8PtaSKviw58XBrwnPVonn4mp176QQmXHqKiKKGZSi61fvKIPH755bS3PYXECZXmMFGmiDNFWq2xL/Bh+WJ+6wPvZmjuHBgepmIVZIVu6pFj/lJMsp71+QgFMzkIfWalhytcaBQgnJczUuCB8VR/n4JccpssMGid4+KOgl9z8fV/DNseJCrIiUcphdYa51z/b8/zDtivZAKtNWEYYq3l61//+gOXX345MzMzFzrniKJonYiwZMkSPvGJT0z9zu/8jirPkWUZIoIxBq11fxye5/V/N8aglMJaS6vVWn3++ee/emJiAudcf+zW2iUXXXTRf/vYxz52TaPReLRkoizLDmCg8j7K61tr8X2/z7glw5TXLf8G8KraQBSB70EViIGJKZ79+jdwmzcwJDFWK+JUCNOM7Xf/kCUPrxdOOVnRHFWLXvN6efZf1xPvjaFnqRNCbHAuxKs6ptOUeLhJd8Eqjrn0/4HxQ1QWK3Zt3X37DV/5KtOtGYIgwCYJSimeeeYZrrnmGk4//fR18+bNe9D3fSqVSn9SjDEFqJDbb5Xn9pNt3spIZxoJYrRWeLZKpT6HmS3P5ISeplT8wiu74znZ8xeXM/rIQ4x29+GSGG1CEhViK8M8azSjh67ipLNeztCyFYrqMGQ5DofWucQpuieQpZbYOZTvz/p/Va7GpoBRuUSGWVOqdCTgFZ99RFByXB0FRhUAA0RYMmcxyqNiPLT5WYDx19Gcc30pVDJESTwi8rwSIU3T/n5pmmKtpVKpYIwhyzL27NlDt9vF932CIKDT6bB9+3a63W6fKYMgeF4JMMgcJTOJCGmakqbpml6vRxRFZFlGlmVorfF9n1ar1T+H53m5H9L3++cbZPjBlmUZnuf1rwX0xzUopXQ+mbrw0QAzk/DII+y98w7mYhn2IO4KLoW651Ht9Xjy+uuh3YIkg6NfoBadcSb761USE1ANmyQ2IiFjby9iRgV05iygfuwJcMwxSoxHJ0648n9+9mU7duzoDwigWq0C8KMf/Ygbb7zxgXISjTFYm3tHDrjRTkuqacI8ZVjkeSzIYKwjjPd6zLeW8cAUlB7lNtPefZJdfwOtBx9gbHKCBVHMIg9GopgxZzE2ZXjuGC9/3Wto/vY5iqHhnBsSyaHFAm6zChLJJ8DzDaHvowGLHBBpYbE5slKoX0pKZc3hiigIB8QOMlyOm2sHJgNlUVgCLHWgoT0qKoe1U6Ar6a8d4i6ZoVzxB9vPU7UGV+lyAQQoCbwkyDRN6XQ6KKXwfZ96vd5X4YH+fDvn+sSute5vL8+hlKJSqWCtnVdIN7Is6zNJmqb0ej3iOF43OPZyASjvcVCyltJqcMGI45g4jvvXHmRy3caSeRXwFVF7P/T2y7av/AOje/ZRTSOMg4bAMOB6Dt2JefbO2+GuOwRdqDYXnUt2/BpmahBnbXwvAxKGmk0YH6d1yFyW/OF7gYTEt2zc9Kjc/PUbELGF/yMn0PKhtFotrrvuOnbt2nVht9slSRI8z8NaO/sQ4x7UQ1TFkKiMKIlxLkcFlRJ6WYue6eR2UjQNLkVuvpm7r7uW8VBIsx6JJY9SCDTTAUwubLL2ovPQbzwfqia3k7wAqgFSNSQeRIXmFSpIux2wFg+Hh8Mf+FSkVFF5RIJ1ECUQJyjrCAQq5DZO5sAawXqaRFtSnZLZCLIYOm1UGuNlCaFNqdgInxhDiq9Kufbra2maHiCJyhW+bIPgz6DqBfSJuWy+72OMwff9/vey9Xo9Op1O396B2cWytKsGz1MyR0nIvV4P3/efDIKA0dHRPkOOjo5ijGFoaIixsbGr0zQljuMD1LjBNshQg6qdUnkAQGmTD96ziOC5RHCBAXFU4i7T3/0m7Yd+yrI4whNILAQGMJrYaZKZDotrhqeuvZZVL34phB6sXa7WXvwaue+hn1BXXbTkJlNXwc4oYc2pp8DiRYpKSKvb4SN/+t+Zak8VINXsQEuJ5Ps+jz76KF/84hev/7M/+7Mbyu2DRiFhCBM9bJpg04zM5cRpAnKDw0CmY/AtZInwwHoe+crXGJ2aotudYWHNkHZtrr0GFfaNNjnswldTueQiGB5WVKpkTpNlQmAUWsA4i69yhzJJgjFe4U8Cr/BJKWVm1aw0pR/iUK7cWS7xFRme8UGrwhWcIQiKlNBTheQz0LW58WQ0hD6+L/he7rrV6sBJ/fdupU1QqjullChX7HKfcv4G7ZRSBS9VonLVj+O4P8/lOX3fp1ar9RmrNPhLRvE8jzRNKYCCvrQrz13su+aVr3wlu3fvzgnb84iiiDAMWbduXf86ZSttoJJBB1U2a23/XsrtURQB9BlpEJTwmrqOy8h1hE1bZfM1/8jSpIOXxfg+RIW17JzG6QqhWOZkKRvvvhduvlV49W8rhjw490wW33gT3Hcf8XSM8aGVOla/8ETmvP1d0I2E4br68b/cLt+77QfgK8gERDCehx1YtUoR/g/XXseFr3v9d4865uizyxWkNCTzFV6oYaj4NYaMxdk2WexwZFjn6EUzELdh67M89scfI9iwiWUVQ1egHVlCPDqqysSC+Yy94jQqb34DzJ2n4lZEGIzk+IGi8AcJpj2TK8DaQS+CylAeUKuBegXPAJLm4kUKz26vlx9frn5pku9fzUOqPE+htCMmRcioAXQjmOoKmQczvdxnEIRQDSAQRdVHD9VyZ9EvQMz+PdogUpUkSd/gL7c75/A8j2q12le7S4YZ3KeUVCVRGmP6EsU5R7fb7auDU1NTzWazOd3pdPoMUavV8nAwkf5iOniuJUuWXP3Xf/3XV5eAQJZlhGHY12y01qRp2pc0B0u6JEn64/R9v3+tXq9HkiT951HSYammAnhY0MbB1CR8/19obN2ON9OmYmaNZAyIFUQsVa2RfdMsGm6y8ZrrWfvSlwoLxxVDI2rRJW+TTY9tYJHdTyexuMULGDvlhTBSU9SHmNq584SPffgjecSLUaAV4lyfgSqVClEU9ZGRqakpLrvssld+8Uv/64BJMcZAOwYvQJKMpNdFrEVrkyNjSlExhgVKwdbt7P/zK2k8s42mpNjWDKPDVaa6PdKwwa7GEJWXnM7i9/4+LF6h0IZw7ghpIvimDFjL6GzeJPH9DxBO7KMeeoAlwtDWhtrixdSOewEsGFfoIjTDWvjxjyXb9gy96Va+aolhyjmyuSPUli9j9OhjFSbEYKmmEUqSXO17Yovw08e5+59uIuxmeDEkztIzwtDS+XLcmaehzngZHLJUEVRzmF4zEAd4YJS3qEHFr4jdgwP9TAMmzmwwuaBQ7N61a/Wdd9755De+8Q3uu+8+Oq02lUoFZXLCXLlyJeeffz7nnnvuZStWrPhgaV+Uc1UufCUTAgfYNvV6nSAIaLfbPPHEE/LpT3+a+++/nyAIaLVarFmzhosvvpjzzjvvhPnz5z9Y0kEp6UoJd/3110spQUrJobXmiCOO4KSTTlKlKuicY+fOnS++5ZZb7i5tudKUmDdvHkcfffTVhx566CWbNm368lVXXfXWb37zmyQF8FWv1zn//PN517veddHSpUtvUEqBJBZJJpF7vif3L18h2/BFhkYlVlp6RkvPQ6zKe6q0pMqIxZeWachTQ4tEPvgxkclpZGYSefQx2faGi2Xn6Hx5utaQDb9ztsiOx0Q6e7ETz/GN666VukI8EJ2Dtf9mX7lypTzwwAPPlGqFtTZXMaIusnWTPPfWN8uORlMy7UlsPOkZIz2lZX81kNa6Q0Uufo3sHRmW6TCQdgPZpxHbbMp2ryrr5y2UrW96i8jmbSK9DIkFSYVUhG6WIE4QJ7SzSWTro3LryrXyVHOhbBpuytb5I/LkvCG5a05D7jzxJJH77hfpTiNZlJ/nyW3yxBmnyYZ5Q/Lk+JA8OlSTrXMXyb+ML5brTnmRyP33iHQjnFiszCBTW0Q23iPtt7xafrpwnmydN0+2j1Rld7Mmu2qjsqM6KtvqVdlUN7JxrCYPHbpMdv3+fxVZ/5hIV5BE6H/2Ovk4kvx+MhGm04yeWCJJycSSJBHiLFm3iziLSP5cM2dJnCUTYabb4UMf/u+ybMVy8TxPtPZEoaUe1MSgxdOmP09aaxkbG5Nzzz1Xtm3bdk6JzA3O22c/+1lpNBr9YzwvT0JpNBry13/91/KGN7xBqtVq//fB78YYOeaYY+See+6R0lYbpIennnrqnXPnzhWtdf8YpXIae/3rXy+7d++eV0oxay233XabNJtN0VpLEAT9ewDktttuk/e///2yaNEiqVQqB9BjOaalS5fKNddcI9ZakNYM8uwTsvXSd8nOpcsl9RqS6or00NIzvvSMllQjViNO5ViTJZSerkk0PF92rjtZ5K57RFptZGIK+fb35LHDXyhPHHW8TH/5syLxdsROs23LxjevPGSBBCBVPxD1SzCQUkoqlYqcccYZEsdxfzWLoihnom2bZefb3izbh+qSaSOxZ/pM1PE92RUgsmyh7AeZAZkOkAkfafsV2dGcK62LXivyxHqRvZM4J0gs2F7ORKmkpEmESMp0theZ2ip7zjpH9lea0lJIrJHEQ/bUtGxcsULkqi+KtCaQLM6J+d71smP1MolNvm+qkYyKPD00Tx543WtENj4skiaITZGJncgd35bHTj5C9i5qykwllFgpaZEfG3t16aqqSKMmUtfSAZlpBvLEiiXy9FvfInLn3SKdFEkF24tzBmpNIZEgkRA7oSdCTywd6ZGVC0SSIpnF9nqIs0xNTeGkYLpeh9e+4UJRvicoBIUotGiMGLQYtCiQer3eZ4ayr1mzRp555pkzStVPREiShMsuu6zPRCXBjo6OCiAjIyN9AjXGHMA8JS0YY+TEE0+ULVu2vDVJkl+Zicprlz0IAvE8T1760pdKo9HoHx+G4QFjLs+9YsUKueGGG0TjpXD/ep7551vRE/tIszapi6hojS8OnxyXlTK+TkNmLOiMzsxzTG19nO03/iP0ZqAicORKhs47GznzpQy/+nXK+XV2T3e54Z9vvXbLrgkSfHqZQ5RGGX0A1HhwL9Gf9evX853vfEdK3D8MwyIkAhIDojRacgzBc4IvQmiFRgKd7bupak0YQFVB0wdJE/xGQOPMF+XhFI0Q28vvTStQUYaHFOE+QkPVwAypua86m6dHaiSVIHeeZlD3Alxrkokf3wO9JLd/4jZsfoLu5H4yC56nEAwZggsD1r7wRBgbU6gsj5TfvE92fuoqvI3PMvHsNEPVGokoarUGkanS9etMiWGi3SPt5D4iv5vQ2LqdqVu/ypPX/g3sflysN0mnIjkIEdTABwlzdU4BIZpaajBx4RlWHlm3iy7steZwE5tltDttfnT3PfKD730fYwxBYUwrFIJQr9Y56oijWLZ0Gd1ut6+ilYb2zp07ufTSS2/r9Xr9OSztjcGIBoDJycm++tXr9fLrDKjtJZjg+z7WWu6//35uuummL5fq2q/SyiiYEnAo1c3777+fJEn62w8OQQvDEK01Tz/9NF//+tfRPLdbdv3TN5g/3WbYOQKg6nmgXC7urZA4iAUSB5Hkzr+IHGGZV6mw84674KHH8/iU0VG15O2XcPgb3wjhEE4N8fTW57Z/8tP/M0ebtIfyAxAQOwsiPF8ffLiXXXYZk5OTJEmS69PFDbpC3+9HTYtDIRhxNIIKnhMCL0SJRmKQKPfSZHGb7JGfwt5noTWBF+TpGygwvgeZxfc1DovWARDAaS+ht2ghaSXIIw0AkwmVqMVzTzwKE5NCJjAzKRMP/Agvy/0K2q/Qc5YkDFFjTRrrToBabTZm7+qvMPMv93CIeCytBkxPTpL5AdtF80y1wXOL5pMedTjTo/Np1YcIm01IYXEFFncjJr93C+kt38ZEbcBhRcD4EGeo1BFmKWHURrVmikhgyX1809N4tRpZJ48ztEmCpw3D9Qaf+tSnmJ6YIItjkiShWqvhEE558Snccccd2791y3fO/N4Pvv+Riy++mNHR0fw+C2O90+lw33330W63l5RI3ODiOMhEJYOVjNhsNg9A+Uq7p3RzVKtVrrvuOmZmZvp+n//dVgIQpT1Uji0u7rkEIkpgwTmH7/uUWpHnedx111143Hk3277/r6xu9bC9bm5faugkDt8zRYByYQRKLsusNlilCSqGmX0zNNs+U1/+GiMLFghrVisWDykWLQOXMP3cRONrX7hm8cSuPbkTxxiCYo1H6X7kzPO1Qf/A+vXruemmm+Ttb3+7GjRKD4xkHvSb5Ma9RiPJ7HZxMOwpeq02D9x4Ey866mh4zeEgGSbMg1SVIg81wBK5DE9XCPwqHLJcLTj2eOlu2YQIeNoj7cUMhRDv3w3btsO8xbBvN3vW38ewswQGXJRh8ZgJDSMvOAKWL83DhnwNO7bK5tt/wBKl6EzuZ26jQgZEfsDEosUc9553wUtfBDYju/FmfnLNP7JqYpKxwIMsI+zB4s4Mz91wK4vP+x1pLEiV8qpFEG0MU9OQdQRScB54IaiKwikYapC22znxa4MxCpSi026z69lnqVSrRL0eFFEBAJmzBNXKPQsWLLjdC8ztH//4x2+vVCp3Z1lGp9PpO05nZmbQWs8MomD9OSgYqNlsMj093Yew165dy8tf/nKcc3znO99h+/btBEHQJ+Isy3DOsXfvXrIsWwI8+IvZ5Be30vcIswtAqSKuXbuWU045hUajwYYNG/jhD3/YRxDLlmUZO3fuxLv74Y2o+YfQHm4y1Z0g8BWBCskwdESwusgxUhlacmwn0z5WgYjFJsJIfS5bnnuWoycn8aVwEnkAVXY+8sjm2777LQ4ZG6XteURZCp02Cw9ZRC/u/sKbHPQYd7tdrrvuOl7xile8ePHixfcQ51HUZV2CMnzGqiLNSEFiU4yqkCkflCE0XWwKVALCTsycVsqjX/pHjjryJGGlUYwvxCnQqUX5GqUFo01+bt+AF7D69Jfx5Le/Qde1qSqDSEZdoN1t033kcWpHvQCeepJs+9OY1GEMdJIUVRlmqhay7CWnwHBToQxkCTzyKPWohe5OMRL6zLQjmkM19iqYd9pL4JVnwdJxBeC97a1y6L5JZm64kZFughTp7KPWsG/nPrh/PerlL4c6EMfs/upXZOIn91FNpwmNIrEe+7sxpjkmO72AqUMWMnLoWk55yanNqnMzQWMIEIzSNIeGiXuFyqQUWZpijM/69et5wxvecOFZZ5114QtPOgHP83jPe97z4Pz58y8Skcro6OijcRwzNDREmqYHhOeUNknZpqengVw9Ouyww/jqV7965dq1a9/X6/V4xzve8eS55567es+ePf24vBIOHx4eRkR+ZSdZkiR9GishcIDx8XH+8i//kuOPP35kaGho+qGHHpJ3vvOdPPHEE2RZ1vdvlfaVt+wt7/n04t/9rx/EReBaua3RI1+xijAcbBHxpShC/b08X8fr5f6emQiUD0ceoRLPIxDAwnR7L0efeMSCG7929V1hUP9JUBu7NfV0NNGZfIcXeo+H6EklPz+3TEQqnU7n1cPDw5+vVCp3d7vdcxYuXHgPkAek2cKXKrlaZ4tATV9yOyAhz8SxQYUk6aKUTyop1W6MJ7DchWzdsIOHP/4pjvnMp4Q5IyrWPjXtQZxBRfBUgC3NSb8Cx72QOasPo7d/Ei/LUxew4LXbPPfgA6w49RThwQeoTU0T2lxlDYC2Nqhly2Dd8bkqJ8BzkzJ5/wPE+3ZjifG1j/ahFXWZGR7lBW9+EyxfrgjI/UvzFqqRo46Rvd/8Dkk3wVdVQj9gv02IQ5/Nj29i9dm/lc+XgsoTG4hvuYVq3CJxltgMMSGa6onrmGjUOeFV5/LE/gkuuOCC6b+64oqnjjp+3WqUolqr8ZKXvISNGzcyNTVFGARFtEgeVvPIo4+wZcsWrvjcXzE8PMzQ0NC6ZrP55Lvf/W5OOumkR1etWnX0wQGeA3Paj7sLw5Ber0eWZZx11lkcdthh72u3c/h85cqVa8bHx2X37t0EQdAPufF9n06nQ5qma35VJiqh+EG/VxAEHHnkkaxbt64yMjIS+77Pcccdpw499FDZsmVL30+Wpmke82kt3uLDV32IJP0QaQu8kVw/yoqsFq+oUpIJSDYb8ei8IpmtBxIJcwQ8X4nNwNOkWR7PWh8ZJpI2a44/4iU4AzMKGjUWe/NutzgM3i8TQHkZ9AP+roTCWwx98aOKnB1XQH6pyQECrT06XkA02qTTVviiUHFK5qARBEgnYyzR7N/wFPKNb6He9mapzV2giAqR5nyMVhjyKByvamDhAjV81JGy54lNBBMzDPshNo2hHdPd8Dg88ww8/hiNKKamcjuyUh9hOksJV62GhYfkjlcnoD12PPoYc3WeQ5RJRpxBre5jhmqwbBlRt0elNpw7VeMeLJhPbXSUeN8EShTaWkQLM61J5hmVx0DGPRDHcJIw1OlRl4ROmmLG5zF/0TLWvPJsFgzVeePvvoP95HFhe/bsWYVzoA1Jr8cHL/1vc772ta9NWGtpt9sF4XuICIEf0Ol2CEKf/fv3s3//fnzf5w/+4A+YM2fOURdddJH80R/90Qlz58590PO8n4l4gFxV7/V6fTvkyCOPBKDRaPSJOQxDhoaGaLVa/ePL0J1Go3H9r8hD/ZQLoO9vSpKE008/nWq1Gvu+37eXFi9e3LeDSputtNM8NmwQTAatfVAt9KBY5SmqQVhQZQ5s53qSBmfyDE1dhaQDvoORhqi581UwDnjQFeiplK7r0dq19b8OqfrjQeSPdrf03mIa5q5MiS/KSwX9c/lIREJjzJ40TVcbY/bW6/Wbms3m5lqtBt12P7/NIYgAInniqMmHGFmNLFrIkg9/iKe+9jX2/eheDqlWIeqRJgmCRxOD7NnLY9dczVEnHAMnVEDqUK3lITqFw9Wr5EHgnp/h//b57P/e7QTTXZK0SxDkdSpGWtNw2/fJHnmUegJJmhPFTHsKOz6fI177WhgZU3n+vMqjGUwOXgjgnOCHEKcpmRLIEnQlyO3HNMYLPBgeoh33aGiHcxGVIKSRpZiW4LsuSAxBA1JLIh7tsM5UqPEWH8KaV72WyZH5vONzn+fezU+xJ55BGY96vZ4jnsYgWUZQrTJizOR3v/vdK3/v937v9x966KHC2M5tkiRLEXJ0q1qt0uv1UEqRJAl79uzhyiuvZMuWLQ986UtfUiMjI31V6fnykcocnkqlckBYVxkqVEqgQVWwXq8TRdEpwOZfhYkGwY1SKpUIcAmd+75PFEV9UORgZ3GWZXh3Xfsltt96Cwu8DE1M2u0yVhvFWU0kueCpZhYtDqdd4SY1eNZDpiKC4WF2hRmdZYt45Z/+v+I3RpVUKygNPiGPP7JB3vK6i2jtncFPPQ4Zn0drZv95OvBIbJ4i/fOa53n9sHmlFEuWLPn0Pffco5IkIfDylAhbMFIe25arcSk59M34XOa/+21w/DGsWrGUDe//ADse38DKxjCq3UWpKkkaUbcZ4/sneOxTl3Hk5Z8Vlq5UaFu6EQFH5hyZ9vDqNVi2hOFjjyOdaqMmY7IkpuaDndgP995Nunc/Xgah0fS6XWaURi2YC6tX5wuTX8kTARtVppVjblBF0SI0BsTSjqFhAhBLoCyQQlhEaezeSd338bQjrECvFxNUoTlSz6PGIV9FsLTGx+msXc3RZ6xDFs7jz6+/iX/64QPsSkC8CsoExDbBd7bIAgRlDLaISVu1atX7rr322qsfe+yxB66++mruuutuer1ePwQoSWZh6dL4t9YShiG33norDz/8sJx66qmqXPEHo6APRuj+/9y8Y1YuJZ2YYa0I0b6dNGshLp4hiVPwQhQOI7aoQUBBVAZEE/g+seqxYypmxQnH4S9apHCOyOYxoEP4HDv3iCPedv7bHr/ib/6WmSRm5tltVMi1jsHyTz+vVatVZmZmGBsb4wMf+ABa61zXbk1SFm5EFQU8xParS3UVqKUL4MzTYekSxdJlrHrda+Xev/wrxlNLKA5fbF6YUVnq7Rn23/sgXHMd/Mkf5dwY1LFFkYg8Zy7OVdqFh6glp58uG+/5EY3AYGIIBYKZaSYemWLI5MVEEE2sFNFQlZWnnQqLFiprigDVSgD+kFp44jpJfrIRwSfupYShBu3odbqw4QlYMAc6bRDJtYPdO5DJaUyWIWF+n74PUzZlxdx55M6hAIIA74zTOfoVJ3PN16/hK//rKnqxT218Ec2epZMlVII6mY1YvXo1xvdwWYr2fYznkaUpSivmzp374Kmnnqpe/OIXs3fv/ou3bt16zYYNG5iamuKee37IHXfcQafTwfM8wjAky7I+Y91555288IUvpFar9Vfxg5P8/jM0r/my0zjt7vvZfdO3GY0y5hDgogjQaFvkCqiUPnVKTvZWW5I4oq0TmsuXceTrL4BGA6oVnt2165zEusWr5i64av68Q55402subv/93365EYUeErfIrGO46jHTy37hAy1FuDGG8fFxzjvvPHVAFPfgvoASjSnyd6zSREM15tcqueMxivBffwHzH3+Y7d+4lWXaR5wl1Da3ezopa+cN8+iN/8RR644RXnOegoyuggA/x1SyLA8Tr9YxJ5xANj5GtzPJcKYwItQReg78IMSmEZlkZNUak0NDrD7rLAgDdFgY2yZfiFa97Awe+buvsdBvQroPSR0V4+N3umz7+8+zbPVyYcGcnIk2PkXrJ+tx+/dRKYq/VBswJZpJ53Ps4UeDNqVnldHTT1VRMsNrDl+2/HUf+dP9yUR8ibOm2Zx/yJ/HaTLke9Lq9TovFJFw8eLFP8xVdWH37t1rv/jFL26wMusXyX00dc4555wvv+xlp78tihLe8Y63h48++mj05je/mZ07d/alUbPZpNVqsXXrVpIk6Udol/0/iwQqm8fiBcr7rbNl7w/+lVU4uu1JqoQoFFbyYoxSJKApShskIxOwFUW7pln6ipfBC46CJKGdTXHFlZd955lnd/Klq66+KvQMK1etHfrIpR+RD/3Zh/H8KmI7dHtZri39ggdaGnHDw8NceeWVNBqNWb06yyFuJWWFtwL3cGUFU8OEVqxqNEBqUK9DzahD3/ZGeejhx+lu38lomhB3cwDAAfH0BEPKcu/f/A0vOupw4cjDlMNH4QjwEDG5hPI0LFuqFp+4Tvbv3U4j7UKc4XsasXlAbW5xKbpa0Vu4EA5bU8D+WW5qiYLYoRcso7J0FROTjzIvaBJ1pjGS0bAB+378AHzmCjjpZOh04Y476N57H2NFGoCvwUqF6azG8he8FFYcrgkC8HNAI3OCqgwzv9rYqnCoOfZKpTQWhcl0q+oFjDLyY4BeHOF5ARrFdGvmdz9z+f9kamqqj0CVwMITTzxxyfvf//65Rx995Ksqlbnx+Pj4LSMjI+fs2bOnL2lKKHrRokV9h2ZZL+M/GwMBaMIqnHAMh732Vcx4Pr6qgvFJcTilc/xA5eCQVkVYjNakvke7EmKWLWf+Ba+DkbmKoTk8/sjjcuMN13Hvvbdz6w++JYlAfSjkjW9845tGR5tESYxvPIxR/2ZKWen4WrduHWeeeabKsoxut/Atef6BfiKlcUoNOG81YgIwdYVW4IEzHqw7liN++xx2m4wOcc5wtkDHEqEplmDDJvZ+/ouwe580nSZI87QGVaJLWkE1YM5ppxBVQ1pphiuQQqMN3SzF+D4owQaGw17xChgfVwQg5FEB2hi0V4PmmFpzwXk8VVHssUmReqQJkphlkvLsDdfz9Ec+xo5P/yXP3vp9wv37CMSiUMSpYldHEy1axYo3vBkawyK+R6Yc1giBr/JUDjSZGJwyWBxR2qPq+WQut6IcEIQVtPHQeTLbxxcvXkyj0ZiNECE3om+88UYuvfTSc//qr66Uj3/84/LWt771nB07dvQN7kql0q+J8ZKXvIRardaHtcv5/M/WtDU1WLpAVc89g3S0SaQ0LRuRKCH2HImRvNDhQHNA5Hnsrg2x5KxzYdUxCr/BzI6JdX93xefYvX0vMxN7+fu/v5z9E8+OEkI4HNz8scs/QXVBk7bL6Dn5Nys+WWtZvXo1l19++S2tVp5OUKvVcpQmzXL/TFF/zRWotC2kinGaYRfCjBWACEi9KlSHlP/bL2fkuMPo+BYdgELj+wHVekAy1WKNVuz62jfhxh/AhIXML0AGD5TGasmTEY84nGDeXDJTuM9Smxv12keMl5tVQ0PMO/e3oTEM2hFH7VyFFcBUoFGH176S5gVnMjOvgQ012vNQaUZv3xSVqIfZvwfdmmC4YjE6xdoME4bE1MjmLWH+RRfAGacoKrnrwaNHVXp4scW3+ULTizMcHgqfwAZ44uFrjxSLxdGNeyRpQmIz5s6bN/1XV17RBwLq9XofGet2u9x+++184AMf4KMf/Sg//elPabfbQK45lPbQqlWrOPbYYyv9uhgcqJ7/Z2pa0DladOQRrLj4QnaP1EjDAL9icMoWxe2LVhBrpmEm8OmtWk3tbe+E4TFQ8OiTTz7wrVu+w3Adei14/OFHuOEr/zCBhtH5w91XnXduODzSJGxUf6nE5jAMOfXUU1m+fPlvNZtNgH5eB14AShPrgMmwxv6wwVQwxGQwzP6wxkTYoI2f2x4FFqKUAT+Aw45Syy96M9PzF7At8Ng91GB3pcIOl9L1oTXToeEUP73hJtiyXfJKrYCzSJIW0k/B6DDjixbh16soP6/xIgqUHzCZpnQaDdqjTVixQuVQuSYoMj77uT8ugyXz1ZGX/j7ByS9i68gI24IKU9UaUvfxQkMYVgmCgH3dHvsE0vEGG1zG9kMOgVNfzCEXXwRzGlAN6c9WWTND8lCnRsXvl9wKdF5bMK93p1AoqmGVwA/wjcE6y0knnaQ+85nP0Gw26XQ6hGHY99OUPpUSni4/S//JmjVruP766z8/Z86cOEmSA3LBgP98TKR7gusamLtEcd7Z7DxyOVHVJ+tFKOdy5NOBVj7KVMnEIwsN08NVjnr778L4PIUPz+3dt/j9H3wfk70WMy3AwtTeLtdc/RWmW9M4YKRWS/7+8iuIOxG6yLcvm+/7fXundLgtWrSID33oQ1cODQ0Bsym5SqmiwJthIqyxZWiUJ0cWsLW2gK21Q3h63qFsGlrAvvE54MUQFMAIGWI9CMfgtFcxdM4b2LzicH401GDjgjk8PTzMtrDK/pFxdvkeT+3bzT3XfgFm9ubFTpRDOQe9DLoJKMPY3Hn4wQixreQkqRSIIq0NsbkxwurXXphHdWhFQkhc1q7TkBlI62EOry1bpZb96f/gyI99jKnTT+O+sMGW2nx2B/No+0NMEDDdGGP3yAgbRkfYc9I6jrzqCtZ88k9hxWJFGOAcmKKospXCWZ6Hxc2WMlY6j9nLCxfh4+FhMJRvv1B42lCv1njve9+rvvWtb3H22WcXnvpS+ct7aeOUEfdjY2P84R/+Id/+9rc/snr16ncNOljLYM4wDPsR0uX81+v1vlNzUHWEHAqv1WrALPMVMW/zYDZVPcuyJaWWMpiOrpQq1dKjSnvs4HoQg7ZatVrthwOVYUDlPZbjL+m1rBmhJC2NihQmdsnMP3+dTf/9f3BE3MPFEY0Qona+cFZrc9nR3YtZNE7ruGM49Iq/wy5eoQC+9KUvyaWXXkq73caK66cKL1y4kAt+57V89rOfVZ7x2LN3T+OSSy5pffeWW0DoO+vKVoIJ1WqV973vfXz4wx9WJROVBqpzDi02r1j66OPCvnbu+J1oQxLBUB2qiu6wT+2kY5XzINIGjxCXpFR0NWeE5/YKmzZA2s4Lk7Sn89Ruv5o7mGt1GB2CdccqPCCK2Xrb7cJTzzK/04anN/HsXXfhb93BWOaoaoUOAmZEsc0Ydi1fzCs//3k49ihF4JP5VSwK1e4RVGs4DZnkELtB8jDyyWnYvkvY+Rz89HFmnnqafTueBU8xtmoRzcNXw+ErYdlSGFmoZGzeAWnYJWEcUI/if7NFUUSlUmHHjh0v3r179027du2ad9999/HII4+wd+9e6vU6ixYt4qSTTuLwww9nzpw5ty9duvTMkZGRA2oQlGnfW7duvXDjxo3Xl6E7JdEnScLxxx+/ZuHChZvLcadpyvr166darVYT8uKMYRj2IxlOPPFENRgBAXDrrbeKiBAEQb/iz8zMDAsXLoyPO+64Shk9obVm165dqzdu3PhkFEX9/UuaXbly5QeXL19+2WC0xaZNm/5s27Zt/08YhrRarf4i0Gq1UOIKJuoleVHh7dvk8Xe9m8rD65kXzeB3BK/IR3Hi0Rpqsml+hZM+9lF49UWK6jBbnnrq/RdccMFfPvbYY1hn8YsiEyWnrlqzmltvvXXV2NjYFhHhnnvukfPPP59ep9vPyS9voNS9Tz75ZD7/+c/ffNRRR72mvJHyM58gTZbMQBLj4eeSqZcCKo85Ug4qFfAUqXWIHwIeDp3XTsiATgbdbvF6h4KItcrtGmuhFpBkPYLRWv7b9KQ88rE/o/MvdzO2f4ZR6/A6LYYRJEqxGVgDLd9j3/hckhedwLF/87eKxlAOjXuVAgYkv2au4Q281iLLXQhZmqOPcQbTbSGO8iqPtVARKNBWrPaUaRR+IQ6MSfv3auXzzrKsj9AN5vyUSNxgbcDBOm2DDOH7fh8CD4KAbrfbLzIyWDSkzB8qY9rKzzKa2zlHGIa0222q1eoBxRYHVcuSXsqcpIPr2MVxfEA1n6JiUD+mrxx7qcoO3k+5mJeOZTJJsU6QxCGRRXbvRf727+TeVStk/3BVIhBrEGl4Mg2y75BV8vDrzhfZ/bTI9CQus3z6k58SBRIWGau+7x+QMeiHgbzjnf9FnAhxmrB3/z7ecslbD9hHKdVP0x0bG5O/+Iu/kDLYr8xiLHsU5WnVsSRE0iWWNlE2gUgr77aNpDNIbxqJ24hLEbE4EWIRuiJEaZFO3ZV+WvgB3eYZrpEImURItBvZ+bhsfN0rZMO8IZmqGukopJ2nKElsEFtHWg1PNtY8+dHqZSL/8AWRqZ3I1L48k9QK0hlI5e4U17Z5NmlPHC2JaUmHnm0hroPYLpLN9sx2iCUikoRMbL8yzSDRld//PXpZTOTg7VEUHZDrM/jbYEbrwdu73W5/TqMo6p/nYARv8Jjy/M45yuIlB/dyjIP7D45xMEdo8DoHP6vBax/c8yiN2Xstz68jYjIF4hc4tleHs17B2Kmnsc96hFUf5yCNMqrVEXYhHP22d0JjVBFWePDBB1tXX311AbkmhJVKX5csK6L4xuN7372VB3/y4Fbf82k2m7z3ve+dXLhwYZ/Ly5stSxxdeOGFl5RcX+rCg0X8FBrPQoiPIcSZKjEhCT4pGkwIXhWsB4mXvxel4/ClSNAtipr2g2pF+oUZs6LeYjfKaz+angdxDaKAahwQpgFeFlINh6iYEF0JiAOPPSk8HWd0Fyxg6RkvhTPPBO3jmsN0FcQaen4+pOygd63k/jeFECBUsLpGVwUk2seZSq6uqirG1jBRgOrldkyJfg2qdCUh/Hu0UhVzzvWT0WC2dFRZwackzsGqqeW8lvRgjOkX6CwzlJ+v0unBtkup4g/aR4PXGozLKx26pcQqt5W29KCkLr+X4yu3lZK3vKfB8mDleAdrw2tdvJ0gc3mgNo0qjI6p1a95DdGCBUybgASYyWCyHrDmlS+Hk09VqR9CUOGqq65qbNy48YAi4WUbzAicmpriox/96LKp6Sk847F69eo5l1xyCXEc95nEGEO9Xueiiy5ixYoVVx9sAJYPV+s8YE6LD5mHEY+AADAIPlqHedyRMrlqVsypCvXsm1mgUKVcHn3h58Hbscl7qqEWFm/dw+REbOqkC5YyuXApW8bn8ujIMI+Nj/LUwgVsXbyIbUuWMXHEEYyeczaHvP3t0BhWVGsk+HQkLx+sipdumIHXP0jxL38JmC2SsAXwEDwsajYdAzBaEfj6eWs3HsxUv2orz1UGZh5cdPHgqj6DpaxK4itrxJXMXdpBgz6jwQqj5TUG1a1Bxoyi6IBM1BJIKMGIQXrpdDr948r9BoNZS9WvlGDlfn3Q4HnKCwN9OyrLMrwcj8njw6zkznjxfdTx68zC33qF3frVG1iWRjitmVm+gHm/+2YIQrIg5M477pSb/vnmfumk0q4pVw7nHPV6nU6nQxRFPPHY4/z0wZ/IGWecoeaMjHLhhRfec+ONN7548+bN/cGfeuqpnHXWWacMpggPTmjfz1CCRBaILCZQGD+HnPoQslbgC+IsyjNIUUexpD3PA4clApKi7rXBEJTBmCoP5E6tUA09mDtPLXvP74l501sg7cFYBduaxKQuh9KrOdKW1Ydg6XKF88hUvvIal/O0B6jYoQKNUwn5GyRU+VKbgdFpenEP4/sYHeZgZJEfWX66fCXpqxc/b8J/lVbmzQwCFSXEXUqV/FnNSsKSQMu5OnhcSqmfOefzVRctbZySMUttZbDo/WANucFi++W2coylillGUJRpDmVxyPL48p4HUy/Ka5fulVKq9YGNSHL7QmRWP3ciyNQUctutcse642TTnDny9JJFsucP3ymyc4tIL2FfLLzh4kv6FVHKqiyDZY7K6ihaa/E8TyqVipx00knSarWI45hWq8XnPvc5CcNQjDEyd+5cufPOO6UU0YPi+md01qywLaLChsnyblOHuEKXtxmZ5PZGKkIiQjd1xMXf4vLf2pKyX2J2SZsJiehJQioJaZzkdkxROqvbSfO/U0G6PRLbJXWt3G5J2kg0jUiElYSsPH8mdJPctuqU141ixCZkEhFLFycRIh0kbSFJC8k6iIsQiRBJcJKS2nzl7ttW5bgGbJeD9fd/D5toMAmtvMbguUu/UTk3B9tDZYWmwTmM4/jnjnXQ/hm8t4Nts8FjBlWvwT54ncH9B7dba/t2WnnNwXsovw+qyeU5yuvmG+0sEYorJtqmyObHZddnPiW3Ll8l6087TeSxe0XifSSdmFu+/0MxXkWMMX1GOriXAINSSrTWorWWWq0mN998s5QZjc8888wZa9askeHhYbnkkkv6pY3+LSIoSzuV3Q1sdwWxxmKJxBJJDihk5fGuuNc4Z8RMSiJP6EkXJ21E2oUxX5S1cgdeMy26k4KpihpvfeK2A9sz6YMaqaQFc0QFQBCRSZJvyyIkLXoW9RkplYRIEiJJiSQlLmrHuV/wfH7T/8/1gffwFmpEETYjWsPS5WrBmS8nPPlkll3wali4EAKfmU6bT3/8zymj355P/y7hz1KfFcntm263yyc+8Yk+yjI+Pn77xz/+ccbHx/mTP/mTP282m3uA5zU4D26W2deUDL44Lk8tdH302BRF5k3/XawDB0j+YuMACDGExase84gCl6eAFK+gzN/lMJu+oSgKpZRQ9fNpUgVwoIpx5PaOK96znttwRRGs/mhzQ6n8rvunKT91/y5/3e+F+E37ZZrX17GhyBnKqcGhMU7BwkPUse96hzSXL4FKTVmr+OZNX5f77r6DLEsOnN0BQEhE+rYRFMZlmhJ4Pj++/37+8bp/kHf/3nuUtZZzzz1XGWOk2WxeOVjr6xcZx7m3fbDNEtQBQSUDrzbpj0/I/UolMqdyZjDo3PKXIiBPuYGcJ1fsbglKOK08nSmL8wJFiV4pEgZzzC1/oqYfA6+xaIqw7v7QVJmgeNBt912K/fso7rV4X9Jv2n9sU5JJUcjP5davhqQgCM+BbbUw9XpJZTy15anff9PrLrriwZ88hB2MmpbcmB9EVAbDOLTWiHP4Xu7QWrp0Kbfc+t13rVy58vOlaldGJpQO2H8TYSoJWbkD/zzgd5ensstBq7bSBTKmZ8tuDZ5A5WCDKwCHvPxi4ZeFgjld/6UPtnjvas5oubxJilN6RS8L5IkCiynYcpaX9cD1B0db/t7fWBba6//wm/Yf2XRf59E6h4Vn1z1ckmBqdcTzSIzPxEyXb37rliue2LBhNheo7ED5rqFBQ6zYjDhH4AekWUqcxGzdupUvfOELf9/tdqlWq30GKg3EXwqiVe4ABnKFBLXlW7dV0bXOYUdPI54m8zSJscTEpHRAxUA2GBZWMJQu3jjkIfgIpmClog9Qdim/VXGwKtTH8t1FOZKoIDWozMdzmsBB4GbTOVIFicoDGsqeklctSsgDf63Og8mlH+Xwm/Yf3f4/Sr3GIB5KlEsAAAAASUVORK5CYII=" alt="Kyo-shin">
+  </div>
+  <!-- ▲▲▲ ロゴ差し替えブロックここまで ▲▲▲ -->
+  <div class="hdr-div"></div>
+  <div class="hdr-title">
+    <span class="t">鋼材管理システム</span>
+    <span class="s">材質・規格から、重量と材料費をその場で算出</span>
+  </div>
+  <div class="hdr-right">
+    <span class="chip"><svg class="cic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 7v10l9 4 9-4V7"/></svg>登録&nbsp;<b id="footCount">—</b></span>
+    <span class="chip"><svg class="cic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg><span class="dot" id="footDot"></span><span id="footStore">—</span></span>
+    <span class="chip date"><svg class="cic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg><span id="hdrDate">—</span></span>
+    <button class="help-btn" id="helpBtn" title="使い方ガイド（? キーでも開けます）">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M9.3 9.2a2.8 2.8 0 0 1 5.3 1c0 1.9-2.6 2.2-2.6 4"/><path d="M12 17.3h.01"/></svg>
+      使い方
+    </button>
+    <button class="admin-btn" id="adminBtn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="11" width="16" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
+      <span id="adminLabel">管理者モード</span>
+    </button>
+  </div>
+</header>
+
+<!-- ============================== TABS (MENU) ============================== -->
+<nav class="tabs">
+  <span class="tlabel">メニュー</span>
+  <div class="tab active" data-view="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+    在庫検索
+  </div>
+  <div class="tab" data-view="inventory">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 7v10l9 4 9-4V7"/><path d="M12 11v10"/></svg>
+    在庫管理
+  </div>
+  <div class="tab admin-only" data-view="calc">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M8 6h8M8 10h2M8 14h2M8 18h2M14 10h2M14 14h2M14 18h2"/></svg>
+    重量・単価計算
+  </div>
+  <div class="tab admin-only" data-view="master">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16M4 12h16M4 19h16"/><circle cx="8" cy="5" r="1.6" fill="currentColor" stroke="none"/><circle cx="16" cy="12" r="1.6" fill="currentColor" stroke="none"/><circle cx="10" cy="19" r="1.6" fill="currentColor" stroke="none"/></svg>
+    マスタ参照
+  </div>
+</nav>
+
+<!-- ============================== CONTENT ============================== -->
+<main class="content">
+  <div class="viewhdr"><h1 id="pgTitle">在庫検索</h1><span class="crumb" id="pgCrumb">SEARCH / INVENTORY LOOKUP</span><span class="vh-bar"></span></div>
+
+    <!-- ====== SEARCH VIEW ====== -->
+    <section class="view active" id="view-search">
+      <div class="panel">
+        <div class="panel-h">
+          <h2><svg class="sec-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 5h18M6 12h12M10 19h4"/></svg>検索条件</h2>
+          <span class="tag">FILTER</span>
+        </div>
+        <div class="filter-grid">
+          <label class="fld"><span class="fld-lab"><svg class="lab-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3 3 7.5 12 12l9-4.5z"/><path d="M3 12.5 12 17l9-4.5"/></svg>材質</span><select id="f_mat"></select></label>
+          <label class="fld"><span class="fld-lab"><svg class="lab-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>鋼種</span><select id="f_koshu"></select></label>
+          <label class="fld"><span class="fld-lab"><svg class="lab-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 4v16M18 4v16M6 12h12"/></svg>板厚 (mm)</span><select id="f_thk" class="num"></select></label>
+          <label class="fld"><span class="fld-lab"><svg class="lab-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8l5-5 13 13-5 5z"/><path d="M8 6l2 2M11 9l2 2M14 12l2 2"/></svg>材料規格</span><input type="text" id="f_spec" class="num" list="dl_spec" placeholder="部分一致 例: 50"><datalist id="dl_spec"></datalist></label>
+          <label class="fld"><span class="fld-lab"><svg class="lab-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 12h18M3 9v6M21 9v6"/></svg>長さ (mm)</span><input type="number" id="f_len" class="num" placeholder="完全一致"></label>
+          <label class="fld"><span class="fld-lab"><svg class="lab-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4l1.7 3.8L17.5 9.5l-3.8 1.7L12 15l-1.7-3.8L6.5 9.5l3.8-1.7z"/></svg>表面仕上げ</span><select id="f_fin"></select></label>
+        </div>
+        <div class="filter-foot">
+          <span class="filter-hint">条件は組み合わせ可能。空欄はすべて対象。材料規格は部分一致で絞り込みます。</span>
+          <button class="btn ghost sm" id="btnClear"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>条件クリア</button>
+        </div>
+      </div>
+
+      <div class="kpis">
+        <div class="kpi"><div class="kpi-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg></div><div class="kpi-lab">ヒット件数</div><div class="kpi-val" id="kpiCount">0<span class="kpi-unit">件</span></div><div class="kpi-sub" id="kpiTotal">全 0 件中</div></div>
+        <div class="kpi"><div class="kpi-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v18M5 8l7-5 7 5M5 16l7 5 7-5"/></svg></div><div class="kpi-lab">合計重量</div><div class="kpi-val" id="kpiWeight">0<span class="kpi-unit">kg</span></div><div class="kpi-sub">該当材料の総重量</div></div>
+        <div class="kpi amber"><div class="kpi-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 4l5 7 5-7M12 11v9M8 14.5h8M8 18h8"/></svg></div><div class="kpi-lab">合計金額</div><div class="kpi-val" id="kpiCost">¥0</div><div class="kpi-sub">材料費の合計（税抜）</div></div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-h">
+          <h2><svg class="sec-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 4h18v4H3zM3 10h18v10H3z"/><path d="M9 10v10M15 10v10"/></svg>検索結果</h2>
+          <button class="btn sm" id="btnExportSearch"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>CSV出力</button>
+        </div>
+        <div class="tbl-wrap" id="searchTable"></div>
+      </div>
+    </section>
+
+    <!-- ====== INVENTORY VIEW ====== -->
+    <section class="view" id="view-inventory">
+      <div class="panel">
+        <div class="panel-h">
+          <h2><svg class="sec-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 7v10l9 4 9-4V7"/></svg>在庫データ <span class="tag" id="invCount"></span></h2>
+          <div style="display:flex;gap:8px">
+            <button class="btn sm" id="btnImport"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 15V3M7 8l5-5 5 5M5 21h14"/></svg>CSV取込</button>
+            <button class="btn sm" id="btnExportInv"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>CSV出力</button>
+            <button class="btn primary sm" id="btnNew"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>新規登録</button>
+          </div>
+        </div>
+        <div class="tbl-wrap" id="invTable"></div>
+      </div>
+      <input type="file" id="fileInput" accept=".csv" style="display:none">
+    </section>
+
+    <!-- ====== CALCULATOR VIEW ====== -->
+    <section class="view" id="view-calc">
+      <div class="calc-grid">
+        <div class="panel">
+          <div class="panel-h">
+            <h2><svg class="sec-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M8 6h8M8 11h2M14 11h2M8 15h2M14 15h2"/></svg>単品 重量・材料費 計算</h2>
+            <span class="tag">CALCULATOR</span>
+          </div>
+          <div class="calc-form">
+            <label class="fld"><span class="fld-lab"><svg class="lab-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3 3 7.5 12 12l9-4.5z"/><path d="M3 12.5 12 17l9-4.5"/></svg>材質<span class="req">*</span></span><select id="c_mat"></select></label>
+            <label class="fld"><span class="fld-lab"><svg class="lab-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>鋼種<span class="req">*</span></span><select id="c_koshu"></select></label>
+            <label class="fld"><span class="fld-lab"><svg class="lab-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 4v16M18 4v16M6 12h12"/></svg>板厚 (mm)<span class="req">*</span></span><select id="c_thk" class="num"></select></label>
+            <label class="fld"><span class="fld-lab"><svg class="lab-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8l5-5 13 13-5 5z"/><path d="M8 6l2 2M11 9l2 2M14 12l2 2"/></svg>材料規格<span class="req">*</span></span><input type="text" id="c_spec" class="num" list="dl_cspec" placeholder="例: 50*50 / Φ34"><datalist id="dl_cspec"></datalist></label>
+            <label class="fld"><span class="fld-lab"><svg class="lab-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 12h18M3 9v6M21 9v6"/></svg>長さ (mm)<span class="req">*</span></span><input type="number" id="c_len" class="num" placeholder="実長を入力"></label>
+            <label class="fld"><span class="fld-lab"><svg class="lab-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4l1.7 3.8L17.5 9.5l-3.8 1.7L12 15l-1.7-3.8L6.5 9.5l3.8-1.7z"/></svg>表面仕上げ</span><select id="c_fin"></select></label>
+            <div class="full note" style="margin-top:2px">入力ルール：板厚＝肉厚/厚み、長さ＝実長(mm)。丸パイプは <b>Φ38.1</b>、角パイプは <b>75*40</b>、アングル/チャンネルは <b>A*B</b> 形式で入力します。</div>
+          </div>
+        </div>
+
+        <div class="result-card">
+          <div class="rc-h">計算結果 / RESULT</div>
+          <div class="rc-body">
+            <div class="rc-shape" id="rcShape" style="display:none"></div>
+            <div class="rc-costlab">材料費（税抜）</div>
+            <div class="rc-cost" id="rcCost"><small>¥</small>—</div>
+            <div class="rc-rows">
+              <div class="rc-row"><span class="rc-k"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="1.5"/><path d="M4 10h16M10 4v16"/></svg>断面積</span><span class="rc-v" id="rcArea">—<small>mm²</small></span></div>
+              <div class="rc-row"><span class="rc-k"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v18M5 8l7-5 7 5M5 16l7 5 7-5"/></svg>重量</span><span class="rc-v" id="rcWeight">—<small>kg</small></span></div>
+              <div class="rc-row"><span class="rc-k"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"/></svg>比重</span><span class="rc-v" id="rcDens">—</span></div>
+              <div class="rc-row"><span class="rc-k"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M20.6 13.4 11 3.8a2 2 0 0 0-1.4-.6H4v5.6a2 2 0 0 0 .6 1.4l9.6 9.6a2 2 0 0 0 2.8 0l3.6-3.6a2 2 0 0 0 0-2.8z"/><circle cx="7.6" cy="7.6" r="1.2"/></svg>キロ単価</span><span class="rc-v" id="rcUnit">—<small>円/kg</small></span></div>
+            </div>
+            <div class="formula">
+              <div class="ttl">適用した断面積計算式</div>
+              <code id="rcFormula">材質・鋼種・寸法を入力してください。</code>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ====== MASTER VIEW ====== -->
+    <section class="view" id="view-master">
+      <div class="mgrid">
+        <div class="panel">
+          <div class="panel-h"><h2><svg class="sec-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v18M5 8l7-5 7 5"/></svg>材質別 比重</h2><span class="tag">DENSITY</span></div>
+          <div class="tbl-wrap" id="mDensity"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-h"><h2><svg class="sec-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>キロ単価ルール</h2><span class="tag">UNIT PRICE</span></div>
+          <div style="padding:18px">
+            <div class="note" style="margin-bottom:14px"><b>SS400 / A6063</b>：材質＋鋼種で判定（表面仕上げ不問）。<br>※同一鋼種に複数行がある場合は合算（例：SS400フラットバー=ミガキ250＋黒皮250→<b>500円/kg</b>）。<br><b>SUS304 / SUS316L / SUS310S</b>：材質＋鋼種＋表面仕上げの完全一致で判定。</div>
+          </div>
+          <div class="tbl-wrap" id="mPrice"></div>
+        </div>
+        <div class="panel span2">
+          <div class="panel-h"><h2><svg class="sec-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19V5h16v14zM4 9h16M9 9v10"/></svg>鋼種別 断面積計算式</h2><span class="tag">SECTION AREA</span></div>
+          <div class="tbl-wrap" id="mFormula"></div>
+        </div>
+        <div class="panel span2">
+          <div class="panel-h"><h2><svg class="sec-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg>鋼種別 材料規格候補</h2><span class="tag">SPEC LIST</span></div>
+          <div class="tbl-wrap" id="mSpec"></div>
+        </div>
+      </div>
+    </section>
+
+</main>
+
+<!-- ============================== MODAL ============================== -->
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <div class="modal-h">
+      <h3><svg class="sec-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 7v10l9 4 9-4V7"/></svg><span id="modalTitle">在庫を登録</span></h3>
+      <button class="x" id="modalClose"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <label class="fld"><span class="fld-lab"><svg class="lab-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3 3 7.5 12 12l9-4.5z"/><path d="M3 12.5 12 17l9-4.5"/></svg>材質<span class="req">*</span></span><select id="m_mat"></select></label>
+      <label class="fld"><span class="fld-lab"><svg class="lab-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>鋼種<span class="req">*</span></span><select id="m_koshu"></select></label>
+      <label class="fld"><span class="fld-lab"><svg class="lab-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 4v16M18 4v16M6 12h12"/></svg>板厚 (mm)<span class="req">*</span></span><select id="m_thk" class="num"></select></label>
+      <label class="fld"><span class="fld-lab"><svg class="lab-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8l5-5 13 13-5 5z"/><path d="M8 6l2 2M11 9l2 2M14 12l2 2"/></svg>材料規格<span class="req">*</span></span><input type="text" id="m_spec" class="num" list="dl_mspec" placeholder="例: 50*50 / Φ34"><datalist id="dl_mspec"></datalist></label>
+      <label class="fld"><span class="fld-lab"><svg class="lab-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 12h18M3 9v6M21 9v6"/></svg>長さ (mm)<span class="req">*</span></span><input type="number" id="m_len" class="num" placeholder="実長を入力"></label>
+      <label class="fld"><span class="fld-lab"><svg class="lab-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-5.5 7-11a7 7 0 1 0-14 0c0 5.5 7 11 7 11z"/><circle cx="12" cy="10" r="2.3"/></svg>保管場所</span><select id="m_loc"></select></label>
+      <label class="fld full"><span class="fld-lab"><svg class="lab-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4l1.7 3.8L17.5 9.5l-3.8 1.7L12 15l-1.7-3.8L6.5 9.5l3.8-1.7z"/></svg>表面仕上げ</span><select id="m_fin"></select></label>
+      <div class="preview">
+        <div class="pv"><span class="pk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="1.5"/><path d="M4 10h16M10 4v16"/></svg>断面積</span><span class="pvv" id="pvArea">—</span></div>
+        <div class="pv"><span class="pk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v18M5 8l7-5 7 5M5 16l7 5 7-5"/></svg>重量 (kg)</span><span class="pvv" id="pvWeight">—</span></div>
+        <div class="pv"><span class="pk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M20.6 13.4 11 3.8a2 2 0 0 0-1.4-.6H4v5.6a2 2 0 0 0 .6 1.4l9.6 9.6a2 2 0 0 0 2.8 0l3.6-3.6a2 2 0 0 0 0-2.8z"/><circle cx="7.6" cy="7.6" r="1.2"/></svg>キロ単価</span><span class="pvv" id="pvUnit">—</span></div>
+        <div class="pv"><span class="pk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 4l5 7 5-7M12 11v9M8 14.5h8M8 18h8"/></svg>材料費</span><span class="pvv cost" id="pvCost">—</span></div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn danger" id="modalDelete" style="visibility:hidden"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6"/></svg>削除</button>
+      <div style="display:flex;gap:9px;margin-left:auto">
+        <button class="btn ghost" id="modalCancel">キャンセル</button>
+        <button class="btn primary" id="modalSave"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 13l4 4L19 7"/></svg>保存</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================== 管理者ロック ============================== -->
+<div class="overlay" id="pinOverlay">
+  <div class="modal pin-modal">
+    <div class="modal-h">
+      <h3><svg class="sec-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="11" width="16" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>管理者モード</h3>
+      <button class="x" id="pinClose"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </div>
+    <div class="pin-body">
+      <p class="pin-msg">管理者用パスコードを入力してください</p>
+      <input type="password" id="pinInput" class="pin-input" inputmode="numeric" autocomplete="off" maxlength="12" placeholder="••••">
+      <div class="pin-err" id="pinErr">パスコードが正しくありません</div>
+    </div>
+    <div class="modal-foot">
+      <div style="margin-left:auto;display:flex;gap:9px">
+        <button class="btn ghost" id="pinCancel">キャンセル</button>
+        <button class="btn primary" id="pinSubmit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 11V8a5 5 0 0 1 9.9-1"/><rect x="4" y="11" width="16" height="9" rx="2"/></svg>解除</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================== 使い方ガイド ============================== -->
+<div class="overlay" id="helpOverlay">
+  <div class="modal help-modal">
+    <div class="modal-h">
+      <h3><svg class="sec-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M9.3 9.2a2.8 2.8 0 0 1 5.3 1c0 1.9-2.6 2.2-2.6 4"/><path d="M12 17.3h.01"/></svg>使い方ガイド</h3>
+      <button class="x" id="helpClose"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </div>
+    <div class="help-body">
+      <p class="help-intro">鋼材の<b>在庫検索</b>・<b>在庫管理</b>・<b>重量／材料費の計算</b>ができます。データはこのブラウザ内に自動保存され、インターネットが無くても動作します。</p>
+
+      <div class="help-sec">
+        <div class="help-h"><span class="help-ic blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg></span>在庫検索</div>
+        <p class="help-p">上部の項目で在庫を絞り込みます。<b>空欄はすべて対象</b>です。<b>材質→鋼種</b>の順に選ぶと候補が絞られます。<b>材料規格は部分一致</b>（例：「50」で 50*50 などがヒット）。板厚・長さ・仕上げは一致するものだけ表示します。ヒット件数・合計重量・合計金額が自動集計され、<b>CSV出力</b>で書き出せます。<b>条件クリア</b>で絞り込みを全解除します。</p>
+      </div>
+
+      <div class="help-sec">
+        <div class="help-h"><span class="help-ic green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 7v10l9 4 9-4V7"/></svg></span>在庫管理</div>
+        <p class="help-p"><b>新規登録</b>で材料を追加します。各行の鉛筆アイコンで編集、ゴミ箱アイコンで削除。重量・キロ単価・材料費は入力内容から<b>自動計算</b>されます。<b>CSV取込</b>でまとめて追加、<b>CSV出力</b>で一覧を書き出せます（Excel で開けます）。</p>
+      </div>
+
+      <div class="help-sec">
+        <div class="help-h"><span class="help-ic amber"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M8 6h8M8 10h2M8 14h2M8 18h2M14 10h2M14 14h2M14 18h2"/></svg></span>重量・単価計算</div>
+        <p class="help-p">単品の試算ができます。「材料規格」には、丸パイプは <b>Φ34</b> のように外径、角パイプ・チャンネル・アングルは <b>A*B</b>（例 75*40）、フラットバーは<b>幅のみ</b>を入力します。「板厚」に肉厚／厚み、「長さ」に実長(mm)を入れると、結果カードに断面積・重量・比重・キロ単価・材料費と、使用した計算式が表示されます。</p>
+      </div>
+
+      <div class="help-sec">
+        <div class="help-h"><span class="help-ic purple"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 19a2 2 0 0 0 2 2h13"/></svg></span>マスタ参照</div>
+        <p class="help-p">材質別の<b>比重</b>、<b>キロ単価のルール</b>、鋼種別の<b>断面積計算式</b>、<b>材料規格の候補</b>を確認できます。計算の根拠を確かめたいときに使います。</p>
+      </div>
+
+      <div class="help-sec">
+        <div class="help-h"><span class="help-ic red"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="11" width="16" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></span>管理者モード</div>
+        <p class="help-p">「重量・単価計算」と「マスタ参照」は<b>管理者モードのときだけ</b>表示されます。ヘッダー右の<b>「管理者モード」</b>を押してパスコードを入力すると表示され、<b>「解除」</b>で元の表示に戻ります。</p>
+      </div>
+
+      <div class="help-tip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.5.4.9 1 .9 1.6h5.2c0-.6.4-1.2.9-1.6A6 6 0 0 0 12 3z"/></svg><span>登録した在庫はこのブラウザに保存され、別のパソコンには引き継がれません。バックアップを取るときは「CSV出力」をご利用ください。</span></div>
+    </div>
+    <div class="modal-foot">
+      <span class="help-foot-note">「?」キーでもこのガイドを開けます</span>
+      <button class="btn primary" id="helpOk" style="margin-left:auto"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 13l4 4L19 7"/></svg>閉じる</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 13l4 4L19 7"/></svg><span id="toastMsg"></span></div>
+
+<script>
+/* =====================================================================
+ *  鋼材管理システム  —  app.js
+ *  ---------------------------------------------------------------------
+ *  ■ よく編集する箇所（マスタ・設定）：このファイル冒頭付近にまとまっています
+ *      MATERIALS            材質の一覧
+ *      KOSHU_BY_MAT         材質ごとの鋼種（形状）一覧
+ *      KIKAKU_BY_KOSHU      鋼種ごとの材料規格（寸法）候補
+ *      FINISH_BY_MAT_KOSHU  材質×鋼種ごとの表面仕上げ候補
+ *      FINISH_ALL           表面仕上げの全候補
+ *      THICKNESS            板厚の候補
+ *      LOCATIONS            保管場所の一覧
+ *      DENSITY              材質別の比重
+ *      SUS_PRICED / PRICE   キロ単価マスタ（単価ルール）
+ *      FORMULA_DESC         断面積計算式の表示用説明
+ *      SEED                 初期データ（在庫サンプル10件）
+ *      ADMIN_PIN            管理者モードのパスコード
+ *  ■ 計算ロジック：sectionArea() → weightKg() → unitPrice() → compute()
+ *      ※計算式の詳細は docs/CALCULATION.md を参照
+ *  ■ ファイル構成・編集方法は README.md を参照
+ * ===================================================================== */
+
+/* ===================== マスタデータ（Excel由来） ===================== */
+const MATERIALS=["SS400","SUS304","SUS316L","SUS310S","A6063"];
+const KOSHU_BY_MAT={
+  "SS400":["角パイプ","丸パイプ(TP-S)","丸パイプ(TP-A)","チャンネル","アングル","フラットバー"],
+  "SUS304":["角パイプ","丸パイプ(TP-S)","丸パイプ(TP-A)","サニタリーパイプ","チャンネル","アングル","フラットバー"],
+  "SUS316L":["角パイプ","丸パイプ(TP-S)","丸パイプ(TP-A)","サニタリーパイプ","チャンネル","アングル","フラットバー"],
+  "SUS310S":["角パイプ","丸パイプ(TP-S)","丸パイプ(TP-A)","サニタリーパイプ","チャンネル","アングル","フラットバー"],
+  "A6063":["角パイプ","丸パイプ(TP-S)","丸パイプ(TP-A)","サニタリーパイプ","チャンネル","アングル"]
+};
+const KIKAKU_BY_KOSHU={
+  "角パイプ":["50*50","75*40","60*60","100*50","125*50"],
+  "丸パイプ(TP-S)":["Φ27.2","Φ34","Φ48.6","Φ38.1"],
+  "丸パイプ(TP-A)":["Φ21.7","Φ48.6","Φ38.1","Φ34"],
+  "サニタリーパイプ":["Φ27.2","Φ48.6","Φ38.1","Φ34"],
+  "チャンネル":["80*40","100*50"],
+  "アングル":["40*40","50*50"],
+  "フラットバー":["30","50","60","65"]
+};
+const FINISH_BY_MAT_KOSHU={
+  "SS400|フラットバー":["ミガキ","黒皮"],
+  "SUS304|角パイプ":["HL","#400","未研","HOT"],"SUS304|丸パイプ(TP-S)":["HL","#400","未研"],"SUS304|丸パイプ(TP-A)":["HL","#400","未研"],"SUS304|サニタリーパイプ":["#400","未研"],"SUS304|チャンネル":["HL","#400","HOT"],"SUS304|アングル":["HL","#400","HOT","COLD"],"SUS304|フラットバー":["HL","#400","HOT","COLD"],
+  "SUS316L|角パイプ":["HL","#400","未研","HOT"],"SUS316L|丸パイプ(TP-S)":["HL","#400","未研"],"SUS316L|丸パイプ(TP-A)":["HL","#400","未研"],"SUS316L|サニタリーパイプ":["#400","未研"],"SUS316L|チャンネル":["HL","#400","HOT"],"SUS316L|アングル":["HL","#400","HOT","COLD"],"SUS316L|フラットバー":["HL","#400","HOT","COLD"],
+  "SUS310S|角パイプ":["HL","#400","未研","HOT"],"SUS310S|丸パイプ(TP-S)":["HL","#400","未研"],"SUS310S|丸パイプ(TP-A)":["HL","#400","未研"],"SUS310S|サニタリーパイプ":["#400","未研"],"SUS310S|チャンネル":["HL","#400","HOT"],"SUS310S|アングル":["HL","#400","HOT","COLD"],"SUS310S|フラットバー":["HL","#400","HOT","COLD"]
+};
+const FINISH_ALL=["HL","#400","未研","ミガキ","HOT","COLD","黒皮"];
+const THICKNESS=[1,1.2,1.5,1.6,2,2.1,2.3,3,3.2,4,4.5,5,6];
+const LOCATIONS=["本社レーザー前","第二工場","第三工場","本社材料倉庫"];
+const DENSITY={"SUS304":7.93,"SUS316L":7.98,"SUS430":7.7,"SS400":7.85,"SGP":7.85,"STKM":7.85,"A5052":2.68,"A6063":2.7};
+
+/* キロ単価マスタ（合算ルール対応：同一キーが複数行ある場合は合計） */
+const PRICE=[];
+[["角パイプ",[null]],["丸パイプ(TP-S)",[null]],["丸パイプ(TP-A)",[null]],["チャンネル",[null]],["アングル",[null]],["フラットバー",["ミガキ","黒皮"]]]
+  .forEach(([k,fins])=>fins.forEach(f=>PRICE.push({mat:"SS400",koshu:k,fin:f,price:250})));
+["角パイプ","丸パイプ(TP-S)","丸パイプ(TP-A)","サニタリーパイプ","チャンネル","アングル"]
+  .forEach(k=>PRICE.push({mat:"A6063",koshu:k,fin:null,price:800}));
+const SUS_PRICED={
+  "SUS304":{"角パイプ":["HL","#400","未研","HOT"],"丸パイプ(TP-S)":["HL","#400","未研"],"丸パイプ(TP-A)":["HL","#400","未研"],"サニタリーパイプ":["#400","未研"],"チャンネル":["HL","#400","HOT"],"アングル":["HL","#400","HOT","COLD"],"フラットバー":["HL","#400","HOT","COLD"]},
+  "SUS316L":{"角パイプ":["#400","未研","HOT"],"丸パイプ(TP-S)":["HL","#400","未研"],"丸パイプ(TP-A)":["HL","#400","未研"],"サニタリーパイプ":["#400","未研"],"チャンネル":["HL","#400","HOT"],"アングル":["HL","#400","HOT","COLD"],"フラットバー":["HL","#400","HOT","COLD"]},
+  "SUS310S":{"角パイプ":["HL","#400","未研","HOT"],"丸パイプ(TP-S)":["HL","#400","未研"],"丸パイプ(TP-A)":["HL","#400"],"サニタリーパイプ":["#400","未研"],"チャンネル":["HL","#400","HOT"],"アングル":["HL","#400","HOT","COLD"],"フラットバー":["HL","#400","HOT","COLD"]}
+};
+Object.entries(SUS_PRICED).forEach(([mat,o])=>Object.entries(o).forEach(([k,fins])=>fins.forEach(f=>PRICE.push({mat,koshu:k,fin:f,price:800}))));
+
+const FORMULA_DESC={
+  "丸パイプ(TP-S)":{view:"外径Φ・肉厚t",f:"π/4 × ( Φ² − (Φ−2t)² )"},
+  "丸パイプ(TP-A)":{view:"外径Φ・肉厚t",f:"π/4 × ( Φ² − (Φ−2t)² )"},
+  "サニタリーパイプ":{view:"外径Φ・肉厚t",f:"π/4 × ( Φ² − (Φ−2t)² )"},
+  "角パイプ":{view:"外寸A×外寸B・肉厚t",f:"A×B − (A−2t)×(B−2t)"},
+  "フラットバー":{view:"幅×厚t",f:"幅 × t"},
+  "アングル":{view:"辺A×辺B・厚t",f:"t × (A + B − t)"},
+  "チャンネル":{view:"高さH×耳・厚t",f:"t × (H + 2×耳 − 2t)"}
+};
+
+/* ===================== 計算エンジン（Excel数式と同一） ===================== */
+function normSpec(s){return String(s==null?"":s).replace(/[Φφ]/g,"").replace(/[×Xx]/g,"*").trim();}
+function dims(spec){const n=normSpec(spec),p=n.split("*");const d1=parseFloat(p[0]);const d2=p.length>1?parseFloat(p[1]):NaN;return{d1:isFinite(d1)?d1:0,d2:isFinite(d2)?d2:0};}
+function density(mat){return DENSITY[mat]!=null?DENSITY[mat]:(String(mat).startsWith("SUS")?7.93:7.85);}
+function sectionArea(mat,koshu,thk,spec){
+  const{d1,d2}=dims(spec);const t=parseFloat(thk)||0;
+  if(koshu==="丸パイプ(TP-S)"||koshu==="丸パイプ(TP-A)"||koshu==="サニタリーパイプ"){const i=Math.max(d1-2*t,0);return Math.PI/4*(d1*d1-i*i);}
+  if(koshu==="角パイプ")return d1*d2-Math.max(d1-2*t,0)*Math.max(d2-2*t,0);
+  if(koshu==="フラットバー")return d1*t;
+  if(koshu==="アングル")return t*(d1+d2-t);
+  if(koshu==="チャンネル")return t*(d1+2*d2-2*t);
+  return null;
+}
+function round(v,d){const f=Math.pow(10,d);return Math.round((v+Number.EPSILON)*f)/f;}
+function weightKg(mat,koshu,thk,spec,len){const a=sectionArea(mat,koshu,thk,spec);if(a==null||!isFinite(a))return null;const L=parseFloat(len)||0;return round(a*L*density(mat)/1e6,3);}
+function unitPrice(mat,koshu,fin){
+  let rows;
+  if(mat==="SS400"||mat==="A6063")rows=PRICE.filter(p=>p.mat===mat&&p.koshu===koshu);
+  else rows=PRICE.filter(p=>p.mat===mat&&p.koshu===koshu&&p.fin===fin);
+  if(!rows.length)return null;
+  return rows.reduce((s,p)=>s+p.price,0);
+}
+function compute(r){
+  const area=sectionArea(r.mat,r.koshu,r.thk,r.spec);
+  const w=weightKg(r.mat,r.koshu,r.thk,r.spec,r.len);
+  const u=unitPrice(r.mat,r.koshu,r.fin);
+  const cost=(w!=null&&u!=null)?round(w*u,0):null;
+  return{area:area!=null&&isFinite(area)?area:null,weight:w,unit:u,cost};
+}
+
+/* ===================== 状態・永続化 ===================== */
+const SEED=[
+  {mat:"SUS304",koshu:"角パイプ",thk:1.5,spec:"50*50",len:2438,loc:"本社レーザー前",fin:"HL"},
+  {mat:"SS400",koshu:"角パイプ",thk:3.2,spec:"75*40",len:3000,loc:"第二工場",fin:"黒皮"},
+  {mat:"A6063",koshu:"丸パイプ(TP-S)",thk:2,spec:"Φ48.6",len:2000,loc:"本社材料倉庫",fin:"#400"},
+  {mat:"SUS316L",koshu:"丸パイプ(TP-A)",thk:2,spec:"Φ21.7",len:1000,loc:"本社レーザー前",fin:"未研"},
+  {mat:"SUS304",koshu:"丸パイプ(TP-S)",thk:1.5,spec:"Φ34",len:5000,loc:"本社材料倉庫",fin:"未研"},
+  {mat:"SUS304",koshu:"フラットバー",thk:1.5,spec:"50",len:6000,loc:"本社材料倉庫",fin:"HOT"},
+  {mat:"SS400",koshu:"アングル",thk:6,spec:"40*40",len:1000,loc:"本社レーザー前",fin:"HL"},
+  {mat:"SUS304",koshu:"丸パイプ(TP-S)",thk:1.2,spec:"Φ27.2",len:1500,loc:"本社レーザー前",fin:"#400"},
+  {mat:"SS400",koshu:"フラットバー",thk:6,spec:"30",len:2000,loc:"第二工場",fin:"ミガキ"},
+  {mat:"SUS304",koshu:"チャンネル",thk:5,spec:"100*50",len:5000,loc:"本社レーザー前",fin:"HOT"}
+];
+const LS_KEY="steel_mgr_records_v1";
+let canPersist=true, records=[], editId=null;
+function loadRecords(){
+  try{const raw=localStorage.getItem(LS_KEY);if(raw){records=JSON.parse(raw);}else{records=SEED.map((r,i)=>({id:i+1,...r}));saveRecords();}}
+  catch(e){canPersist=false;records=SEED.map((r,i)=>({id:i+1,...r}));}
+}
+function saveRecords(){try{localStorage.setItem(LS_KEY,JSON.stringify(records));}catch(e){canPersist=false;}}
+const nextId=()=>records.reduce((m,r)=>Math.max(m,r.id),0)+1;
+
+/* ===================== ユーティリティ ===================== */
+const $=s=>document.querySelector(s);
+const IC={
+ mat:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linejoin="round"><path d="M12 3 3 7.5 12 12l9-4.5z"/><path d="M3 12.5 12 17l9-4.5"/></svg>',
+ loc:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-5.5 7-11a7 7 0 1 0-14 0c0 5.5 7 11 7 11z"/><circle cx="12" cy="10" r="2.3"/></svg>',
+ fin:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4l1.7 3.8L17.5 9.5l-3.8 1.7L12 15l-1.7-3.8L6.5 9.5l3.8-1.7z"/></svg>'
+};
+const SHAPE_SVG={
+ "角パイプ":'<svg viewBox="0 0 24 24"><path fill="#3a6fb0" fill-rule="evenodd" d="M3.5 4.5h17v15h-17zM7 8v8h10V8z"/></svg>',
+ "丸パイプ(TP-S)":'<svg viewBox="0 0 24 24"><path fill="#1f8a6d" fill-rule="evenodd" d="M12 3a9 9 0 100 18 9 9 0 000-18zm0 4a5 5 0 110 10 5 5 0 010-10z"/></svg>',
+ "丸パイプ(TP-A)":'<svg viewBox="0 0 24 24"><path fill="#2f8fb0" fill-rule="evenodd" d="M12 3a9 9 0 100 18 9 9 0 000-18zm0 3a6 6 0 110 12 6 6 0 010-12z"/></svg>',
+ "サニタリーパイプ":'<svg viewBox="0 0 24 24"><rect fill="#6b5fc0" x="10.4" y="2" width="3.2" height="3.4" rx="1"/><path fill="#6b5fc0" fill-rule="evenodd" d="M12 4.6a8 8 0 100 16 8 8 0 000-16zm0 4a4 4 0 110 8 4 4 0 010-8z"/></svg>',
+ "チャンネル":'<svg viewBox="0 0 24 24"><path fill="#d08322" d="M5.5 4h12v3.6H9.6v8.8h7.9V20h-12z"/></svg>',
+ "アングル":'<svg viewBox="0 0 24 24"><path fill="#c0566f" d="M5.5 4h3.7v12.4H20V20H5.5z"/></svg>',
+ "フラットバー":'<svg viewBox="0 0 24 24"><rect fill="#5a7d8c" x="3" y="9.5" width="18" height="5" rx="2.4"/></svg>'
+};
+function shapeSVG(k){return SHAPE_SVG[k]||'<svg viewBox="0 0 24 24"><rect fill="#8a93a3" x="4" y="4" width="16" height="16" rx="3"/></svg>';}
+function shapeIco(k){return '<span class="shape-ic">'+shapeSVG(k)+'</span>';}
+const fmtYen=n=>n==null?'<span class="muted">—</span>':'¥'+Math.round(n).toLocaleString("ja-JP");
+const fmtYenP=n=>n==null?"—":"¥"+Math.round(n).toLocaleString("ja-JP");
+const fmtKg=n=>n==null?'<span class="muted">—</span>':n.toLocaleString("ja-JP",{maximumFractionDigits:3});
+const fmtNum=(n,d=1)=>n==null?'<span class="muted">—</span>':n.toLocaleString("ja-JP",{maximumFractionDigits:d});
+function fillSelect(sel,opts,blankLabel){sel.innerHTML="";const b=document.createElement("option");b.value="";b.textContent=blankLabel||"指定なし";sel.appendChild(b);opts.forEach(o=>{const e=document.createElement("option");e.value=o;e.textContent=o;sel.appendChild(e);});}
+function fillDatalist(dl,opts){dl.innerHTML="";opts.forEach(o=>{const e=document.createElement("option");e.value=o;dl.appendChild(e);});}
+function matCls(m){return "m-"+String(m).toLowerCase().replace(/[^a-z0-9]/g,"");}
+function finishOptions(mat,koshu){const k=mat+"|"+koshu;if(FINISH_BY_MAT_KOSHU[k]&&FINISH_BY_MAT_KOSHU[k].length)return FINISH_BY_MAT_KOSHU[k];return FINISH_ALL;}
+function toast(msg){const t=$("#toast");$("#toastMsg").textContent=msg;t.classList.add("show");clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove("show"),2200);}
+
+/* ===================== ナビ ===================== */
+const PG={search:["在庫検索","SEARCH / INVENTORY LOOKUP"],inventory:["在庫管理","INVENTORY / DATA MANAGEMENT"],calc:["重量・単価計算","CALCULATOR / WEIGHT & COST"],master:["マスタ参照","MASTER / REFERENCE DATA"]};
+document.querySelectorAll(".tab").forEach(it=>it.addEventListener("click",()=>{
+  document.querySelectorAll(".tab").forEach(n=>n.classList.remove("active"));it.classList.add("active");
+  const v=it.dataset.view;document.querySelectorAll(".view").forEach(s=>s.classList.remove("active"));$("#view-"+v).classList.add("active");
+  $("#pgTitle").textContent=PG[v][0];$("#pgCrumb").textContent=PG[v][1];
+}));
+
+/* ===================== 管理者モード ===================== */
+let isAdmin=false;
+function applyAdmin(){
+  document.querySelectorAll(".tab.admin-only").forEach(t=>{t.style.display=isAdmin?"inline-flex":"none";});
+  const b=$("#adminBtn");if(b)b.classList.toggle("on",isAdmin);
+  const l=$("#adminLabel");if(l)l.textContent=isAdmin?"管理者中（解除）":"管理者モード";
+  if(!isAdmin){const cur=document.querySelector(".tab.active");if(cur&&cur.classList.contains("admin-only")){const s=document.querySelector('.tab[data-view="search"]');if(s)s.click();}}
+}
+const ADMIN_PIN="0419"; /* ← 管理者パスコード：この数字を書き換えれば変更できます */
+function openPin(){const o=$("#pinOverlay");$("#pinInput").value="";$("#pinErr").classList.remove("show");o.classList.add("show");setTimeout(()=>{const i=$("#pinInput");if(i)i.focus();},60);}
+function closePin(){$("#pinOverlay").classList.remove("show");}
+function submitPin(){
+  if($("#pinInput").value===ADMIN_PIN){closePin();isAdmin=true;applyAdmin();toast("管理者モードに切り替えました");}
+  else{$("#pinErr").classList.add("show");$("#pinInput").value="";$("#pinInput").focus();const m=document.querySelector(".pin-modal");if(m){m.classList.remove("shake");void m.offsetWidth;m.classList.add("shake");}}
+}
+/* ===================== 使い方ガイド ===================== */
+function openHelp(){$("#helpOverlay").classList.add("show");}
+function closeHelp(){$("#helpOverlay").classList.remove("show");}
+
+/* ===================== 検索ビュー ===================== */
+function initSearchControls(){
+  fillSelect($("#f_mat"),MATERIALS,"すべての材質");
+  fillSelect($("#f_koshu"),[],"すべての鋼種");$("#f_koshu").disabled=true;
+  fillSelect($("#f_thk"),THICKNESS,"すべて");
+  fillSelect($("#f_fin"),FINISH_ALL,"すべて");
+  $("#f_mat").addEventListener("change",()=>{
+    const m=$("#f_mat").value;
+    if(m){fillSelect($("#f_koshu"),KOSHU_BY_MAT[m],"すべての鋼種");$("#f_koshu").disabled=false;}
+    else{fillSelect($("#f_koshu"),[],"すべての鋼種");$("#f_koshu").disabled=true;}
+    updateSpecDatalist();runSearch();
+  });
+  $("#f_koshu").addEventListener("change",()=>{updateSpecDatalist();runSearch();});
+  ["#f_thk","#f_fin"].forEach(s=>$(s).addEventListener("change",runSearch));
+  ["#f_spec","#f_len"].forEach(s=>$(s).addEventListener("input",runSearch));
+  $("#btnClear").addEventListener("click",()=>{
+    $("#f_mat").value="";fillSelect($("#f_koshu"),[],"すべての鋼種");$("#f_koshu").disabled=true;
+    $("#f_thk").value="";$("#f_fin").value="";$("#f_spec").value="";$("#f_len").value="";updateSpecDatalist();runSearch();
+  });
+}
+function updateSpecDatalist(){const k=$("#f_koshu").value;fillDatalist($("#dl_spec"),k&&KIKAKU_BY_KOSHU[k]?KIKAKU_BY_KOSHU[k]:[].concat(...Object.values(KIKAKU_BY_KOSHU)));}
+function getFilter(){return{mat:$("#f_mat").value,koshu:$("#f_koshu").value,thk:$("#f_thk").value,spec:$("#f_spec").value.trim(),len:$("#f_len").value.trim(),fin:$("#f_fin").value};}
+function matchRec(r,f){
+  if(f.mat&&r.mat!==f.mat)return false;
+  if(f.koshu&&r.koshu!==f.koshu)return false;
+  if(f.thk!==""&&Number(r.thk)!==Number(f.thk))return false;
+  if(f.spec&&!String(r.spec).includes(f.spec))return false;
+  if(f.len!==""&&Number(r.len)!==Number(f.len))return false;
+  if(f.fin&&r.fin!==f.fin)return false;
+  return true;
+}
+let lastSearch=[];
+function runSearch(){
+  const f=getFilter();
+  const hits=records.filter(r=>matchRec(r,f)).map(r=>({...r,...compute(r)}));
+  lastSearch=hits;
+  const tw=Math.round(hits.reduce((s,h)=>s+(h.weight||0),0)*1000)/1000;
+  const tc=hits.reduce((s,h)=>s+(h.cost||0),0);
+  $("#kpiCount").innerHTML=hits.length+'<span class="kpi-unit">件</span>';
+  $("#kpiTotal").textContent="全 "+records.length+" 件中";
+  $("#kpiWeight").innerHTML=fmtNum(tw,3)+'<span class="kpi-unit">kg</span>';
+  $("#kpiCost").textContent=fmtYenP(tc);
+  const wrap=$("#searchTable");
+  if(!hits.length){wrap.innerHTML=emptyState("条件に一致する在庫がありません");return;}
+  let h='<table class="dt"><thead><tr><th>材質</th><th>鋼種</th><th class="r">板厚</th><th>材料規格</th><th class="r">長さ</th><th>保管場所</th><th class="r">重量(kg)</th><th>表面仕上げ</th><th class="r">キロ単価</th><th class="r">材料費</th></tr></thead><tbody>';
+  hits.forEach(r=>{h+=`<tr><td><span class="pill mat ${matCls(r.mat)}">${IC.mat}${r.mat}</span></td><td>${shapeIco(r.koshu)}${r.koshu}</td><td class="r tnum">${r.thk}</td><td class="tnum">${r.spec}</td><td class="r tnum">${Number(r.len).toLocaleString()}</td><td><span class="pill loc">${IC.loc}${r.loc||"—"}</span></td><td class="r tnum">${fmtKg(r.weight)}</td><td><span class="pill fin">${IC.fin}${r.fin||"—"}</span></td><td class="r tnum">${r.unit==null?'<span class="muted">—</span>':r.unit.toLocaleString()}</td><td class="r tnum"><b>${fmtYen(r.cost)}</b></td></tr>`;});
+  h+=`</tbody><tfoot><tr class="tfoot"><td colspan="6">合計（${hits.length}件）</td><td class="r tnum">${fmtNum(tw,3)}</td><td></td><td></td><td class="r tnum">${fmtYenP(tc)}</td></tr></tfoot></table>`;
+  wrap.innerHTML=h;
+}
+function emptyState(msg){return`<div class="empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg><p>${msg}</p></div>`;}
+
+/* ===================== 在庫ビュー ===================== */
+function renderInventory(){
+  $("#invCount").textContent=records.length+" 件";
+  $("#footCount").textContent=records.length+" 件";
+  const wrap=$("#invTable");
+  if(!records.length){wrap.innerHTML=emptyState("在庫データがありません。「新規登録」から追加してください");return;}
+  let h='<table class="dt"><thead><tr><th>材質</th><th>鋼種</th><th class="r">板厚</th><th>材料規格</th><th class="r">長さ</th><th>保管場所</th><th>仕上げ</th><th class="r">重量(kg)</th><th class="r">単価</th><th class="r">材料費</th><th class="r">操作</th></tr></thead><tbody>';
+  records.forEach(r=>{const c=compute(r);h+=`<tr><td><span class="pill mat ${matCls(r.mat)}">${IC.mat}${r.mat}</span></td><td>${shapeIco(r.koshu)}${r.koshu}</td><td class="r tnum">${r.thk}</td><td class="tnum">${r.spec}</td><td class="r tnum">${Number(r.len).toLocaleString()}</td><td>${r.loc?'<span class="pill loc">'+IC.loc+r.loc+'</span>':'<span class="muted">—</span>'}</td><td><span class="pill fin">${IC.fin}${r.fin||"—"}</span></td><td class="r tnum">${fmtKg(c.weight)}</td><td class="r tnum">${c.unit==null?'<span class="muted">—</span>':c.unit.toLocaleString()}</td><td class="r tnum"><b>${fmtYen(c.cost)}</b></td><td class="r"><div class="row-acts"><button class="icobtn" data-edit="${r.id}" title="編集"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20h4L18.5 9.5a2.1 2.1 0 0 0-3-3L5 17v3z"/><path d="M13.5 6.5l3 3"/></svg></button><button class="icobtn del" data-del="${r.id}" title="削除"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg></button></div></td></tr>`;});
+  h+="</tbody></table>";wrap.innerHTML=h;
+  wrap.querySelectorAll("[data-edit]").forEach(b=>b.addEventListener("click",()=>openModal(+b.dataset.edit)));
+  wrap.querySelectorAll("[data-del]").forEach(b=>b.addEventListener("click",()=>delRecord(+b.dataset.del)));
+}
+function delRecord(id){const r=records.find(x=>x.id===id);if(!r)return;if(!confirm(`この在庫を削除しますか？\n\n${r.mat} / ${r.koshu} / ${r.spec} / 長さ${r.len}mm`))return;records=records.filter(x=>x.id!==id);saveRecords();renderInventory();runSearch();updateFoot();toast("在庫を削除しました");}
+
+/* ===================== モーダル（登録/編集） ===================== */
+function setupCascade(matSel,koshuSel,specInput,specDL,finSel,thkSel){
+  matSel.addEventListener("change",()=>{const m=matSel.value;if(m){fillSelect(koshuSel,KOSHU_BY_MAT[m],"選択してください");koshuSel.disabled=false;}else{fillSelect(koshuSel,[],"先に材質を選択");koshuSel.disabled=true;}refreshSpecFin();});
+  koshuSel.addEventListener("change",refreshSpecFin);
+  function refreshSpecFin(){
+    const m=matSel.value,k=koshuSel.value;
+    fillDatalist(specDL,k&&KIKAKU_BY_KOSHU[k]?KIKAKU_BY_KOSHU[k]:[]);
+    if(m&&k){fillSelect(finSel,finishOptions(m,k),"指定なし");finSel.disabled=false;}else{fillSelect(finSel,FINISH_ALL,"指定なし");}
+  }
+}
+function openModal(id){
+  editId=id||null;
+  $("#modalTitle").textContent=editId?"在庫を編集":"在庫を登録";
+  $("#modalDelete").style.visibility=editId?"visible":"hidden";
+  const r=editId?records.find(x=>x.id===editId):{mat:"",koshu:"",thk:"",spec:"",len:"",loc:"",fin:""};
+  fillSelect($("#m_mat"),MATERIALS,"選択してください");$("#m_mat").value=r.mat||"";
+  if(r.mat){fillSelect($("#m_koshu"),KOSHU_BY_MAT[r.mat],"選択してください");$("#m_koshu").disabled=false;$("#m_koshu").value=r.koshu||"";}
+  else{fillSelect($("#m_koshu"),[],"先に材質を選択");$("#m_koshu").disabled=true;}
+  fillSelect($("#m_thk"),THICKNESS,"選択");$("#m_thk").value=r.thk!==""?r.thk:"";
+  fillDatalist($("#dl_mspec"),r.koshu&&KIKAKU_BY_KOSHU[r.koshu]?KIKAKU_BY_KOSHU[r.koshu]:[]);$("#m_spec").value=r.spec||"";
+  $("#m_len").value=r.len!==""?r.len:"";
+  fillSelect($("#m_loc"),LOCATIONS,"指定なし");$("#m_loc").value=r.loc||"";
+  fillSelect($("#m_fin"),r.mat&&r.koshu?finishOptions(r.mat,r.koshu):FINISH_ALL,"指定なし");$("#m_fin").value=r.fin||"";
+  modalPreview();
+  $("#overlay").classList.add("show");
+}
+function closeModal(){$("#overlay").classList.remove("show");editId=null;}
+function readModal(){return{mat:$("#m_mat").value,koshu:$("#m_koshu").value,thk:$("#m_thk").value,spec:$("#m_spec").value.trim(),len:$("#m_len").value.trim(),loc:$("#m_loc").value,fin:$("#m_fin").value};}
+function modalPreview(){const r=readModal();const c=compute(r);$("#pvArea").textContent=c.area==null?"—":fmtNum(c.area,1);$("#pvWeight").textContent=c.weight==null?"—":fmtKg(c.weight);$("#pvUnit").textContent=c.unit==null?"—":c.unit.toLocaleString();$("#pvCost").textContent=c.cost==null?"—":fmtYenP(c.cost);}
+function saveModal(){
+  const r=readModal();
+  if(!r.mat||!r.koshu||r.thk===""||!r.spec||r.len===""){toast("材質・鋼種・板厚・規格・長さは必須です");return;}
+  if(editId){const i=records.findIndex(x=>x.id===editId);records[i]={id:editId,...r,thk:Number(r.thk),len:Number(r.len)};toast("在庫を更新しました");}
+  else{records.push({id:nextId(),...r,thk:Number(r.thk),len:Number(r.len)});toast("在庫を登録しました");}
+  saveRecords();renderInventory();runSearch();updateFoot();closeModal();
+}
+
+/* ===================== 計算ビュー ===================== */
+function initCalc(){
+  fillSelect($("#c_mat"),MATERIALS,"選択してください");
+  fillSelect($("#c_koshu"),[],"先に材質を選択");$("#c_koshu").disabled=true;
+  fillSelect($("#c_thk"),THICKNESS,"選択");
+  fillSelect($("#c_fin"),FINISH_ALL,"指定なし");
+  $("#c_mat").addEventListener("change",()=>{const m=$("#c_mat").value;if(m){fillSelect($("#c_koshu"),KOSHU_BY_MAT[m],"選択してください");$("#c_koshu").disabled=false;}else{fillSelect($("#c_koshu"),[],"先に材質を選択");$("#c_koshu").disabled=true;}calcSpecFin();calcRun();});
+  $("#c_koshu").addEventListener("change",()=>{calcSpecFin();calcRun();});
+  ["#c_thk","#c_fin"].forEach(s=>$(s).addEventListener("change",calcRun));
+  ["#c_spec","#c_len"].forEach(s=>$(s).addEventListener("input",calcRun));
+}
+function calcSpecFin(){const m=$("#c_mat").value,k=$("#c_koshu").value;fillDatalist($("#dl_cspec"),k&&KIKAKU_BY_KOSHU[k]?KIKAKU_BY_KOSHU[k]:[]);if(m&&k){fillSelect($("#c_fin"),finishOptions(m,k),"指定なし");}else fillSelect($("#c_fin"),FINISH_ALL,"指定なし");}
+function calcRun(){
+  const r={mat:$("#c_mat").value,koshu:$("#c_koshu").value,thk:$("#c_thk").value,spec:$("#c_spec").value.trim(),len:$("#c_len").value.trim(),fin:$("#c_fin").value};
+  const c=compute(r);
+  $("#rcCost").innerHTML=c.cost==null?'<small>¥</small>—':'<small>¥</small>'+Math.round(c.cost).toLocaleString("ja-JP");
+  $("#rcArea").innerHTML=c.area==null?'—<small>mm²</small>':fmtNum(c.area,2)+'<small>mm²</small>';
+  $("#rcWeight").innerHTML=c.weight==null?'—<small>kg</small>':fmtKg(c.weight)+'<small>kg</small>';
+  $("#rcDens").textContent=r.mat?density(r.mat):"—";
+  $("#rcUnit").innerHTML=c.unit==null?'—<small>円/kg</small>':c.unit.toLocaleString()+'<small>円/kg</small>';
+  const sh=$("#rcShape");if(sh){if(r.koshu){sh.style.display="flex";sh.innerHTML='<div class="sh-ic">'+shapeSVG(r.koshu)+'</div><div class="sh-txt"><span class="sh-name">'+r.koshu+'</span><span class="sh-sub">'+(r.mat||"材質未選択")+'</span></div>';}else{sh.style.display="none";sh.innerHTML="";}}
+  const fd=FORMULA_DESC[r.koshu];
+  if(fd&&r.spec&&r.thk!==""){const{d1,d2}=dims(r.spec);$("#rcFormula").innerHTML=`断面積 = ${fd.f}<br>＝ ${c.area!=null?fmtNum(c.area,2):"—"} mm²　(寸法 ${d1}${d2?(" × "+d2):""}, 厚 ${r.thk})<br>重量 = 断面積 × 長さ × 比重 ÷ 1,000,000<br>材料費 = 重量 × キロ単価`;}
+  else $("#rcFormula").textContent="材質・鋼種・寸法を入力してください。";
+}
+
+/* ===================== マスタビュー ===================== */
+function renderMasters(){
+  let h='<table class="dt"><thead><tr><th>材質</th><th class="r">比重</th><th class="muted">備考</th></tr></thead><tbody>';
+  Object.entries(DENSITY).forEach(([m,d])=>{const used=MATERIALS.includes(m);h+=`<tr><td><span class="pill mat ${matCls(m)}">${IC.mat}${m}</span></td><td class="r tnum">${d}</td><td class="muted" style="font-size:11.5px">${used?"使用中":"参考値"}</td></tr>`;});
+  h+="</tbody></table>";$("#mDensity").innerHTML=h;
+
+  h='<table class="dt"><thead><tr><th>材質</th><th>鋼種</th><th>仕上げ</th><th>判定</th><th class="r">単価(円/kg)</th></tr></thead><tbody>';
+  PRICE.forEach(p=>{const cond=(p.mat==="SS400"||p.mat==="A6063")?"材質＋鋼種":"完全一致";h+=`<tr><td><span class="pill mat ${matCls(p.mat)}">${IC.mat}${p.mat}</span></td><td>${p.koshu}</td><td>${p.fin?'<span class="pill fin">'+IC.fin+p.fin+'</span>':'<span class="muted">不問</span>'}</td><td class="muted" style="font-size:11.5px">${cond}</td><td class="r tnum">${p.price.toLocaleString()}</td></tr>`;});
+  h+="</tbody></table>";$("#mPrice").innerHTML=h;
+
+  h='<table class="dt"><thead><tr><th>鋼種</th><th>サイズの見方</th><th>断面積 (mm²) の式</th></tr></thead><tbody>';
+  Object.entries(FORMULA_DESC).forEach(([k,v])=>{h+=`<tr><td>${shapeIco(k)}<b>${k}</b></td><td class="muted">${v.view}</td><td class="tnum">${v.f}</td></tr>`;});
+  h+="</tbody></table>";$("#mFormula").innerHTML=h;
+
+  h='<table class="dt"><thead><tr><th>鋼種</th><th>材料規格候補</th></tr></thead><tbody>';
+  Object.entries(KIKAKU_BY_KOSHU).forEach(([k,arr])=>{h+=`<tr><td>${shapeIco(k)}<b>${k}</b></td><td>${arr.map(x=>'<span class="pill fin" style="margin:2px 3px 2px 0">'+x+'</span>').join("")}</td></tr>`;});
+  h+="</tbody></table>";$("#mSpec").innerHTML=h;
+}
+
+/* ===================== CSV ===================== */
+function exportCSV(rows,fname){
+  const head=["材質","鋼種","板厚(mm)","材料規格","長さ(mm)","保管場所","表面仕上げ","重量(kg)","キロ単価","材料費"];
+  const lines=[head.join(",")];
+  rows.forEach(r=>{const c=compute(r);lines.push([r.mat,r.koshu,r.thk,r.spec,r.len,r.loc||"",r.fin||"",c.weight==null?"":c.weight,c.unit==null?"":c.unit,c.cost==null?"":c.cost].map(csvCell).join(","));});
+  const blob=new Blob(["\uFEFF"+lines.join("\r\n")],{type:"text/csv;charset=utf-8"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=fname;a.click();URL.revokeObjectURL(a.href);toast(fname+" を出力しました");
+}
+function csvCell(v){v=String(v==null?"":v);return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;}
+function importCSV(text){
+  const lines=text.replace(/^\uFEFF/,"").split(/\r?\n/).filter(l=>l.trim());
+  if(lines.length<2){toast("取込できる行がありません");return;}
+  let added=0;
+  for(let i=1;i<lines.length;i++){
+    const c=parseCSVLine(lines[i]);if(c.length<5)continue;
+    const rec={mat:c[0].trim(),koshu:c[1].trim(),thk:Number(c[2]),spec:c[3].trim(),len:Number(c[4]),loc:(c[5]||"").trim(),fin:(c[6]||"").trim()};
+    if(!rec.mat||!rec.koshu||!rec.spec||!isFinite(rec.thk)||!isFinite(rec.len))continue;
+    records.push({id:nextId(),...rec});added++;
+  }
+  saveRecords();renderInventory();runSearch();updateFoot();toast(added+" 件を取り込みました");
+}
+function parseCSVLine(line){const out=[];let cur="",q=false;for(let i=0;i<line.length;i++){const ch=line[i];if(q){if(ch==='"'){if(line[i+1]==='"'){cur+='"';i++;}else q=false;}else cur+=ch;}else{if(ch===','){out.push(cur);cur="";}else if(ch==='"')q=true;else cur+=ch;}}out.push(cur);return out;}
+
+/* ===================== フッター / 初期化 ===================== */
+function updateFoot(){
+  $("#footCount").textContent=records.length+" 件";
+  $("#footStore").innerHTML=canPersist?'ローカル保存':'<span style="color:var(--accent)">セッションのみ</span>';
+  $("#footDot").className=canPersist?"dot":"dot warn";
+}
+function init(){
+  loadRecords();
+  initSearchControls();updateSpecDatalist();
+  initCalc();
+  setupCascade($("#m_mat"),$("#m_koshu"),$("#m_spec"),$("#dl_mspec"),$("#m_fin"),$("#m_thk"));
+  ["#m_mat","#m_koshu","#m_thk","#m_fin","#m_loc"].forEach(s=>$(s).addEventListener("change",modalPreview));
+  ["#m_spec","#m_len"].forEach(s=>$(s).addEventListener("input",modalPreview));
+  $("#btnNew").addEventListener("click",()=>openModal(null));
+  $("#modalClose").addEventListener("click",closeModal);$("#modalCancel").addEventListener("click",closeModal);
+  $("#modalSave").addEventListener("click",saveModal);
+  $("#modalDelete").addEventListener("click",()=>{if(editId){delRecord(editId);closeModal();}});
+  $("#overlay").addEventListener("click",e=>{if(e.target===$("#overlay"))closeModal();});
+  document.addEventListener("keydown",e=>{
+    if(e.key==="Escape"){closeModal();closePin();closeHelp();}
+    else if(e.key==="?"||e.key==="F1"){const t=(document.activeElement||{}).tagName;if(t!=="INPUT"&&t!=="SELECT"&&t!=="TEXTAREA"){e.preventDefault();openHelp();}}
+  });
+  $("#btnExportSearch").addEventListener("click",()=>{if(!lastSearch.length){toast("出力対象がありません");return;}exportCSV(lastSearch,"検索結果.csv");});
+  $("#btnExportInv").addEventListener("click",()=>exportCSV(records,"在庫データ.csv"));
+  $("#btnImport").addEventListener("click",()=>$("#fileInput").click());
+  $("#fileInput").addEventListener("change",e=>{const f=e.target.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>importCSV(rd.result);rd.readAsText(f);e.target.value="";});
+  $("#adminBtn").addEventListener("click",()=>{if(isAdmin){isAdmin=false;applyAdmin();toast("管理者モードを解除しました");}else openPin();});
+  $("#pinClose").addEventListener("click",closePin);$("#pinCancel").addEventListener("click",closePin);$("#pinSubmit").addEventListener("click",submitPin);
+  $("#pinInput").addEventListener("keydown",e=>{if(e.key==="Enter")submitPin();else if(e.key==="Escape")closePin();});
+  $("#pinOverlay").addEventListener("click",e=>{if(e.target===$("#pinOverlay"))closePin();});
+  $("#helpBtn").addEventListener("click",openHelp);$("#helpClose").addEventListener("click",closeHelp);$("#helpOk").addEventListener("click",closeHelp);
+  $("#helpOverlay").addEventListener("click",e=>{if(e.target===$("#helpOverlay"))closeHelp();});
+  applyAdmin();
+  renderInventory();renderMasters();runSearch();updateFoot();
+  const _n=new Date(),_w=["日","月","火","水","木","金","土"][_n.getDay()];
+  const _hd=$("#hdrDate");if(_hd)_hd.textContent=_n.getFullYear()+"/"+String(_n.getMonth()+1).padStart(2,"0")+"/"+String(_n.getDate()).padStart(2,"0")+"（"+_w+"）";
+}
+init();
+
+</script>
+</body>
+</html>

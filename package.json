@@ -1,0 +1,14 @@
+{
+  "name": "kyoshin-steel-manager",
+  "version": "1.1.0",
+  "private": true,
+  "type": "commonjs",
+  "description": "鋼材管理システム — 社内共有サーバー版 (Express + SQLite。既存のバニラHTML/JSフロントを配信)",
+  "scripts": {
+    "start": "node server/index.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "^12",
+    "express": "^5"
+  }
+}

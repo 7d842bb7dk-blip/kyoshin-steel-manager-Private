@@ -1,0 +1,10 @@
+# 依存パッケージ（各PCで npm install）
+node_modules/
+
+# 稼働データ（共有には同期しない。バックアップはCSV出力 or app.db のコピー）
+server/data/
+
+# ログ・OS
+*.log
+Thumbs.db
+desktop.ini
