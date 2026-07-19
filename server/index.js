@@ -7,10 +7,11 @@
 // ─────────────────────────────────────────────────────────────
 const path = require("node:path");
 const os = require("node:os");
-const fs = require("node:fs");
 const { execFile } = require("node:child_process");
 const express = require("express");
 const dbm = require("./db");
+
+const BOOT = Date.now(); // 起動時刻。変わっていたらクライアントは再読み込み（自動反映の波及用）
 
 const ROOT = path.join(__dirname, ".."); // プロジェクト直下（index.html がある場所）
 const app = express();
@@ -24,9 +25,9 @@ app.get("/api/state", (req, res) => {
   const version = dbm.getVersion();
   const since = req.query.since != null ? parseInt(req.query.since, 10) : null;
   if (since != null && !Number.isNaN(since) && since >= version) {
-    return res.json({ unchanged: true, version });
+    return res.json({ unchanged: true, version, boot: BOOT });
   }
-  res.json(dbm.getState());
+  res.json({ ...dbm.getState(), boot: BOOT });
 });
 
 // ── 在庫の追加 ──
@@ -96,28 +97,34 @@ app.get("/api/history", (req, res) => {
   res.json({ items: dbm.getHistory(req.query.limit), version: dbm.getVersion() });
 });
 
-// ── 本番反映（管理者用）：git pull → 更新があればプロセス終了（常駐ループが新コードで再起動） ──
-app.post("/api/deploy", (req, res) => {
-  let pin = "";
-  try {
-    const m = fs.readFileSync(path.join(ROOT, "js", "app.js"), "utf8").match(/const ADMIN_PIN="([^"]+)"/);
-    if (m) pin = m[1];
-  } catch (e) {}
-  if (!pin || (req.body || {}).pin !== pin) {
-    return res.status(403).json({ error: "パスコードが正しくありません" });
-  }
-  execFile("git", ["pull", "--ff-only"], { cwd: ROOT, timeout: 60000 }, (err, stdout, stderr) => {
-    if (err) {
-      return res.status(500).json({ error: "git pull に失敗: " + (String(stderr || err.message).trim()) });
-    }
-    const updated = !/Already up to date/i.test(stdout);
-    res.json({ ok: true, updated, log: String(stdout).trim() });
-    if (updated) {
-      console.log("[deploy] 更新を取得。再起動します…\n" + stdout);
-      setTimeout(() => process.exit(0), 800); // レスポンス送信後に終了 → server-daemon.bat が再起動
-    }
+// ── GitHub 自動反映：定期的に origin を確認し、新しいコミットがあれば取り込んで再起動 ──
+//    無効化したい場合は環境変数 AUTO_UPDATE_SEC=0 で起動する
+const AUTO_UPDATE_SEC = parseInt(process.env.AUTO_UPDATE_SEC || "180", 10);
+const gitExec = (args, cb) => execFile("git", args, { cwd: ROOT, timeout: 60000 }, cb);
+let updating = false;
+function checkForUpdate() {
+  if (updating) return;
+  gitExec(["fetch", "--quiet"], (err) => {
+    if (err) return; // オフライン・認証切れ等は無視（次回に再試行）
+    gitExec(["rev-list", "--count", "HEAD..@{u}"], (err2, stdout) => {
+      if (err2) return;
+      const behind = parseInt(String(stdout).trim(), 10) || 0;
+      if (!behind) return;
+      updating = true;
+      console.log(`[auto-update] GitHubに新しいコミットを${behind}件検出。取り込みます…`);
+      gitExec(["pull", "--ff-only"], (err3, out3, errOut3) => {
+        if (err3) {
+          console.error("[auto-update] pull失敗（次回に再試行）:", String(errOut3 || err3.message).trim());
+          updating = false;
+          return;
+        }
+        console.log("[auto-update] 反映完了。再起動します。\n" + String(out3).trim());
+        setTimeout(() => process.exit(0), 500); // 常駐ループ(server-daemon.bat)が新コードで再起動
+      });
+    });
   });
-});
+}
+if (AUTO_UPDATE_SEC > 0) setInterval(checkForUpdate, AUTO_UPDATE_SEC * 1000);
 
 // ── ヘルスチェック（クライアントのモード判定・QR用ベースURLの取得にも使用） ──
 function lanIP() {

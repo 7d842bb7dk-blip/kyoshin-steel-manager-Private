@@ -124,6 +124,20 @@ let MODE="local";   // "server" | "local"
 let version=0;      // server: meta.version（差分ポーリング用）
 let pollTimer=null;
 let qrBase="";      // QRラベルに埋めるサーバーURL（/api/health の base。LAN側IPで返る）
+let bootId=0;       // サーバーの起動時刻。変わったら（自動更新で再起動したら）ページを再読み込み
+
+/* サーバーが再起動していたら true を返しつつページを再読み込み（GitHub自動反映の波及）
+ * ただしモーダル入力中は保留し、閉じた後のポーリングで再読み込みする */
+function checkBoot(s){
+  if(s&&s.boot){
+    if(bootId&&s.boot!==bootId){
+      if(document.querySelector(".overlay.show"))return false;
+      location.reload();return true;
+    }
+    if(!bootId)bootId=s.boot;
+  }
+  return false;
+}
 
 async function apiGET(p){const r=await fetch(p,{headers:{Accept:"application/json"},cache:"no-store"});if(!r.ok)throw new Error("HTTP "+r.status);return r.json();}
 async function apiSend(method,p,body){const r=await fetch(p,{method,headers:{"Content-Type":"application/json"},body:body!=null?JSON.stringify(body):undefined});let j={};try{j=await r.json();}catch(e){}if(!r.ok)throw new Error(j&&j.error?j.error:("HTTP "+r.status));return j;}
@@ -139,7 +153,7 @@ async function detectMode(){
 async function loadRecords(){
   MODE=await detectMode();
   if(MODE==="server"){
-    try{const s=await apiGET("/api/state");records=s.records||[];version=s.version||0;canPersist=true;return;}
+    try{const s=await apiGET("/api/state");checkBoot(s);records=s.records||[];version=s.version||0;canPersist=true;return;}
     catch(e){MODE="local";}
   }
   // local（従来の localStorage 動作）
@@ -152,15 +166,15 @@ const nextId=()=>records.reduce((m,r)=>Math.max(m,r.id),0)+1;
 // server: 最新状態を取り直して再描画（自分の変更後・ポーリング検知時）
 async function refresh(){
   if(MODE!=="server")return;
-  const s=await apiGET("/api/state");records=s.records||[];version=s.version||0;
+  const s=await apiGET("/api/state");if(checkBoot(s))return;records=s.records||[];version=s.version||0;
   renderInventory();runSearch();updateFoot();renderCheckout();
 }
 // server: 約5秒ごとに他PCの変更を取り込む
 function startPolling(){
   if(MODE!=="server"||pollTimer)return;
   pollTimer=setInterval(async()=>{
-    try{const s=await apiGET("/api/state?since="+version);if(s&&s.unchanged)return;records=s.records||[];version=s.version||0;renderInventory();runSearch();updateFoot();renderCheckout();}
-    catch(e){/* 一時的な通信断は無視（次回ポーリングで回復） */}
+    try{const s=await apiGET("/api/state?since="+version);if(checkBoot(s))return;if(s&&s.unchanged)return;records=s.records||[];version=s.version||0;renderInventory();runSearch();updateFoot();renderCheckout();}
+    catch(e){/* 一時的な通信断は無視（次回ポーリングで回復。再起動中もここに来る） */}
   },5000);
 }
 
@@ -206,7 +220,6 @@ document.querySelectorAll(".tab").forEach(it=>it.addEventListener("click",()=>{
 let isAdmin=false;
 function applyAdmin(){
   document.querySelectorAll(".tab.admin-only").forEach(t=>{t.style.display=isAdmin?"inline-flex":"none";});
-  const dep=$("#btnDeploy");if(dep)dep.style.display=(isAdmin&&MODE==="server")?"inline-flex":"none";
   const b=$("#adminBtn");if(b)b.classList.toggle("on",isAdmin);
   const l=$("#adminLabel");if(l)l.textContent=isAdmin?"管理者中（解除）":"管理者モード";
   if(!isAdmin){const cur=document.querySelector(".tab.active");if(cur&&cur.classList.contains("admin-only")){const s=document.querySelector('.tab[data-view="search"]');if(s)s.click();}}
@@ -218,24 +231,6 @@ function submitPin(){
   if($("#pinInput").value===ADMIN_PIN){closePin();isAdmin=true;applyAdmin();toast("管理者モードに切り替えました");}
   else{$("#pinErr").classList.add("show");$("#pinInput").value="";$("#pinInput").focus();const m=document.querySelector(".pin-modal");if(m){m.classList.remove("shake");void m.offsetWidth;m.classList.add("shake");}}
 }
-/* ===================== 本番反映（管理者・サーバー版のみ） ===================== */
-async function deployUpdate(){
-  if(!confirm("GitHub の最新版を本番サーバーに反映しますか？\n（更新がある場合、サーバーが10秒ほど再起動します）"))return;
-  const b=$("#btnDeploy");if(b)b.disabled=true;
-  try{
-    const j=await apiSend("POST","/api/deploy",{pin:ADMIN_PIN});
-    if(!j.updated){toast("すでに最新版です（更新なし）");if(b)b.disabled=false;return;}
-    toast("更新を取得しました。サーバー再起動中…（自動で再読み込みします）");
-    setTimeout(async()=>{
-      for(let i=0;i<30;i++){
-        await new Promise(r=>setTimeout(r,2000));
-        try{const r=await fetch("/api/health",{cache:"no-store"});if(r.ok){location.reload();return;}}catch(e){}
-      }
-      toast("再起動の確認に失敗しました。手動で再読み込みしてください");if(b)b.disabled=false;
-    },3000);
-  }catch(e){toast("反映に失敗: "+e.message);if(b)b.disabled=false;}
-}
-
 /* ===================== 使い方ガイド ===================== */
 function openHelp(){$("#helpOverlay").classList.add("show");}
 function closeHelp(){$("#helpOverlay").classList.remove("show");}
@@ -829,7 +824,6 @@ async function init(){
   $("#btnImport").addEventListener("click",()=>$("#fileInput").click());
   $("#fileInput").addEventListener("change",e=>{const f=e.target.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>importCSV(rd.result);rd.readAsText(f);e.target.value="";});
   $("#adminBtn").addEventListener("click",()=>{if(isAdmin){isAdmin=false;applyAdmin();toast("管理者モードを解除しました");}else openPin();});
-  $("#btnDeploy").addEventListener("click",deployUpdate);
   $("#pinClose").addEventListener("click",closePin);$("#pinCancel").addEventListener("click",closePin);$("#pinSubmit").addEventListener("click",submitPin);
   $("#pinInput").addEventListener("keydown",e=>{if(e.key==="Enter")submitPin();else if(e.key==="Escape")closePin();});
   $("#pinOverlay").addEventListener("click",e=>{if(e.target===$("#pinOverlay"))closePin();});
