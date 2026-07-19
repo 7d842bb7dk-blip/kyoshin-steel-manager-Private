@@ -206,6 +206,7 @@ document.querySelectorAll(".tab").forEach(it=>it.addEventListener("click",()=>{
 let isAdmin=false;
 function applyAdmin(){
   document.querySelectorAll(".tab.admin-only").forEach(t=>{t.style.display=isAdmin?"inline-flex":"none";});
+  const dep=$("#btnDeploy");if(dep)dep.style.display=(isAdmin&&MODE==="server")?"inline-flex":"none";
   const b=$("#adminBtn");if(b)b.classList.toggle("on",isAdmin);
   const l=$("#adminLabel");if(l)l.textContent=isAdmin?"管理者中（解除）":"管理者モード";
   if(!isAdmin){const cur=document.querySelector(".tab.active");if(cur&&cur.classList.contains("admin-only")){const s=document.querySelector('.tab[data-view="search"]');if(s)s.click();}}
@@ -217,6 +218,24 @@ function submitPin(){
   if($("#pinInput").value===ADMIN_PIN){closePin();isAdmin=true;applyAdmin();toast("管理者モードに切り替えました");}
   else{$("#pinErr").classList.add("show");$("#pinInput").value="";$("#pinInput").focus();const m=document.querySelector(".pin-modal");if(m){m.classList.remove("shake");void m.offsetWidth;m.classList.add("shake");}}
 }
+/* ===================== 本番反映（管理者・サーバー版のみ） ===================== */
+async function deployUpdate(){
+  if(!confirm("GitHub の最新版を本番サーバーに反映しますか？\n（更新がある場合、サーバーが10秒ほど再起動します）"))return;
+  const b=$("#btnDeploy");if(b)b.disabled=true;
+  try{
+    const j=await apiSend("POST","/api/deploy",{pin:ADMIN_PIN});
+    if(!j.updated){toast("すでに最新版です（更新なし）");if(b)b.disabled=false;return;}
+    toast("更新を取得しました。サーバー再起動中…（自動で再読み込みします）");
+    setTimeout(async()=>{
+      for(let i=0;i<30;i++){
+        await new Promise(r=>setTimeout(r,2000));
+        try{const r=await fetch("/api/health",{cache:"no-store"});if(r.ok){location.reload();return;}}catch(e){}
+      }
+      toast("再起動の確認に失敗しました。手動で再読み込みしてください");if(b)b.disabled=false;
+    },3000);
+  }catch(e){toast("反映に失敗: "+e.message);if(b)b.disabled=false;}
+}
+
 /* ===================== 使い方ガイド ===================== */
 function openHelp(){$("#helpOverlay").classList.add("show");}
 function closeHelp(){$("#helpOverlay").classList.remove("show");}
@@ -810,6 +829,7 @@ async function init(){
   $("#btnImport").addEventListener("click",()=>$("#fileInput").click());
   $("#fileInput").addEventListener("change",e=>{const f=e.target.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>importCSV(rd.result);rd.readAsText(f);e.target.value="";});
   $("#adminBtn").addEventListener("click",()=>{if(isAdmin){isAdmin=false;applyAdmin();toast("管理者モードを解除しました");}else openPin();});
+  $("#btnDeploy").addEventListener("click",deployUpdate);
   $("#pinClose").addEventListener("click",closePin);$("#pinCancel").addEventListener("click",closePin);$("#pinSubmit").addEventListener("click",submitPin);
   $("#pinInput").addEventListener("keydown",e=>{if(e.key==="Enter")submitPin();else if(e.key==="Escape")closePin();});
   $("#pinOverlay").addEventListener("click",e=>{if(e.target===$("#pinOverlay"))closePin();});

@@ -7,6 +7,8 @@
 // ─────────────────────────────────────────────────────────────
 const path = require("node:path");
 const os = require("node:os");
+const fs = require("node:fs");
+const { execFile } = require("node:child_process");
 const express = require("express");
 const dbm = require("./db");
 
@@ -92,6 +94,29 @@ app.post("/api/checkout", (req, res) => {
 // ── 入出庫履歴（新しい順） ──
 app.get("/api/history", (req, res) => {
   res.json({ items: dbm.getHistory(req.query.limit), version: dbm.getVersion() });
+});
+
+// ── 本番反映（管理者用）：git pull → 更新があればプロセス終了（常駐ループが新コードで再起動） ──
+app.post("/api/deploy", (req, res) => {
+  let pin = "";
+  try {
+    const m = fs.readFileSync(path.join(ROOT, "js", "app.js"), "utf8").match(/const ADMIN_PIN="([^"]+)"/);
+    if (m) pin = m[1];
+  } catch (e) {}
+  if (!pin || (req.body || {}).pin !== pin) {
+    return res.status(403).json({ error: "パスコードが正しくありません" });
+  }
+  execFile("git", ["pull", "--ff-only"], { cwd: ROOT, timeout: 60000 }, (err, stdout, stderr) => {
+    if (err) {
+      return res.status(500).json({ error: "git pull に失敗: " + (String(stderr || err.message).trim()) });
+    }
+    const updated = !/Already up to date/i.test(stdout);
+    res.json({ ok: true, updated, log: String(stdout).trim() });
+    if (updated) {
+      console.log("[deploy] 更新を取得。再起動します…\n" + stdout);
+      setTimeout(() => process.exit(0), 800); // レスポンス送信後に終了 → server-daemon.bat が再起動
+    }
+  });
 });
 
 // ── ヘルスチェック（クライアントのモード判定・QR用ベースURLの取得にも使用） ──
