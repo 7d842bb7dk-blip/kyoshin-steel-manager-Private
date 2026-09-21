@@ -223,9 +223,29 @@ function seedIfEmpty() {
   return n;
 }
 
+// ── マスタ設定（単価・比重・式割当の上書き。null=プログラムの既定値を使用） ──
+const _metaUpsert = db.prepare(
+  "INSERT INTO meta (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value"
+);
+function getMasters() {
+  const r = db.prepare("SELECT value FROM meta WHERE key='masters'").get();
+  if (!r) return null;
+  try { return JSON.parse(r.value); } catch (e) { return null; }
+}
+function getMastersVersion() {
+  const r = db.prepare("SELECT value FROM meta WHERE key='mastersVersion'").get();
+  return r ? parseInt(r.value, 10) || 0 : 0;
+}
+function setMasters(obj) {
+  _metaUpsert.run("masters", JSON.stringify(obj ?? null));
+  _metaUpsert.run("mastersVersion", String(getMastersVersion() + 1));
+  bumpVersion(); // クライアントのポーリングに変更を知らせる
+  return { mv: getMastersVersion(), version: getVersion() };
+}
+
 // ── 全状態（差分ポーリングのベース） ──
 function getState() {
-  return { records: getRecords(), version: getVersion() };
+  return { records: getRecords(), version: getVersion(), mv: getMastersVersion() };
 }
 
 module.exports = {
@@ -234,5 +254,6 @@ module.exports = {
   getRecords, getRecordCount,
   addRecord, updateRecord, deleteRecord, bulkAdd,
   checkoutRecord, getHistory,
+  getMasters, getMastersVersion, setMasters,
   seedIfEmpty, getState,
 };

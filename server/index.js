@@ -7,6 +7,7 @@
 // ─────────────────────────────────────────────────────────────
 const path = require("node:path");
 const os = require("node:os");
+const fs = require("node:fs");
 const { execFile } = require("node:child_process");
 const express = require("express");
 const dbm = require("./db");
@@ -25,7 +26,7 @@ app.get("/api/state", (req, res) => {
   const version = dbm.getVersion();
   const since = req.query.since != null ? parseInt(req.query.since, 10) : null;
   if (since != null && !Number.isNaN(since) && since >= version) {
-    return res.json({ unchanged: true, version, boot: BOOT });
+    return res.json({ unchanged: true, version, boot: BOOT, mv: dbm.getMastersVersion() });
   }
   res.json({ ...dbm.getState(), boot: BOOT });
 });
@@ -89,6 +90,28 @@ app.post("/api/checkout", (req, res) => {
     res.json({ ok: true, removed: r.removed, remain: r.remain, version: r.version });
   } catch (e) {
     res.status(500).json({ error: `持ち出しの記録に失敗: ${e.message}` });
+  }
+});
+
+// ── マスタ設定（単価・比重・式割当）：取得は誰でも、保存は管理者パスコード必須 ──
+function adminPin() {
+  try {
+    const m = fs.readFileSync(path.join(ROOT, "js", "app.js"), "utf8").match(/const ADMIN_PIN="([^"]+)"/);
+    return m ? m[1] : "";
+  } catch (e) { return ""; }
+}
+app.get("/api/masters", (req, res) =>
+  res.json({ masters: dbm.getMasters(), mv: dbm.getMastersVersion() }));
+app.put("/api/masters", (req, res) => {
+  const pin = adminPin();
+  if (!pin || (req.body || {}).pin !== pin) {
+    return res.status(403).json({ error: "パスコードが正しくありません" });
+  }
+  try {
+    const r = dbm.setMasters((req.body || {}).masters ?? null); // null = 初期値に戻す
+    res.json({ ok: true, ...r });
+  } catch (e) {
+    res.status(500).json({ error: `マスタの保存に失敗: ${e.message}` });
   }
 });
 

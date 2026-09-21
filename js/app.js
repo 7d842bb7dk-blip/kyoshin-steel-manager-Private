@@ -48,10 +48,10 @@ const FINISH_BY_MAT_KOSHU={
 const FINISH_ALL=["HL","#400","未研","ミガキ","HOT","COLD","黒皮","サニタリー","BA"];
 const THICKNESS=[1,1.2,1.5,1.6,2,2.1,2.3,3,3.2,4,4.5,5,6];
 const LOCATIONS=["本社レーザー前","第二工場","第三工場","本社材料倉庫"]; /* 在庫が空のときの初期候補。在庫があれば実データから動的生成（locOptions） */
-const DENSITY={"SUS304":7.93,"SUS316L":7.98,"SUS430":7.7,"SS400":7.85,"SGP":7.85,"STKM":7.85,"A5052":2.68,"A6063":2.7,"アルミ":2.7,"ﾁﾀﾝ":4.51,"チタン":4.51};
+let DENSITY={"SUS304":7.93,"SUS316L":7.98,"SUS430":7.7,"SS400":7.85,"SGP":7.85,"STKM":7.85,"A5052":2.68,"A6063":2.7,"アルミ":2.7,"ﾁﾀﾝ":4.51,"チタン":4.51};
 
 /* キロ単価マスタ（合算ルール対応：同一キーが複数行ある場合は合計） */
-const PRICE=[];
+let PRICE=[];
 [["角パイプ",[null]],["丸パイプ(TP-S)",[null]],["丸パイプ(TP-A)",[null]],["チャンネル",[null]],["アングル",[null]],["フラットバー",["ミガキ","黒皮"]]]
   .forEach(([k,fins])=>fins.forEach(f=>PRICE.push({mat:"SS400",koshu:k,fin:f,price:250})));
 ["角パイプ","丸パイプ(TP-S)","丸パイプ(TP-A)","サニタリーパイプ","チャンネル","アングル"]
@@ -63,19 +63,32 @@ const SUS_PRICED={
 };
 Object.entries(SUS_PRICED).forEach(([mat,o])=>Object.entries(o).forEach(([k,fins])=>fins.forEach(f=>PRICE.push({mat,koshu:k,fin:f,price:800}))));
 
-const FORMULA_DESC={
-  "丸パイプ(TP-S)":{view:"外径Φ・肉厚t",f:"π/4 × ( Φ² − (Φ−2t)² )"},
-  "丸パイプ(TP-A)":{view:"外径Φ・肉厚t",f:"π/4 × ( Φ² − (Φ−2t)² )"},
-  "サニタリーパイプ":{view:"外径Φ・肉厚t",f:"π/4 × ( Φ² − (Φ−2t)² )"},
-  "化粧管":{view:"外径Φ・肉厚t",f:"π/4 × ( Φ² − (Φ−2t)² )"},
-  "BA管":{view:"外径Φ・肉厚t",f:"π/4 × ( Φ² − (Φ−2t)² )"},
-  "丸棒":{view:"外径Φ（無垢）",f:"π/4 × Φ²"},
-  "角棒":{view:"A×B（無垢）",f:"A × B"},
-  "角パイプ":{view:"外寸A×外寸B・肉厚t",f:"A×B − (A−2t)×(B−2t)"},
-  "フラットバー":{view:"幅×厚t",f:"幅 × t"},
-  "アングル":{view:"辺A×辺B・厚t",f:"t × (A + B − t)"},
-  "チャンネル":{view:"高さH×耳・厚t",f:"t × (H + 2×耳 − 2t)"}
+/* 断面積の式（7種類・中身は固定＝Excel再現）と、鋼種→式の割り当て。
+ * 「どの鋼種にどの式を使うか」は管理者モードのマスタ設定から変更できる */
+const AREA_FORMULAS={
+  round:{label:"丸管（パイプ）",view:"外径Φ・肉厚t",f:"π/4 × ( Φ² − (Φ−2t)² )",calc:(d1,d2,t)=>{const i=Math.max(d1-2*t,0);return Math.PI/4*(d1*d1-i*i);}},
+  square:{label:"角パイプ",view:"外寸A×外寸B・肉厚t",f:"A×B − (A−2t)×(B−2t)",calc:(d1,d2,t)=>d1*d2-Math.max(d1-2*t,0)*Math.max(d2-2*t,0)},
+  flat:{label:"フラットバー",view:"幅×厚t",f:"幅 × t",calc:(d1,d2,t)=>d1*t},
+  angle:{label:"アングル",view:"辺A×辺B・厚t",f:"t × (A + B − t)",calc:(d1,d2,t)=>t*(d1+d2-t)},
+  channel:{label:"チャンネル",view:"高さH×耳・厚t",f:"t × (H + 2×耳 − 2t)",calc:(d1,d2,t)=>t*(d1+2*d2-2*t)},
+  solidRound:{label:"丸棒（無垢）",view:"外径Φ（無垢）",f:"π/4 × Φ²",calc:(d1)=>Math.PI/4*d1*d1},
+  solidSquare:{label:"角棒（無垢）",view:"A×B（無垢）",f:"A × B",calc:(d1,d2)=>d1*(d2||d1)}
 };
+let KOSHU_FORMULA={
+  "丸パイプ(TP-S)":"round","丸パイプ(TP-A)":"round","サニタリーパイプ":"round","化粧管":"round","BA管":"round","丸パイプ":"round",
+  "角パイプ":"square","フラットバー":"flat","アングル":"angle","チャンネル":"channel","丸棒":"solidRound","角棒":"solidSquare"
+};
+function formulaDesc(koshu){return AREA_FORMULAS[KOSHU_FORMULA[koshu]]||null;}
+
+/* ── マスタ設定（管理者が画面から編集可能。保存先＝サーバーDB／単体版は localStorage） ── */
+const DEFAULT_MASTERS={density:{...DENSITY},price:PRICE.map(p=>({...p})),koshuFormula:{...KOSHU_FORMULA}};
+function applyMasters(m){
+  const src=(m&&typeof m==="object")?m:DEFAULT_MASTERS;
+  DENSITY={...(src.density&&Object.keys(src.density).length?src.density:DEFAULT_MASTERS.density)};
+  PRICE=((src.price&&src.price.length?src.price:DEFAULT_MASTERS.price))
+    .map(p=>({mat:String(p.mat||""),koshu:String(p.koshu||""),fin:(p.fin===""||p.fin==null)?null:String(p.fin),price:Number(p.price)||0}));
+  KOSHU_FORMULA={...(src.koshuFormula&&Object.keys(src.koshuFormula).length?src.koshuFormula:DEFAULT_MASTERS.koshuFormula)};
+}
 
 /* ===================== 計算エンジン（Excel数式と同一） ===================== */
 function normSpec(s){return String(s==null?"":s).replace(/[Φφ]/g,"").replace(/[×Xx]/g,"*").trim();}
@@ -83,16 +96,8 @@ function dims(spec){const n=normSpec(spec),p=n.split("*");const d1=parseFloat(p[
 function density(mat){return DENSITY[mat]!=null?DENSITY[mat]:(String(mat).startsWith("SUS")?7.93:7.85);}
 function sectionArea(mat,koshu,thk,spec){
   const{d1,d2}=dims(spec);const t=parseFloat(thk)||0;
-  /* 丸管系（化粧管・BA管・種別不明の丸パイプも同じ式。2026-09 画像読取データ対応で追加） */
-  if(koshu==="丸パイプ(TP-S)"||koshu==="丸パイプ(TP-A)"||koshu==="サニタリーパイプ"||koshu==="化粧管"||koshu==="BA管"||koshu==="丸パイプ"){const i=Math.max(d1-2*t,0);return Math.PI/4*(d1*d1-i*i);}
-  if(koshu==="角パイプ")return d1*d2-Math.max(d1-2*t,0)*Math.max(d2-2*t,0);
-  if(koshu==="フラットバー")return d1*t;
-  if(koshu==="アングル")return t*(d1+d2-t);
-  if(koshu==="チャンネル")return t*(d1+2*d2-2*t);
-  /* 無垢材（棒）。板厚は使わない（2026-09 追加） */
-  if(koshu==="丸棒")return Math.PI/4*d1*d1;
-  if(koshu==="角棒")return d1*(d2||d1);
-  return null;
+  const fm=AREA_FORMULAS[KOSHU_FORMULA[koshu]];
+  return fm?fm.calc(d1,d2,t):null;
 }
 function round(v,d){const f=Math.pow(10,d);return Math.round((v+Number.EPSILON)*f)/f;}
 function weightKg(mat,koshu,thk,spec,len){const a=sectionArea(mat,koshu,thk,spec);if(a==null||!isFinite(a))return null;const L=parseFloat(len)||0;return round(a*L*density(mat)/1e6,3);}
@@ -160,6 +165,22 @@ async function detectMode(){
   return "local";
 }
 
+/* マスタ設定の読込と、他PCでの変更の取り込み */
+const MASTERS_KEY="steel_mgr_masters_v1";
+let mastersV=0;
+async function loadMasters(){
+  if(MODE==="server"){
+    try{const j=await apiGET("/api/masters");applyMasters(j.masters);mastersV=j.mv||0;}
+    catch(e){/* 通信断時は現状のまま */}
+  }else{
+    try{const raw=localStorage.getItem(MASTERS_KEY);applyMasters(raw?JSON.parse(raw):null);}catch(e){}
+  }
+}
+function syncMasters(s){
+  if(MODE!=="server"||!s||s.mv===undefined||s.mv===mastersV)return;
+  loadMasters().then(()=>{renderMasters();renderInventory();runSearch();renderCheckout();toast("マスタ設定が更新されました");});
+}
+
 async function loadRecords(){
   MODE=await detectMode();
   if(MODE==="server"){
@@ -176,14 +197,14 @@ const nextId=()=>records.reduce((m,r)=>Math.max(m,r.id),0)+1;
 // server: 最新状態を取り直して再描画（自分の変更後・ポーリング検知時）
 async function refresh(){
   if(MODE!=="server")return;
-  const s=await apiGET("/api/state");if(checkBoot(s))return;records=s.records||[];version=s.version||0;
+  const s=await apiGET("/api/state");if(checkBoot(s))return;syncMasters(s);records=s.records||[];version=s.version||0;
   renderInventory();runSearch();updateFoot();renderCheckout();
 }
 // server: 約5秒ごとに他PCの変更を取り込む
 function startPolling(){
   if(MODE!=="server"||pollTimer)return;
   pollTimer=setInterval(async()=>{
-    try{const s=await apiGET("/api/state?since="+version);if(checkBoot(s))return;if(s&&s.unchanged)return;records=s.records||[];version=s.version||0;renderInventory();runSearch();updateFoot();renderCheckout();}
+    try{const s=await apiGET("/api/state?since="+version);if(checkBoot(s))return;syncMasters(s);if(s&&s.unchanged)return;records=s.records||[];version=s.version||0;renderInventory();runSearch();updateFoot();renderCheckout();}
     catch(e){/* 一時的な通信断は無視（次回ポーリングで回復。再起動中もここに来る） */}
   },5000);
 }
@@ -785,28 +806,81 @@ function calcRun(){
   $("#rcDens").textContent=r.mat?density(r.mat):"—";
   $("#rcUnit").innerHTML=c.unit==null?'—<small>円/kg</small>':c.unit.toLocaleString()+'<small>円/kg</small>';
   const sh=$("#rcShape");if(sh){if(r.koshu){sh.style.display="flex";sh.innerHTML='<div class="sh-ic">'+shapeSVG(r.koshu)+'</div><div class="sh-txt"><span class="sh-name">'+r.koshu+'</span><span class="sh-sub">'+(r.mat||"材質未選択")+'</span></div>';}else{sh.style.display="none";sh.innerHTML="";}}
-  const fd=FORMULA_DESC[r.koshu];
+  const fd=formulaDesc(r.koshu);
   if(fd&&r.spec&&r.thk!==""){const{d1,d2}=dims(r.spec);$("#rcFormula").innerHTML=`断面積 = ${fd.f}<br>＝ ${c.area!=null?fmtNum(c.area,2):"—"} mm²　(寸法 ${d1}${d2?(" × "+d2):""}, 厚 ${r.thk})<br>重量 = 断面積 × 長さ × 比重 ÷ 1,000,000<br>材料費 = 重量 × キロ単価`;}
   else $("#rcFormula").textContent="材質・鋼種・寸法を入力してください。";
 }
 
-/* ===================== マスタビュー ===================== */
+/* ===================== マスタビュー（管理者が編集可能） ===================== */
+const M_DEL='<button class="icobtn del m-del" title="行を削除"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg></button>';
+const mIn=(f,v,type,extra)=>`<input class="m-in${type==="number"?" num":""}" type="${type}" data-f="${f}" value="${v==null?"":String(v).replace(/"/g,"&quot;")}"${extra?" "+extra:""}>`;
+function mDrow(m,d){return `<tr data-drow><td style="width:170px">${mIn("mat",m,"text",'placeholder="例: SUS304"')}</td><td class="r" style="width:110px">${mIn("val",d,"number",'step="0.01" min="0"')}</td><td class="r">${M_DEL}</td></tr>`;}
+function mProw(p){return `<tr data-prow><td>${mIn("mat",p.mat,"text",'placeholder="例: SUS304"')}</td><td>${mIn("koshu",p.koshu,"text",'placeholder="例: 化粧管"')}</td><td>${mIn("fin",p.fin||"","text",'placeholder="不問"')}</td><td class="r" style="width:110px">${mIn("price",p.price,"number",'step="1" min="0"')}</td><td class="r">${M_DEL}</td></tr>`;}
+function mFrow(k,fk){
+  let s='<select class="m-in" data-f="formula">';
+  Object.entries(AREA_FORMULAS).forEach(([key,v])=>{s+=`<option value="${key}"${key===fk?" selected":""}>${v.label}</option>`;});
+  s+="</select>";
+  const v=AREA_FORMULAS[fk]||AREA_FORMULAS.round;
+  return `<tr data-frow><td style="width:200px">${mIn("koshu",k,"text",'placeholder="例: 化粧管"')}</td><td style="width:170px">${s}</td><td class="tnum" data-fdesc>${v.f}</td><td class="muted" data-fview style="font-size:11.5px">${v.view}</td><td class="r">${M_DEL}</td></tr>`;
+}
 function renderMasters(){
-  let h='<table class="dt"><thead><tr><th>材質</th><th class="r">比重</th><th class="muted">備考</th></tr></thead><tbody>';
-  Object.entries(DENSITY).forEach(([m,d])=>{const used=MATERIALS.includes(m);h+=`<tr><td><span class="pill mat ${matCls(m)}">${IC.mat}${m}</span></td><td class="r tnum">${d}</td><td class="muted" style="font-size:11.5px">${used?"使用中":"参考値"}</td></tr>`;});
-  h+="</tbody></table>";$("#mDensity").innerHTML=h;
+  let h='<table class="dt"><thead><tr><th>材質</th><th class="r">比重</th><th></th></tr></thead><tbody>';
+  Object.entries(DENSITY).forEach(([m,d])=>{h+=mDrow(m,d);});
+  h+='</tbody></table><div class="m-addwrap"><button class="btn ghost sm m-add" data-add="density"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>行を追加</button></div>';
+  $("#mDensity").innerHTML=h;
 
-  h='<table class="dt"><thead><tr><th>材質</th><th>鋼種</th><th>仕上げ</th><th>判定</th><th class="r">単価(円/kg)</th></tr></thead><tbody>';
-  PRICE.forEach(p=>{const cond=(p.mat==="SS400"||p.mat==="A6063")?"材質＋鋼種":"完全一致";h+=`<tr><td><span class="pill mat ${matCls(p.mat)}">${IC.mat}${p.mat}</span></td><td>${p.koshu}</td><td>${p.fin?'<span class="pill fin">'+IC.fin+p.fin+'</span>':'<span class="muted">不問</span>'}</td><td class="muted" style="font-size:11.5px">${cond}</td><td class="r tnum">${p.price.toLocaleString()}</td></tr>`;});
-  h+="</tbody></table>";$("#mPrice").innerHTML=h;
+  h='<table class="dt"><thead><tr><th>材質</th><th>鋼種</th><th>仕上げ（空欄＝不問）</th><th class="r">単価(円/kg)</th><th></th></tr></thead><tbody>';
+  PRICE.forEach(p=>{h+=mProw(p);});
+  h+='</tbody></table><div class="m-addwrap"><button class="btn ghost sm m-add" data-add="price"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>行を追加</button></div>';
+  $("#mPrice").innerHTML=h;
 
-  h='<table class="dt"><thead><tr><th>鋼種</th><th>サイズの見方</th><th>断面積 (mm²) の式</th></tr></thead><tbody>';
-  Object.entries(FORMULA_DESC).forEach(([k,v])=>{h+=`<tr><td>${shapeIco(k)}<b>${k}</b></td><td class="muted">${v.view}</td><td class="tnum">${v.f}</td></tr>`;});
-  h+="</tbody></table>";$("#mFormula").innerHTML=h;
+  h='<table class="dt"><thead><tr><th>鋼種</th><th>適用する式</th><th>断面積 (mm²) の式</th><th>サイズの見方</th><th></th></tr></thead><tbody>';
+  Object.entries(KOSHU_FORMULA).forEach(([k,fk])=>{h+=mFrow(k,fk);});
+  h+='</tbody></table><div class="m-addwrap"><button class="btn ghost sm m-add" data-add="formula"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>鋼種を追加</button></div>';
+  $("#mFormula").innerHTML=h;
 
   h='<table class="dt"><thead><tr><th>鋼種</th><th>材料規格候補</th></tr></thead><tbody>';
   Object.entries(KIKAKU_BY_KOSHU).forEach(([k,arr])=>{h+=`<tr><td>${shapeIco(k)}<b>${k}</b></td><td>${arr.map(x=>'<span class="pill fin" style="margin:2px 3px 2px 0">'+x+'</span>').join("")}</td></tr>`;});
   h+="</tbody></table>";$("#mSpec").innerHTML=h;
+}
+/* 画面のテーブルからマスタを読み取る（空行・不正値は除外） */
+function collectMasters(){
+  const density={};
+  document.querySelectorAll("#mDensity [data-drow]").forEach(tr=>{
+    const m=tr.querySelector('[data-f="mat"]').value.trim();
+    const d=Number(tr.querySelector('[data-f="val"]').value);
+    if(m&&isFinite(d)&&d>0)density[m]=d;
+  });
+  const price=[];
+  document.querySelectorAll("#mPrice [data-prow]").forEach(tr=>{
+    const mat=tr.querySelector('[data-f="mat"]').value.trim();
+    const koshu=tr.querySelector('[data-f="koshu"]').value.trim();
+    const fin=tr.querySelector('[data-f="fin"]').value.trim();
+    const pr=Number(tr.querySelector('[data-f="price"]').value);
+    if(mat&&koshu&&isFinite(pr)&&pr>=0)price.push({mat,koshu,fin:fin||null,price:pr});
+  });
+  const koshuFormula={};
+  document.querySelectorAll("#mFormula [data-frow]").forEach(tr=>{
+    const k=tr.querySelector('[data-f="koshu"]').value.trim();
+    const key=tr.querySelector('[data-f="formula"]').value;
+    if(k&&AREA_FORMULAS[key])koshuFormula[k]=key;
+  });
+  return{density,price,koshuFormula};
+}
+async function saveMasters(reset){
+  if(reset&&!confirm("単価・比重・式の割り当てを、プログラムの既定値に戻しますか？"))return;
+  const masters=reset?null:collectMasters();
+  if(!reset&&(!Object.keys(masters.density).length||!masters.price.length||!Object.keys(masters.koshuFormula).length)){toast("比重・単価・式の各表に1行以上必要です");return;}
+  if(MODE==="server"){
+    try{const j=await apiSend("PUT","/api/masters",{pin:ADMIN_PIN,masters});mastersV=j.mv||mastersV+1;}
+    catch(e){toast("保存に失敗しました: "+e.message);return;}
+  }else{
+    try{if(masters)localStorage.setItem(MASTERS_KEY,JSON.stringify(masters));else localStorage.removeItem(MASTERS_KEY);}
+    catch(e){toast("保存に失敗しました");return;}
+  }
+  applyMasters(masters);
+  renderMasters();renderInventory();runSearch();renderCheckout();
+  toast(reset?"マスタを初期値に戻しました":(MODE==="server"?"マスタを保存しました（全PCに反映されます）":"マスタを保存しました"));
 }
 
 /* ===================== CSV ===================== */
@@ -848,6 +922,7 @@ function updateFoot(){
 }
 async function init(){
   await loadRecords();
+  await loadMasters();
   initSearchControls();updateSpecDatalist();
   initCheckoutControls();
   initCalc();
@@ -883,6 +958,27 @@ async function init(){
   $("#btnImport").addEventListener("click",()=>$("#fileInput").click());
   $("#fileInput").addEventListener("change",e=>{const f=e.target.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>importCSV(rd.result);rd.readAsText(f);e.target.value="";});
   $("#adminBtn").addEventListener("click",()=>{if(isAdmin){isAdmin=false;applyAdmin();toast("管理者モードを解除しました");}else openPin();});
+  /* マスタ設定（管理者）：保存・初期化・行の追加/削除・式選択の表示更新 */
+  $("#btnMastersSave").addEventListener("click",()=>saveMasters(false));
+  $("#btnMastersReset").addEventListener("click",()=>saveMasters(true));
+  $("#view-master").addEventListener("click",e=>{
+    const del=e.target.closest(".m-del");if(del){del.closest("tr").remove();return;}
+    const add=e.target.closest(".m-add");
+    if(add){
+      const tb=add.closest(".tbl-wrap").querySelector("tbody");
+      const kind=add.dataset.add;
+      if(kind==="density")tb.insertAdjacentHTML("beforeend",mDrow("",""));
+      else if(kind==="price")tb.insertAdjacentHTML("beforeend",mProw({mat:"",koshu:"",fin:null,price:""}));
+      else tb.insertAdjacentHTML("beforeend",mFrow("","round"));
+      const last=tb.lastElementChild.querySelector("input");if(last)last.focus();
+    }
+  });
+  $("#view-master").addEventListener("change",e=>{
+    const sel=e.target.closest('select[data-f="formula"]');
+    if(sel){const v=AREA_FORMULAS[sel.value];const tr=sel.closest("tr");
+      const fd=tr.querySelector("[data-fdesc]");if(fd)fd.textContent=v.f;
+      const fv=tr.querySelector("[data-fview]");if(fv)fv.textContent=v.view;}
+  });
   $("#pinClose").addEventListener("click",closePin);$("#pinCancel").addEventListener("click",closePin);$("#pinSubmit").addEventListener("click",submitPin);
   $("#pinInput").addEventListener("keydown",e=>{if(e.key==="Enter")submitPin();else if(e.key==="Escape")closePin();});
   $("#pinOverlay").addEventListener("click",e=>{if(e.target===$("#pinOverlay"))closePin();});

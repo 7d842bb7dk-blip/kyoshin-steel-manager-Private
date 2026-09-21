@@ -204,6 +204,13 @@
 
     <!-- ====== MASTER VIEW ====== -->
     <section class="view" id="view-master">
+      <div class="m-actions">
+        <span class="m-note"><b>比重・キロ単価・断面積式の割り当てをここで編集できます。</b>変更は「マスタを保存」を押すと確定し、全PCの重量・材料費の表示に反映されます。式そのものの中身（計算方法）は固定です。</span>
+        <div style="display:flex;gap:9px;margin-left:auto;flex:0 0 auto">
+          <button class="btn ghost" id="btnMastersReset"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 12a9 9 0 1 1 2.6 6.4M3 21v-6h6"/></svg>初期値に戻す</button>
+          <button class="btn primary" id="btnMastersSave"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 13l4 4L19 7"/></svg>マスタを保存</button>
+        </div>
+      </div>
       <div class="mgrid">
         <div class="panel">
           <div class="panel-h"><h2><svg class="sec-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v18M5 8l7-5 7 5"/></svg>材質別 比重</h2><span class="tag">DENSITY</span></div>
@@ -217,7 +224,7 @@
           <div class="tbl-wrap" id="mPrice"></div>
         </div>
         <div class="panel span2">
-          <div class="panel-h"><h2><svg class="sec-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19V5h16v14zM4 9h16M9 9v10"/></svg>鋼種別 断面積計算式</h2><span class="tag">SECTION AREA</span></div>
+          <div class="panel-h"><h2><svg class="sec-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19V5h16v14zM4 9h16M9 9v10"/></svg>鋼種別 断面積計算式（式の割り当てを変更可）</h2><span class="tag">SECTION AREA</span></div>
           <div class="tbl-wrap" id="mFormula"></div>
         </div>
         <div class="panel span2">
@@ -374,7 +381,7 @@
 
       <div class="help-sec">
         <div class="help-h"><span class="help-ic purple"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 19a2 2 0 0 0 2 2h13"/></svg></span>マスタ参照</div>
-        <p class="help-p">材質別の<b>比重</b>、<b>キロ単価のルール</b>、鋼種別の<b>断面積計算式</b>、<b>材料規格の候補</b>を確認できます。計算の根拠を確かめたいときに使います。</p>
+        <p class="help-p">材質別の<b>比重</b>、<b>キロ単価</b>、鋼種別の<b>断面積計算式の割り当て</b>を確認・<b>編集</b>できます。行の追加・削除も可能で、<b>「マスタを保存」で全PCに反映</b>されます（重量・材料費の表示にも即反映）。「初期値に戻す」でプログラムの既定値に戻せます。</p>
       </div>
 
       <div class="help-sec">

@@ -363,6 +363,17 @@ main.content{flex:1;overflow:auto;padding:20px 22px 48px;background:var(--bg)}
 .pill.h-edit{background:#e9f0f8;color:#235a8c}
 .pill.h-del{background:#eef1f4;color:#566079}
 
+/* ============ マスタ設定（管理者・編集可能） ============ */
+.m-actions{display:flex;align-items:center;gap:14px;flex-wrap:wrap;background:var(--panel);border:1px solid var(--line);
+  border-radius:var(--r);box-shadow:var(--shadow);padding:13px 16px;margin-bottom:16px}
+.m-actions .m-note{font-size:12px;color:var(--ink-soft);line-height:1.6;flex:1;min-width:260px}
+.m-in{padding:6px 9px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--ink);
+  font-family:var(--jp);font-size:12.5px;width:100%;min-width:60px}
+.m-in.num{font-family:var(--mono);text-align:right}
+.m-in:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-soft)}
+select.m-in{width:auto;max-width:100%;cursor:pointer}
+.m-addwrap{padding:10px 14px;border-top:1px solid var(--line-soft)}
+
 /* ============ QRラベル印刷 ============ */
 .qr-modal{width:780px;max-width:calc(100% - 32px)}
 .qr-note{padding:14px 20px 0;font-size:12.5px;color:var(--ink-soft);line-height:1.6}
