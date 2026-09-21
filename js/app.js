@@ -81,13 +81,15 @@ let KOSHU_FORMULA={
 function formulaDesc(koshu){return AREA_FORMULAS[KOSHU_FORMULA[koshu]]||null;}
 
 /* ── マスタ設定（管理者が画面から編集可能。保存先＝サーバーDB／単体版は localStorage） ── */
-const DEFAULT_MASTERS={density:{...DENSITY},price:PRICE.map(p=>({...p})),koshuFormula:{...KOSHU_FORMULA}};
+let STAFF=[]; /* 名簿（持ち出し・鍵で名前を選択肢から選ぶための一覧。マスタ設定で編集） */
+const DEFAULT_MASTERS={density:{...DENSITY},price:PRICE.map(p=>({...p})),koshuFormula:{...KOSHU_FORMULA},staff:[]};
 function applyMasters(m){
   const src=(m&&typeof m==="object")?m:DEFAULT_MASTERS;
   DENSITY={...(src.density&&Object.keys(src.density).length?src.density:DEFAULT_MASTERS.density)};
   PRICE=((src.price&&src.price.length?src.price:DEFAULT_MASTERS.price))
     .map(p=>({mat:String(p.mat||""),koshu:String(p.koshu||""),fin:(p.fin===""||p.fin==null)?null:String(p.fin),price:Number(p.price)||0}));
   KOSHU_FORMULA={...(src.koshuFormula&&Object.keys(src.koshuFormula).length?src.koshuFormula:DEFAULT_MASTERS.koshuFormula)};
+  STAFF=Array.isArray(src.staff)?src.staff.map(s=>String(s).trim()).filter(Boolean):[];
 }
 
 /* ===================== 計算エンジン（Excel数式と同一） ===================== */
@@ -236,7 +238,7 @@ const fmtYen=n=>n==null?'<span class="muted">—</span>':'¥'+Math.round(n).toLo
 const fmtYenP=n=>n==null?"—":"¥"+Math.round(n).toLocaleString("ja-JP");
 const fmtKg=n=>n==null?'<span class="muted">—</span>':n.toLocaleString("ja-JP",{maximumFractionDigits:3});
 const fmtNum=(n,d=1)=>n==null?'<span class="muted">—</span>':n.toLocaleString("ja-JP",{maximumFractionDigits:d});
-function fillSelect(sel,opts,blankLabel){sel.innerHTML="";const b=document.createElement("option");b.value="";b.textContent=blankLabel||"指定なし";sel.appendChild(b);opts.forEach(o=>{const e=document.createElement("option");e.value=o;e.textContent=o;sel.appendChild(e);});}
+function fillSelect(sel,opts,blankLabel){sel.innerHTML="";const b=document.createElement("option");b.value="";b.textContent=t(blankLabel||"指定なし");sel.appendChild(b);opts.forEach(o=>{const e=document.createElement("option");e.value=o;e.textContent=o;sel.appendChild(e);});}
 function fillDatalist(dl,opts){dl.innerHTML="";opts.forEach(o=>{const e=document.createElement("option");e.value=o;dl.appendChild(e);});}
 function matCls(m){return "m-"+String(m).toLowerCase().replace(/[^a-z0-9]/g,"");}
 /* 保管場所の候補：在庫の実データから動的生成（在庫が空なら LOCATIONS を使用） */
@@ -269,6 +271,26 @@ function refillSelect(sel,opts,blank){
   const cur=sel.value;fillSelect(sel,opts,blank);sel.dataset.opts=key;
   if(opts.map(String).includes(cur))sel.value=cur;
 }
+/* 名前の選択肢：名簿マスタ（マスタ設定で編集）＋持ち出し/鍵の履歴に出てくる名前
+ * （CSV取込などのシステム操作名は候補に入れない） */
+function personOptions(){return uniqVals([...STAFF,...history.filter(x=>x.type==="checkout"||x.type==="keyout"||x.type==="keyin").map(x=>x.person)]);}
+/* 名前ピッカー：選択肢から選ぶ。前回の名前（端末に記憶）を自動選択。「直接入力」も可 */
+function setupPersonPicker(selSel,inpSel){
+  const sel=$(selSel),inp=$(inpSel);if(!sel||!inp)return;
+  const opts=personOptions();
+  let stored="";try{stored=(localStorage.getItem(PERSON_KEY)||"").trim();}catch(e){}
+  sel.innerHTML="";
+  const blank=document.createElement("option");blank.value="";blank.textContent=t("名前を選んでください");sel.appendChild(blank);
+  opts.forEach(o=>{const e=document.createElement("option");e.value=o;e.textContent=o;sel.appendChild(e);});
+  const free=document.createElement("option");free.value="__free";free.textContent=t("（名前を直接入力）");sel.appendChild(free);
+  if(stored&&opts.includes(stored))sel.value=stored;
+  else if(stored){sel.value="__free";inp.value=stored;}
+  else inp.value="";
+  const sync=()=>{inp.style.display=sel.value==="__free"?"block":"none";if(sel.value==="__free")setTimeout(()=>inp.focus(),50);};
+  sel.onchange=sync;sync();
+}
+function pickerValue(selSel,inpSel){const sel=$(selSel);return sel.value==="__free"?$(inpSel).value.trim():sel.value.trim();}
+
 /* 検索フィルタの選択肢を実データに追従させる */
 function refreshSearchFilters(){
   refillSelect($("#f_mat"),matOptions(),"すべての材質");
@@ -279,6 +301,81 @@ function refreshSearchFilters(){
 }
 function finishOptions(mat,koshu){const k=mat+"|"+koshu;if(FINISH_BY_MAT_KOSHU[k]&&FINISH_BY_MAT_KOSHU[k].length)return FINISH_BY_MAT_KOSHU[k];return FINISH_ALL;}
 function toast(msg){const t=$("#toast");$("#toastMsg").textContent=msg;t.classList.add("show");clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove("show"),2200);}
+
+/* ===================== 言語（日本語／ベトナム語） =====================
+ * 現場向け画面（タブ・検索・持ち出し・鍵・履歴）を翻訳対象にする。
+ * 管理者向け画面（マスタ設定・作業ログ・計算）は日本語のみ。 */
+const LANG_KEY="steel_mgr_lang";
+let LANG="ja";try{if(localStorage.getItem(LANG_KEY)==="vi")LANG="vi";}catch(e){}
+const I18N_VI={
+  "メニュー":"Menu","在庫検索":"Tìm kiếm tồn kho","持ち出し":"Lấy vật liệu","入出庫履歴":"Lịch sử xuất nhập",
+  "作業ログ":"Nhật ký công việc","在庫管理":"Quản lý tồn kho","重量・単価計算":"Tính trọng lượng・chi phí","マスタ参照":"Cài đặt master",
+  "使い方":"Hướng dẫn",
+  "検索条件":"Điều kiện tìm kiếm","材質":"Vật liệu","鋼種":"Loại thép","板厚 (mm)":"Độ dày (mm)","材料規格":"Quy cách",
+  "長さ (mm)":"Chiều dài (mm)","表面仕上げ":"Hoàn thiện bề mặt","保管場所":"Vị trí kho","長さ":"Chiều dài","仕上げ":"Hoàn thiện",
+  "条件は組み合わせ可能。空欄はすべて対象。材料規格は部分一致で絞り込みます。":"Có thể kết hợp điều kiện. Để trống = tất cả. Quy cách tìm theo một phần.",
+  "条件クリア":"Xóa điều kiện","ヒット件数":"Số kết quả","合計重量":"Tổng trọng lượng","合計金額":"Tổng tiền",
+  "該当材料の総重量":"Tổng trọng lượng vật liệu","材料費の合計（税抜）":"Tổng chi phí (chưa thuế)","検索結果":"Kết quả tìm kiếm",
+  "CSV出力":"Xuất CSV","更新":"Cập nhật","件":"mục","合計":"Tổng",
+  "すべての材質":"Tất cả vật liệu","すべての鋼種":"Tất cả loại thép","すべて":"Tất cả","すべての場所":"Tất cả vị trí",
+  "指定なし":"Không chọn","部分一致 例: 50":"Tìm một phần, VD: 50","完全一致":"Khớp chính xác",
+  "重量(kg)":"Trọng lượng (kg)","キロ単価":"Đơn giá/kg","材料費":"Chi phí","操作":"Thao tác","板厚":"Độ dày",
+  "持ち出す材料をさがす":"Tìm vật liệu cần lấy",
+  "使う材料の「持ち出す」ボタンを押してください。空欄はすべて対象です。":"Nhấn nút 「Lấy ra」 của vật liệu cần dùng. Để trống = tất cả.",
+  "持ち出す":"Lấy ra","条件に一致する在庫がありません":"Không có tồn kho phù hợp",
+  "持ち出し登録":"Đăng ký lấy vật liệu","どれだけ使いますか？":"Bạn dùng bao nhiêu?",
+  "全部 持ち出す":"Dùng hết (toàn bộ)","一部使った（残りを登録）":"Dùng một phần (nhập phần còn lại)",
+  "残りの長さ (mm) — 使用後に残った長さを測って入力":"Chiều dài còn lại (mm) — đo phần còn lại sau khi dùng",
+  "あなたの名前":"Tên của bạn","メモ（任意）":"Ghi chú (không bắt buộc)","キャンセル":"Hủy","持ち出しを記録":"Ghi nhận",
+  "例: 1500":"VD: 1500","例: ◯◯案件で使用":"VD: dùng cho dự án ◯◯","例: 山田":"VD: Nguyen Van A",
+  "名前を選んでください":"Hãy chọn tên của bạn","（名前を直接入力）":"(Tự nhập tên)",
+  "鋼材倉庫の鍵":"Chìa khóa kho thép","鍵を借りて倉庫へ行く":"Mượn chìa khóa, vào kho","鍵を返却する":"Trả chìa khóa",
+  "倉庫で材料を使ったら、材料のQRを読んで残りの長さの登録も忘れずに。":"Dùng vật liệu xong, nhớ quét QR của vật liệu và nhập chiều dài còn lại.",
+  "状態を確認中…":"Đang kiểm tra…","状態を取得できませんでした":"Không lấy được trạng thái",
+  "🔑 鍵はあります（持ち出しできます）":"🔑 Chìa khóa đang có (có thể mượn)","さんが鍵を持ち出し中":"đang giữ chìa khóa",
+  "名前を入力してください":"Hãy nhập tên",
+  "鍵の持ち出しを記録しました。行ってらっしゃい！":"Đã ghi nhận mượn chìa khóa. Chúc làm việc tốt!",
+  "鍵の返却を記録しました。おつかれさまでした":"Đã ghi nhận trả chìa khóa. Cảm ơn bạn!",
+  "残りの長さを入力してください":"Hãy nhập chiều dài còn lại",
+  "今の長さより短い値を入力してください":"Hãy nhập giá trị ngắn hơn chiều dài hiện tại",
+  "今の長さより短い値を入力してください（変わっていない場合は登録不要です）":"Hãy nhập giá trị ngắn hơn chiều dài hiện tại",
+  "→ 全部使用として在庫から削除されます":"→ Dùng hết, sẽ xóa khỏi tồn kho",
+  " mm 使用・残り ":" mm đã dùng, còn lại "," mm で登録します":" mm sẽ được ghi nhận",
+  "持ち出しを記録しました（全部使用・在庫から削除）":"Đã ghi nhận (dùng hết, xóa khỏi tồn kho)",
+  "持ち出しを記録しました（残り ":"Đã ghi nhận (còn lại ",
+  "記録に失敗しました: ":"Ghi nhận thất bại: ",
+  "日時":"Ngày giờ","種別":"Loại","名前":"Tên","品目":"Vật phẩm","数量・変化":"Số lượng・thay đổi","メモ":"Ghi chú",
+  "登録":"Đăng ký","編集":"Sửa","削除":"Xóa","CSV取込":"Nhập CSV","鍵 持出":"Mượn chìa khóa","鍵 返却":"Trả chìa khóa",
+  " mm 使用":" mm đã dùng","（残り ":"（còn lại ","（全部）":"（toàn bộ）","内容変更":"Đã sửa"," 件 取込":" dòng đã nhập",
+  "履歴はまだありません。「持ち出し」画面から記録すると、ここに残ります":"Chưa có lịch sử. Ghi nhận từ màn hình 「Lấy vật liệu」 sẽ hiện ở đây",
+  "履歴を更新しました":"Đã cập nhật lịch sử"
+};
+function t(s){return LANG==="ja"?s:(I18N_VI[s]||s);}
+function applyLang(){
+  const b=$("#langLabel");if(b)b.textContent=LANG==="ja"?"Tiếng Việt":"日本語";
+  if(LANG==="ja")return; /* 日本語はHTMLの原文のまま（太字等の装飾を保持） */
+  document.documentElement.lang="vi";
+  document.querySelectorAll("[data-i18n]").forEach(el=>{el.textContent=t(el.dataset.i18n);});
+  document.querySelectorAll("[data-i18n-ph]").forEach(el=>{el.placeholder=t(el.dataset.i18nPh);});
+  /* 現場向け画面のテキストノードを辞書で置換（svg等の構造は保持） */
+  document.querySelectorAll(
+    "#view-search .fld-lab,#view-checkout .fld-lab,#view-search .panel-h h2,#view-checkout .panel-h h2,#view-history .panel-h h2,"+
+    "#btnClear,#coClear,#btnExportSearch,#btnHistRefresh,#btnExportHist,"+
+    "#coOverlay .co-lab,#coOverlay .co-q,#coOverlay .co-mode,#coOverlay .modal-h h3,#coCancel,#coSubmit,"+
+    "#keyOverlay .co-lab,#keyOverlay .key-btn,#keyOverlay .modal-h h3"
+  ).forEach(el=>{
+    [...el.childNodes].forEach(n=>{
+      if(n.nodeType===3&&n.textContent.trim())n.textContent=n.textContent.replace(n.textContent.trim(),t(n.textContent.trim()));
+    });
+  });
+  /* 要素まるごと置換（装飾なしのヒント文など） */
+  document.querySelectorAll("#view-search .filter-hint,#view-checkout .filter-hint,#view-search .kpi-lab,#keyOverlay .key-note").forEach(el=>{el.textContent=t(el.textContent.trim());});
+  document.querySelectorAll("#view-search .kpi-sub").forEach(el=>{if(el.id!=="kpiTotal")el.textContent=t(el.textContent.trim());});
+  /* プレースホルダー */
+  [["#f_spec","部分一致 例: 50"],["#f_len","完全一致"],["#co_spec","部分一致 例: 50"],["#coUsed","例: 1500"],["#coNote","例: ◯◯案件で使用"],["#coPerson","例: 山田"],["#keyPerson","例: 山田"]]
+    .forEach(([s,k])=>{const el=$(s);if(el)el.placeholder=t(k);});
+}
+function toggleLang(){LANG=LANG==="ja"?"vi":"ja";try{localStorage.setItem(LANG_KEY,LANG);}catch(e){}location.reload();}
 
 /* ===================== ナビ ===================== */
 const PG={search:["在庫検索","SEARCH / INVENTORY LOOKUP"],checkout:["持ち出し","CHECKOUT / TAKE OUT"],history:["入出庫履歴","HISTORY / IN-OUT LOG"],worklog:["作業ログ","WORK LOG / DAILY MONITOR"],inventory:["在庫管理","INVENTORY / DATA MANAGEMENT"],calc:["重量・単価計算","CALCULATOR / WEIGHT & COST"],master:["マスタ参照","MASTER / REFERENCE DATA"]};
@@ -348,15 +445,15 @@ function runSearch(){
   lastSearch=hits;
   const tw=Math.round(hits.reduce((s,h)=>s+(h.weight||0),0)*1000)/1000;
   const tc=hits.reduce((s,h)=>s+(h.cost||0),0);
-  $("#kpiCount").innerHTML=hits.length+'<span class="kpi-unit">件</span>';
-  $("#kpiTotal").textContent="全 "+records.length+" 件中";
+  $("#kpiCount").innerHTML=hits.length+'<span class="kpi-unit">'+t("件")+'</span>';
+  $("#kpiTotal").textContent=LANG==="vi"?("Tổng "+records.length+" mục"):("全 "+records.length+" 件中");
   $("#kpiWeight").innerHTML=fmtNum(tw,3)+'<span class="kpi-unit">kg</span>';
   $("#kpiCost").textContent=fmtYenP(tc);
   const wrap=$("#searchTable");
-  if(!hits.length){wrap.innerHTML=emptyState("条件に一致する在庫がありません");return;}
-  let h='<table class="dt"><thead><tr><th>材質</th><th>鋼種</th><th class="r">板厚</th><th>材料規格</th><th class="r">長さ</th><th>保管場所</th><th class="r">重量(kg)</th><th>表面仕上げ</th><th class="r">キロ単価</th><th class="r">材料費</th></tr></thead><tbody>';
+  if(!hits.length){wrap.innerHTML=emptyState(t("条件に一致する在庫がありません"));return;}
+  let h='<table class="dt"><thead><tr><th>'+t("材質")+'</th><th>'+t("鋼種")+'</th><th class="r">'+t("板厚")+'</th><th>'+t("材料規格")+'</th><th class="r">'+t("長さ")+'</th><th>'+t("保管場所")+'</th><th class="r">'+t("重量(kg)")+'</th><th>'+t("表面仕上げ")+'</th><th class="r">'+t("キロ単価")+'</th><th class="r">'+t("材料費")+'</th></tr></thead><tbody>';
   hits.forEach(r=>{h+=`<tr><td><span class="pill mat ${matCls(r.mat)}">${IC.mat}${r.mat}</span></td><td>${shapeIco(r.koshu)}${r.koshu}</td><td class="r tnum">${r.thk}</td><td class="tnum">${r.spec}</td><td class="r tnum">${Number(r.len).toLocaleString()}</td><td><span class="pill loc">${IC.loc}${r.loc||"—"}</span></td><td class="r tnum">${fmtKg(r.weight)}</td><td><span class="pill fin">${IC.fin}${r.fin||"—"}</span></td><td class="r tnum">${r.unit==null?'<span class="muted">—</span>':r.unit.toLocaleString()}</td><td class="r tnum"><b>${fmtYen(r.cost)}</b></td></tr>`;});
-  h+=`</tbody><tfoot><tr class="tfoot"><td colspan="6">合計（${hits.length}件）</td><td class="r tnum">${fmtNum(tw,3)}</td><td></td><td></td><td class="r tnum">${fmtYenP(tc)}</td></tr></tfoot></table>`;
+  h+=`</tbody><tfoot><tr class="tfoot"><td colspan="6">${t("合計")}（${hits.length}${t("件")}）</td><td class="r tnum">${fmtNum(tw,3)}</td><td></td><td></td><td class="r tnum">${fmtYenP(tc)}</td></tr></tfoot></table>`;
   wrap.innerHTML=h;
 }
 function emptyState(msg){return`<div class="empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg><p>${msg}</p></div>`;}
@@ -655,16 +752,16 @@ function renderCheckout(){
     if(f.loc&&r.loc!==f.loc)return false;
     return true;
   });
-  if(!hits.length){wrap.innerHTML=emptyState("条件に一致する在庫がありません");return;}
+  if(!hits.length){wrap.innerHTML=emptyState(t("条件に一致する在庫がありません"));return;}
   let h="";
   hits.forEach(r=>{
     h+=`<div class="co-card">
       <div class="co-ic">${shapeSVG(r.koshu)}</div>
       <div class="co-info">
         <div class="co-line1"><span class="pill mat ${matCls(r.mat)}">${IC.mat}${r.mat}</span><b>${r.koshu}</b><span class="co-spec">${r.spec} × t${r.thk}</span></div>
-        <div class="co-line2">長さ <b>${Number(r.len).toLocaleString()} mm</b>　${r.loc?'<span class="pill loc">'+IC.loc+r.loc+'</span>':""}　${r.fin?'<span class="pill fin">'+IC.fin+r.fin+'</span>':""}</div>
+        <div class="co-line2">${t("長さ")} <b>${Number(r.len).toLocaleString()} mm</b>　${r.loc?'<span class="pill loc">'+IC.loc+r.loc+'</span>':""}　${r.fin?'<span class="pill fin">'+IC.fin+r.fin+'</span>':""}</div>
       </div>
-      <button class="btn primary co-btn" data-co="${r.id}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 17h8M18.5 13.5 22 17l-3.5 3.5"/><path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 7v10l7 3.1"/></svg>持ち出す</button>
+      <button class="btn primary co-btn" data-co="${r.id}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 17h8M18.5 13.5 22 17l-3.5 3.5"/><path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 7v10l7 3.1"/></svg>${t("持ち出す")}</button>
     </div>`;
   });
   wrap.innerHTML=h;
@@ -674,10 +771,9 @@ function renderCheckout(){
 function openCo(id){
   coTarget=records.find(x=>x.id===id);if(!coTarget)return;
   coMode="all";applyCoMode();
-  $("#coItem").innerHTML=`<span class="co-ic sm">${shapeSVG(coTarget.koshu)}</span><span class="pill mat ${matCls(coTarget.mat)}">${IC.mat}${coTarget.mat}</span><b>${coTarget.koshu}</b><span class="co-spec">${coTarget.spec} × t${coTarget.thk}</span><span class="co-len">長さ ${Number(coTarget.len).toLocaleString()} mm</span>`;
+  $("#coItem").innerHTML=`<span class="co-ic sm">${shapeSVG(coTarget.koshu)}</span><span class="pill mat ${matCls(coTarget.mat)}">${IC.mat}${coTarget.mat}</span><b>${coTarget.koshu}</b><span class="co-spec">${coTarget.spec} × t${coTarget.thk}</span><span class="co-len">${t("長さ")} ${Number(coTarget.len).toLocaleString()} mm</span>`;
   $("#coUsed").value="";$("#coRemain").textContent="";$("#coNote").value="";
-  $("#coPerson").value=localStorage.getItem(PERSON_KEY)||"";
-  const names=[...new Set(history.map(x=>x.person).filter(Boolean))];fillDatalist($("#dl_person"),names);
+  setupPersonPicker("#coPersonSel","#coPerson");
   $("#coOverlay").classList.add("show");
 }
 function closeCo(){$("#coOverlay").classList.remove("show");coTarget=null;}
@@ -693,19 +789,19 @@ function coUpdateRemain(){
   const rem=Number($("#coUsed").value),len=Number(coTarget.len);
   const el=$("#coRemain");
   if($("#coUsed").value===""||!isFinite(rem)||rem<0){el.textContent="";return;}
-  if(rem>=len){el.innerHTML='<span class="co-over">今の長さ（'+len.toLocaleString()+' mm）より短い値を入力してください</span>';return;}
+  if(rem>=len){el.innerHTML='<span class="co-over">'+t("今の長さより短い値を入力してください")+"（"+len.toLocaleString()+" mm）</span>";return;}
   const used=Math.round((len-rem)*100)/100;
-  el.textContent=rem===0?"→ 全部使用として在庫から削除されます":"→ "+used.toLocaleString()+" mm 使用・残り "+rem.toLocaleString()+" mm で登録します";
+  el.textContent=rem===0?t("→ 全部使用として在庫から削除されます"):"→ "+used.toLocaleString()+t(" mm 使用・残り ")+rem.toLocaleString()+t(" mm で登録します");
 }
 async function submitCo(){
   if(!coTarget)return;
-  const person=$("#coPerson").value.trim();
-  if(!person){toast("名前を入力してください");$("#coPerson").focus();return;}
+  const person=pickerValue("#coPersonSel","#coPerson");
+  if(!person){toast(t("名前を入力してください"));$("#coPersonSel").focus();return;}
   const len=Number(coTarget.len);let usedLen=null;
   if(coMode==="part"){
     const rem=Number($("#coUsed").value);
-    if($("#coUsed").value===""||!isFinite(rem)||rem<0){toast("残りの長さを入力してください");$("#coUsed").focus();return;}
-    if(rem>=len){toast("今の長さより短い値を入力してください（変わっていない場合は登録不要です）");$("#coUsed").focus();return;}
+    if($("#coUsed").value===""||!isFinite(rem)||rem<0){toast(t("残りの長さを入力してください"));$("#coUsed").focus();return;}
+    if(rem>=len){toast(t("今の長さより短い値を入力してください（変わっていない場合は登録不要です）"));$("#coUsed").focus();return;}
     usedLen=rem===0?null:Math.round((len-rem)*100)/100;
   }
   const note=$("#coNote").value.trim();
@@ -714,9 +810,9 @@ async function submitCo(){
     try{
       const j=await apiSend("POST","/api/checkout",{id:coTarget.id,person,usedLen,note});
       await refresh();loadHistory();
-      toast(j.removed?"持ち出しを記録しました（全部使用・在庫から削除）":"持ち出しを記録しました（残り "+Number(j.remain).toLocaleString()+" mm）");
+      toast(j.removed?t("持ち出しを記録しました（全部使用・在庫から削除）"):t("持ち出しを記録しました（残り ")+Number(j.remain).toLocaleString()+" mm）");
       closeCo();
-    }catch(e){toast("記録に失敗しました: "+e.message);}
+    }catch(e){toast(t("記録に失敗しました: ")+e.message);}
     return;
   }
   // 単体版（localStorage）
@@ -726,7 +822,7 @@ async function submitCo(){
   else{const i=records.findIndex(x=>x.id===coTarget.id);records[i]={...coTarget,len:remain};}
   localHist("checkout",coTarget,{person,note,len_before:len,len_after:remain>0?remain:0});
   saveRecords();renderInventory();runSearch();updateFoot();renderCheckout();renderHistory();
-  toast(remain<=0?"持ち出しを記録しました（全部使用・在庫から削除）":"持ち出しを記録しました（残り "+remain.toLocaleString()+" mm）");
+  toast(remain<=0?t("持ち出しを記録しました（全部使用・在庫から削除）"):t("持ち出しを記録しました（残り ")+remain.toLocaleString()+" mm）");
   closeCo();
 }
 
@@ -740,25 +836,25 @@ function histAmount(x){
   if(x.type==="checkout"){
     if(b==null)return "—";
     const used=Math.round((b-(a||0))*100)/100;
-    return used.toLocaleString()+" mm 使用"+(a>0?"（残り "+a.toLocaleString()+"）":"（全部）");
+    return used.toLocaleString()+t(" mm 使用")+(a>0?t("（残り ")+a.toLocaleString()+"）":t("（全部）"));
   }
   if(x.type==="add")return a!=null?"＋ "+a.toLocaleString()+" mm":"—";
   if(x.type==="delete")return b!=null?"− "+b.toLocaleString()+" mm":"—";
-  if(x.type==="edit"){if(b!=null&&a!=null&&b!==a)return b.toLocaleString()+" → "+a.toLocaleString()+" mm";return "内容変更";}
-  if(x.type==="bulk")return (x.qty||0)+" 件 取込";
+  if(x.type==="edit"){if(b!=null&&a!=null&&b!==a)return b.toLocaleString()+" → "+a.toLocaleString()+" mm";return t("内容変更");}
+  if(x.type==="bulk")return (x.qty||0)+t(" 件 取込");
   return "—";
 }
 function renderHistory(){
   const wrap=$("#histTable");if(!wrap)return;
   const items=history.filter(x=>x.type!=="keyout"&&x.type!=="keyin"); /* 鍵の記録は管理者用の作業ログで表示 */
-  $("#histCount").textContent=items.length+" 件";
-  if(!items.length){wrap.innerHTML=emptyState("履歴はまだありません。「持ち出し」画面から記録すると、ここに残ります");return;}
-  let h='<table class="dt"><thead><tr><th>日時</th><th>種別</th><th>名前</th><th>品目</th><th class="r">数量・変化</th><th>メモ</th></tr></thead><tbody>';
+  $("#histCount").textContent=items.length+" "+t("件");
+  if(!items.length){wrap.innerHTML=emptyState(t("履歴はまだありません。「持ち出し」画面から記録すると、ここに残ります"));return;}
+  let h='<table class="dt"><thead><tr><th>'+t("日時")+'</th><th>'+t("種別")+'</th><th>'+t("名前")+'</th><th>'+t("品目")+'</th><th class="r">'+t("数量・変化")+'</th><th>'+t("メモ")+'</th></tr></thead><tbody>';
   items.forEach(x=>{
-    const t=HTYPE[x.type]||[x.type,"h-edit"];
-    const item=x.type==="bulk"?'<span class="muted">CSVから一括取込</span>':
+    const ty=HTYPE[x.type]||[x.type,"h-edit"];
+    const item=x.type==="bulk"?'<span class="muted">'+t("CSV取込")+'</span>':
       (x.mat?`<span class="pill mat ${matCls(x.mat)}">${IC.mat}${x.mat}</span>`:"")+(x.koshu?shapeIco(x.koshu)+x.koshu:"")+(x.spec?` <span class="tnum">${x.spec}</span>`:"")+(x.thk!=null?` <span class="tnum muted">t${x.thk}</span>`:"");
-    h+=`<tr><td class="tnum" style="white-space:nowrap">${fmtTs(x.ts)}</td><td><span class="pill ${t[1]}">${t[0]}</span></td><td>${x.person?"<b>"+x.person+"</b>":'<span class="muted">—</span>'}</td><td>${item||'<span class="muted">—</span>'}</td><td class="r tnum" style="white-space:nowrap">${histAmount(x)}</td><td class="muted" style="font-size:12px">${x.note||""}</td></tr>`;
+    h+=`<tr><td class="tnum" style="white-space:nowrap">${fmtTs(x.ts)}</td><td><span class="pill ${ty[1]}">${t(ty[0])}</span></td><td>${x.person?"<b>"+x.person+"</b>":'<span class="muted">—</span>'}</td><td>${item||'<span class="muted">—</span>'}</td><td class="r tnum" style="white-space:nowrap">${histAmount(x)}</td><td class="muted" style="font-size:12px">${x.note||""}</td></tr>`;
   });
   h+="</tbody></table>";wrap.innerHTML=h;
 }
@@ -825,27 +921,26 @@ let keyState=null;
 async function openKey(){
   if(MODE!=="server"){toast("鍵の記録はサーバー版でのみ使えます");return;}
   $("#keyOverlay").classList.add("show");
-  $("#keyPerson").value=localStorage.getItem(PERSON_KEY)||"";
-  const names=[...new Set(history.map(x=>x.person).filter(Boolean))];fillDatalist($("#dl_person"),names);
-  $("#keyStatus").textContent="状態を確認中…";
+  setupPersonPicker("#keyPersonSel","#keyPerson");
+  $("#keyStatus").textContent=t("状態を確認中…");
   try{keyState=await apiGET("/api/key");renderKeyStatus();}
-  catch(e){$("#keyStatus").textContent="状態を取得できませんでした";}
+  catch(e){$("#keyStatus").textContent=t("状態を取得できませんでした");}
 }
 function closeKey(){$("#keyOverlay").classList.remove("show");}
 function renderKeyStatus(){
   const el=$("#keyStatus");if(!el||!keyState)return;
   el.innerHTML=keyState.out
-    ?`現在：<b>${keyState.person||"？"}</b> さんが鍵を持ち出し中（${fmtTs(keyState.ts)}〜）`
-    :"🔑 鍵はあります（持ち出しできます）";
+    ?`<b>${keyState.person||"？"}</b> ${t("さんが鍵を持ち出し中")}（${fmtTs(keyState.ts)}〜）`
+    :t("🔑 鍵はあります（持ち出しできます）");
 }
 async function keyAction(action){
-  const person=$("#keyPerson").value.trim();
-  if(!person){toast("名前を入力してください");$("#keyPerson").focus();return;}
+  const person=pickerValue("#keyPersonSel","#keyPerson");
+  if(!person){toast(t("名前を入力してください"));$("#keyPersonSel").focus();return;}
   try{localStorage.setItem(PERSON_KEY,person);}catch(e){}
   try{
     const j=await apiSend("POST","/api/key",{action,person});
     keyState=j.status;renderKeyStatus();loadHistory();
-    toast(action==="out"?"鍵の持ち出しを記録しました。行ってらっしゃい！":"鍵の返却を記録しました。おつかれさまでした");
+    toast(t(action==="out"?"鍵の持ち出しを記録しました。行ってらっしゃい！":"鍵の返却を記録しました。おつかれさまでした"));
     setTimeout(closeKey,1400);
   }catch(e){toast(e.message);}
 }
@@ -932,7 +1027,13 @@ function renderMasters(){
   h='<table class="dt"><thead><tr><th>鋼種</th><th>材料規格候補</th></tr></thead><tbody>';
   Object.entries(KIKAKU_BY_KOSHU).forEach(([k,arr])=>{h+=`<tr><td>${shapeIco(k)}<b>${k}</b></td><td>${arr.map(x=>'<span class="pill fin" style="margin:2px 3px 2px 0">'+x+'</span>').join("")}</td></tr>`;});
   h+="</tbody></table>";$("#mSpec").innerHTML=h;
+
+  h='<table class="dt"><thead><tr><th>名前</th><th></th></tr></thead><tbody>';
+  STAFF.forEach(s=>{h+=mSrow(s);});
+  h+='</tbody></table><div class="m-addwrap"><button class="btn ghost sm m-add" data-add="staff"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>名前を追加</button></div>';
+  const ms=$("#mStaff");if(ms)ms.innerHTML=h;
 }
+function mSrow(v){return `<tr data-srow><td>${mIn("name",v,"text",'placeholder="例: 山田"')}</td><td class="r">${M_DEL}</td></tr>`;}
 /* 画面のテーブルからマスタを読み取る（空行・不正値は除外） */
 function collectMasters(){
   const density={};
@@ -955,7 +1056,12 @@ function collectMasters(){
     const key=tr.querySelector('[data-f="formula"]').value;
     if(k&&AREA_FORMULAS[key])koshuFormula[k]=key;
   });
-  return{density,price,koshuFormula};
+  const staff=[];
+  document.querySelectorAll("#mStaff [data-srow]").forEach(tr=>{
+    const v=tr.querySelector('[data-f="name"]').value.trim();
+    if(v&&!staff.includes(v))staff.push(v);
+  });
+  return{density,price,koshuFormula,staff};
 }
 async function saveMasters(reset){
   if(reset&&!confirm("単価・比重・式の割り当てを、プログラムの既定値に戻しますか？"))return;
@@ -1013,6 +1119,8 @@ function updateFoot(){
 async function init(){
   await loadRecords();
   await loadMasters();
+  applyLang();
+  $("#langBtn").addEventListener("click",toggleLang);
   initSearchControls();updateSpecDatalist();
   initCheckoutControls();
   initCalc();
@@ -1067,6 +1175,7 @@ async function init(){
       const kind=add.dataset.add;
       if(kind==="density")tb.insertAdjacentHTML("beforeend",mDrow("",""));
       else if(kind==="price")tb.insertAdjacentHTML("beforeend",mProw({mat:"",koshu:"",fin:null,price:""}));
+      else if(kind==="staff")tb.insertAdjacentHTML("beforeend",mSrow(""));
       else tb.insertAdjacentHTML("beforeend",mFrow("","round"));
       const last=tb.lastElementChild.querySelector("input");if(last)last.focus();
     }
