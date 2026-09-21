@@ -3,6 +3,8 @@ node_modules/
 
 # 稼働データ（共有には同期しない。バックアップはCSV出力 or app.db のコピー）
 server/data/
+# 開発用DB（server/dev.js が作る。各PCローカル）
+server/data-dev/
 
 # ログ・OS
 *.log

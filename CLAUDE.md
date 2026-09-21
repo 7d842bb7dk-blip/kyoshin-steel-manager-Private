@@ -34,10 +34,14 @@
 
 ```bash
 npm install                 # 初回のみ（express / better-sqlite3）
-node server/index.js        # 開発サーバー起動（http://localhost:3001）
-# ポートやDBを分けたい場合：PORT=3002 DB_DIR=./tmpdb node server/index.js
+node server/dev.js          # ★開発はこちら：ポート3002・開発用DB(server/data-dev)・自動更新オフ
+                            #   （「開発用起動.bat」のダブルクリックでも同じ）
+node server/index.js        # 本番と同じ起動（ポート3001・server/data/。サーバー機では常駐が使用中）
 python build.py             # 単体ファイル版 dist/ のビルド（Python がある PC のみ）
 ```
+
+他のPCで開発を始める手順は `docs/他PCでの開発手順.md` を参照（clone → npm install → dev起動 →
+push で本番自動反映）。**開発時は必ず dev.js（3002）を使うこと**。本番DBを直接触らない。
 
 ## ファイル構成
 
