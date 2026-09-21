@@ -220,6 +220,42 @@ function fillDatalist(dl,opts){dl.innerHTML="";opts.forEach(o=>{const e=document
 function matCls(m){return "m-"+String(m).toLowerCase().replace(/[^a-z0-9]/g,"");}
 /* 保管場所の候補：在庫の実データから動的生成（在庫が空なら LOCATIONS を使用） */
 function locOptions(){const s=[...new Set(records.map(r=>r.loc).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"ja"));return s.length?s:LOCATIONS;}
+
+/* ── 選択肢の動的生成：マスタ＋在庫の実データにある文言を合算 ──
+ * 新規登録・検索・持ち出しの選択肢が、実在庫に出てくる値を自動で含むようにする */
+function uniqVals(arr){return [...new Set(arr.filter(v=>v!==""&&v!=null))];}
+function matOptions(){return uniqVals([...MATERIALS,...records.map(r=>r.mat)]);}
+function koshuOptions(mat){
+  const base=(mat&&KOSHU_BY_MAT[mat])?KOSHU_BY_MAT[mat]:[];
+  return uniqVals([...base,...records.filter(r=>!mat||r.mat===mat).map(r=>r.koshu)]);
+}
+function thkOptions(){
+  return uniqVals([...THICKNESS,...records.map(r=>r.thk)]).map(Number).filter(n=>isFinite(n))
+    .filter((n,i,a)=>a.indexOf(n)===i).sort((a,b)=>a-b);
+}
+function specOptions(koshu){
+  const base=(koshu&&KIKAKU_BY_KOSHU[koshu])?KIKAKU_BY_KOSHU[koshu]:(koshu?[]:[].concat(...Object.values(KIKAKU_BY_KOSHU)));
+  return uniqVals([...base,...records.filter(r=>!koshu||r.koshu===koshu).map(r=>r.spec)]);
+}
+function finOptions(mat,koshu){
+  const base=(mat&&koshu)?finishOptions(mat,koshu):FINISH_ALL;
+  return uniqVals([...base,...records.filter(r=>(!mat||r.mat===mat)&&(!koshu||r.koshu===koshu)).map(r=>r.fin)]);
+}
+/* 選択肢を差し替える（内容が変わったときだけ。選択中の値は維持） */
+function refillSelect(sel,opts,blank){
+  const key=opts.join("|");
+  if(sel.dataset.opts===key)return;
+  const cur=sel.value;fillSelect(sel,opts,blank);sel.dataset.opts=key;
+  if(opts.map(String).includes(cur))sel.value=cur;
+}
+/* 検索フィルタの選択肢を実データに追従させる */
+function refreshSearchFilters(){
+  refillSelect($("#f_mat"),matOptions(),"すべての材質");
+  const m=$("#f_mat").value;
+  if(m){refillSelect($("#f_koshu"),koshuOptions(m),"すべての鋼種");$("#f_koshu").disabled=false;}
+  refillSelect($("#f_thk"),thkOptions(),"すべて");
+  refillSelect($("#f_fin"),finOptions("",""),"すべて");
+}
 function finishOptions(mat,koshu){const k=mat+"|"+koshu;if(FINISH_BY_MAT_KOSHU[k]&&FINISH_BY_MAT_KOSHU[k].length)return FINISH_BY_MAT_KOSHU[k];return FINISH_ALL;}
 function toast(msg){const t=$("#toast");$("#toastMsg").textContent=msg;t.classList.add("show");clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove("show"),2200);}
 
@@ -260,8 +296,8 @@ function initSearchControls(){
   fillSelect($("#f_fin"),FINISH_ALL,"すべて");
   $("#f_mat").addEventListener("change",()=>{
     const m=$("#f_mat").value;
-    if(m){fillSelect($("#f_koshu"),KOSHU_BY_MAT[m],"すべての鋼種");$("#f_koshu").disabled=false;}
-    else{fillSelect($("#f_koshu"),[],"すべての鋼種");$("#f_koshu").disabled=true;}
+    if(m){fillSelect($("#f_koshu"),koshuOptions(m),"すべての鋼種");$("#f_koshu").disabled=false;$("#f_koshu").dataset.opts=koshuOptions(m).join("|");}
+    else{fillSelect($("#f_koshu"),[],"すべての鋼種");$("#f_koshu").disabled=true;delete $("#f_koshu").dataset.opts;}
     updateSpecDatalist();runSearch();
   });
   $("#f_koshu").addEventListener("change",()=>{updateSpecDatalist();runSearch();});
@@ -272,7 +308,7 @@ function initSearchControls(){
     $("#f_thk").value="";$("#f_fin").value="";$("#f_spec").value="";$("#f_len").value="";updateSpecDatalist();runSearch();
   });
 }
-function updateSpecDatalist(){const k=$("#f_koshu").value;fillDatalist($("#dl_spec"),k&&KIKAKU_BY_KOSHU[k]?KIKAKU_BY_KOSHU[k]:[].concat(...Object.values(KIKAKU_BY_KOSHU)));}
+function updateSpecDatalist(){fillDatalist($("#dl_spec"),specOptions($("#f_koshu").value));}
 function getFilter(){return{mat:$("#f_mat").value,koshu:$("#f_koshu").value,thk:$("#f_thk").value,spec:$("#f_spec").value.trim(),len:$("#f_len").value.trim(),fin:$("#f_fin").value};}
 function matchRec(r,f){
   if(f.mat&&r.mat!==f.mat)return false;
@@ -285,6 +321,7 @@ function matchRec(r,f){
 }
 let lastSearch=[];
 function runSearch(){
+  refreshSearchFilters();
   const f=getFilter();
   const hits=records.filter(r=>matchRec(r,f)).map(r=>({...r,...compute(r)}));
   lastSearch=hits;
@@ -330,12 +367,12 @@ async function delRecord(id){
 
 /* ===================== モーダル（登録/編集） ===================== */
 function setupCascade(matSel,koshuSel,specInput,specDL,finSel,thkSel){
-  matSel.addEventListener("change",()=>{const m=matSel.value;if(m){fillSelect(koshuSel,KOSHU_BY_MAT[m],"選択してください");koshuSel.disabled=false;}else{fillSelect(koshuSel,[],"先に材質を選択");koshuSel.disabled=true;}refreshSpecFin();});
+  matSel.addEventListener("change",()=>{const m=matSel.value;if(m){fillSelect(koshuSel,koshuOptions(m),"選択してください");koshuSel.disabled=false;}else{fillSelect(koshuSel,[],"先に材質を選択");koshuSel.disabled=true;}refreshSpecFin();});
   koshuSel.addEventListener("change",refreshSpecFin);
   function refreshSpecFin(){
     const m=matSel.value,k=koshuSel.value;
-    fillDatalist(specDL,k&&KIKAKU_BY_KOSHU[k]?KIKAKU_BY_KOSHU[k]:[]);
-    if(m&&k){fillSelect(finSel,finishOptions(m,k),"指定なし");finSel.disabled=false;}else{fillSelect(finSel,FINISH_ALL,"指定なし");}
+    fillDatalist(specDL,k?specOptions(k):[]);
+    if(m&&k){fillSelect(finSel,finOptions(m,k),"指定なし");finSel.disabled=false;}else{fillSelect(finSel,finOptions("",""),"指定なし");}
   }
 }
 function openModal(id){
@@ -343,14 +380,14 @@ function openModal(id){
   $("#modalTitle").textContent=editId?"在庫を編集":"在庫を登録";
   $("#modalDelete").style.visibility=editId?"visible":"hidden";
   const r=editId?records.find(x=>x.id===editId):{mat:"",koshu:"",thk:"",spec:"",len:"",loc:"",fin:""};
-  fillSelect($("#m_mat"),MATERIALS,"選択してください");$("#m_mat").value=r.mat||"";
-  if(r.mat){fillSelect($("#m_koshu"),KOSHU_BY_MAT[r.mat],"選択してください");$("#m_koshu").disabled=false;$("#m_koshu").value=r.koshu||"";}
+  fillSelect($("#m_mat"),matOptions(),"選択してください");$("#m_mat").value=r.mat||"";
+  if(r.mat){fillSelect($("#m_koshu"),koshuOptions(r.mat),"選択してください");$("#m_koshu").disabled=false;$("#m_koshu").value=r.koshu||"";}
   else{fillSelect($("#m_koshu"),[],"先に材質を選択");$("#m_koshu").disabled=true;}
-  fillSelect($("#m_thk"),THICKNESS,"選択");$("#m_thk").value=r.thk!==""?r.thk:"";
-  fillDatalist($("#dl_mspec"),r.koshu&&KIKAKU_BY_KOSHU[r.koshu]?KIKAKU_BY_KOSHU[r.koshu]:[]);$("#m_spec").value=r.spec||"";
+  fillSelect($("#m_thk"),thkOptions(),"選択");$("#m_thk").value=r.thk!==""?r.thk:"";
+  fillDatalist($("#dl_mspec"),r.koshu?specOptions(r.koshu):[]);$("#m_spec").value=r.spec||"";
   $("#m_len").value=r.len!==""?r.len:"";
   fillSelect($("#m_loc"),locOptions(),"指定なし");$("#m_loc").value=r.loc||"";
-  fillSelect($("#m_fin"),r.mat&&r.koshu?finishOptions(r.mat,r.koshu):FINISH_ALL,"指定なし");$("#m_fin").value=r.fin||"";
+  fillSelect($("#m_fin"),(r.mat||r.koshu)?finOptions(r.mat,r.koshu):finOptions("",""),"指定なし");$("#m_fin").value=r.fin||"";
   modalPreview();
   $("#overlay").classList.add("show");
 }
@@ -568,8 +605,8 @@ function initCheckoutControls(){
   fillSelect($("#co_loc"),locOptions(),"すべての場所");
   $("#co_mat").addEventListener("change",()=>{
     const m=$("#co_mat").value;
-    if(m){fillSelect($("#co_koshu"),KOSHU_BY_MAT[m],"すべての鋼種");$("#co_koshu").disabled=false;}
-    else{fillSelect($("#co_koshu"),[],"すべての鋼種");$("#co_koshu").disabled=true;}
+    if(m){fillSelect($("#co_koshu"),koshuOptions(m),"すべての鋼種");$("#co_koshu").disabled=false;$("#co_koshu").dataset.opts=koshuOptions(m).join("|");}
+    else{fillSelect($("#co_koshu"),[],"すべての鋼種");$("#co_koshu").disabled=true;delete $("#co_koshu").dataset.opts;}
     updateCoDatalist();renderCheckout();
   });
   $("#co_koshu").addEventListener("change",()=>{updateCoDatalist();renderCheckout();});
@@ -581,12 +618,14 @@ function initCheckoutControls(){
   });
   updateCoDatalist();
 }
-function updateCoDatalist(){const k=$("#co_koshu").value;fillDatalist($("#dl_cospec"),k&&KIKAKU_BY_KOSHU[k]?KIKAKU_BY_KOSHU[k]:[].concat(...Object.values(KIKAKU_BY_KOSHU)));}
+function updateCoDatalist(){fillDatalist($("#dl_cospec"),specOptions($("#co_koshu").value));}
 function renderCheckout(){
   const wrap=$("#coList");if(!wrap)return;
-  /* 保管場所の候補を実データに追従させる（選択中の値は維持） */
-  const locSel=$("#co_loc"),opts=locOptions(),optsKey=opts.join("|");
-  if(locSel.dataset.opts!==optsKey){const cur=locSel.value;fillSelect(locSel,opts,"すべての場所");locSel.dataset.opts=optsKey;if(opts.includes(cur))locSel.value=cur;}
+  /* 絞り込みの候補を実データに追従させる（選択中の値は維持） */
+  refillSelect($("#co_mat"),matOptions(),"すべての材質");
+  const cm=$("#co_mat").value;
+  if(cm){refillSelect($("#co_koshu"),koshuOptions(cm),"すべての鋼種");$("#co_koshu").disabled=false;}
+  refillSelect($("#co_loc"),locOptions(),"すべての場所");
   const f={mat:$("#co_mat").value,koshu:$("#co_koshu").value,spec:$("#co_spec").value.trim(),loc:$("#co_loc").value};
   const hits=records.filter(r=>{
     if(f.mat&&r.mat!==f.mat)return false;
