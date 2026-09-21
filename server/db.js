@@ -223,6 +223,20 @@ function seedIfEmpty() {
   return n;
 }
 
+// ── 鋼材倉庫の鍵（持出/返却は history に keyout/keyin として記録） ──
+function keyStatus() {
+  const r = db.prepare("SELECT * FROM history WHERE type IN ('keyout','keyin') ORDER BY id DESC LIMIT 1").get();
+  if (!r || r.type === "keyin") return { out: false, person: r ? r.person : "", ts: r ? r.ts : null };
+  return { out: true, person: r.person, ts: r.ts };
+}
+function keyEvent(action, person) {
+  if (!str(person)) return { ok: false, reason: "noperson" };
+  const st = keyStatus();
+  if (action === "in" && !st.out) return { ok: false, reason: "notout" };
+  logHistory(action === "out" ? "keyout" : "keyin", {}, { person });
+  return { ok: true, status: keyStatus() };
+}
+
 // ── マスタ設定（単価・比重・式割当の上書き。null=プログラムの既定値を使用） ──
 const _metaUpsert = db.prepare(
   "INSERT INTO meta (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value"
@@ -254,6 +268,7 @@ module.exports = {
   getRecords, getRecordCount,
   addRecord, updateRecord, deleteRecord, bulkAdd,
   checkoutRecord, getHistory,
+  keyStatus, keyEvent,
   getMasters, getMastersVersion, setMasters,
   seedIfEmpty, getState,
 };

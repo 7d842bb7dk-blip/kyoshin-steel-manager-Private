@@ -48,7 +48,7 @@ const FINISH_BY_MAT_KOSHU={
 const FINISH_ALL=["HL","#400","未研","ミガキ","HOT","COLD","黒皮","サニタリー","BA"];
 const THICKNESS=[1,1.2,1.5,1.6,2,2.1,2.3,3,3.2,4,4.5,5,6];
 const LOCATIONS=["本社レーザー前","第二工場","第三工場","本社材料倉庫"]; /* 在庫が空のときの初期候補。在庫があれば実データから動的生成（locOptions） */
-let DENSITY={"SUS304":7.93,"SUS316L":7.98,"SUS430":7.7,"SS400":7.85,"SGP":7.85,"STKM":7.85,"A5052":2.68,"A6063":2.7,"アルミ":2.7,"ﾁﾀﾝ":4.51,"チタン":4.51};
+let DENSITY={"SUS304":7.93,"SUS316L":7.98,"SUS430":7.7,"SS400":7.85,"SGP":7.85,"STKM":7.85,"A5052":2.68,"A6063":2.7,"アルミ":2.7,"チタン":4.51};
 
 /* キロ単価マスタ（合算ルール対応：同一キーが複数行ある場合は合計） */
 let PRICE=[];
@@ -281,13 +281,13 @@ function finishOptions(mat,koshu){const k=mat+"|"+koshu;if(FINISH_BY_MAT_KOSHU[k
 function toast(msg){const t=$("#toast");$("#toastMsg").textContent=msg;t.classList.add("show");clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove("show"),2200);}
 
 /* ===================== ナビ ===================== */
-const PG={search:["在庫検索","SEARCH / INVENTORY LOOKUP"],checkout:["持ち出し","CHECKOUT / TAKE OUT"],history:["入出庫履歴","HISTORY / IN-OUT LOG"],inventory:["在庫管理","INVENTORY / DATA MANAGEMENT"],calc:["重量・単価計算","CALCULATOR / WEIGHT & COST"],master:["マスタ参照","MASTER / REFERENCE DATA"]};
+const PG={search:["在庫検索","SEARCH / INVENTORY LOOKUP"],checkout:["持ち出し","CHECKOUT / TAKE OUT"],history:["入出庫履歴","HISTORY / IN-OUT LOG"],worklog:["作業ログ","WORK LOG / DAILY MONITOR"],inventory:["在庫管理","INVENTORY / DATA MANAGEMENT"],calc:["重量・単価計算","CALCULATOR / WEIGHT & COST"],master:["マスタ参照","MASTER / REFERENCE DATA"]};
 document.querySelectorAll(".tab").forEach(it=>it.addEventListener("click",()=>{
   document.querySelectorAll(".tab").forEach(n=>n.classList.remove("active"));it.classList.add("active");
   const v=it.dataset.view;document.querySelectorAll(".view").forEach(s=>s.classList.remove("active"));$("#view-"+v).classList.add("active");
   $("#pgTitle").textContent=PG[v][0];$("#pgCrumb").textContent=PG[v][1];
   if(v==="checkout")renderCheckout();
-  if(v==="history")loadHistory();
+  if(v==="history"||v==="worklog")loadHistory();
 }));
 
 /* ===================== 管理者モード ===================== */
@@ -617,7 +617,7 @@ async function loadHistory(){
   }else{
     try{history=JSON.parse(localStorage.getItem(HIST_KEY)||"[]");}catch(e){history=[];}
   }
-  renderHistory();
+  renderHistory();renderWorklog();
 }
 
 function initCheckoutControls(){
@@ -688,13 +688,14 @@ function applyCoMode(){
   if(coMode==="part")setTimeout(()=>$("#coUsed").focus(),60);
 }
 function coUpdateRemain(){
+  /* 入力は「使用後に残った長さ」。使用量はここで逆算して表示する */
   if(!coTarget)return;
-  const u=Number($("#coUsed").value),len=Number(coTarget.len);
+  const rem=Number($("#coUsed").value),len=Number(coTarget.len);
   const el=$("#coRemain");
-  if(!$("#coUsed").value||!isFinite(u)||u<=0){el.textContent="";return;}
-  if(u>len){el.innerHTML='<span class="co-over">在庫の長さ（'+len.toLocaleString()+' mm）を超えています</span>';return;}
-  const remain=Math.round((len-u)*100)/100;
-  el.textContent=remain>0?"→ 残り "+remain.toLocaleString()+" mm で登録されます":"→ 全部使うため在庫から削除されます";
+  if($("#coUsed").value===""||!isFinite(rem)||rem<0){el.textContent="";return;}
+  if(rem>=len){el.innerHTML='<span class="co-over">今の長さ（'+len.toLocaleString()+' mm）より短い値を入力してください</span>';return;}
+  const used=Math.round((len-rem)*100)/100;
+  el.textContent=rem===0?"→ 全部使用として在庫から削除されます":"→ "+used.toLocaleString()+" mm 使用・残り "+rem.toLocaleString()+" mm で登録します";
 }
 async function submitCo(){
   if(!coTarget)return;
@@ -702,10 +703,10 @@ async function submitCo(){
   if(!person){toast("名前を入力してください");$("#coPerson").focus();return;}
   const len=Number(coTarget.len);let usedLen=null;
   if(coMode==="part"){
-    const u=Number($("#coUsed").value);
-    if(!$("#coUsed").value||!isFinite(u)||u<=0){toast("使う長さを入力してください");$("#coUsed").focus();return;}
-    if(u>len){toast("在庫の長さを超えています");$("#coUsed").focus();return;}
-    usedLen=u>=len?null:u;
+    const rem=Number($("#coUsed").value);
+    if($("#coUsed").value===""||!isFinite(rem)||rem<0){toast("残りの長さを入力してください");$("#coUsed").focus();return;}
+    if(rem>=len){toast("今の長さより短い値を入力してください（変わっていない場合は登録不要です）");$("#coUsed").focus();return;}
+    usedLen=rem===0?null:Math.round((len-rem)*100)/100;
   }
   const note=$("#coNote").value.trim();
   try{localStorage.setItem(PERSON_KEY,person);}catch(e){}
@@ -730,8 +731,10 @@ async function submitCo(){
 }
 
 /* ===================== 入出庫履歴ビュー ===================== */
-const HTYPE={checkout:["持ち出し","h-out"],add:["登録","h-in"],edit:["編集","h-edit"],delete:["削除","h-del"],bulk:["CSV取込","h-in"]};
+const HTYPE={checkout:["持ち出し","h-out"],add:["登録","h-in"],edit:["編集","h-edit"],delete:["削除","h-del"],bulk:["CSV取込","h-in"],keyout:["鍵 持出","h-out"],keyin:["鍵 返却","h-in"]};
 function fmtTs(t){const d=new Date(t);const p=n=>String(n).padStart(2,"0");return d.getFullYear()+"/"+p(d.getMonth()+1)+"/"+p(d.getDate())+" "+p(d.getHours())+":"+p(d.getMinutes());}
+function fmtDateJ(t){const d=new Date(t);const w=["日","月","火","水","木","金","土"][d.getDay()];const p=n=>String(n).padStart(2,"0");return d.getFullYear()+"/"+p(d.getMonth()+1)+"/"+p(d.getDate())+"（"+w+"）";}
+function fmtTime(t){const d=new Date(t);const p=n=>String(n).padStart(2,"0");return p(d.getHours())+":"+p(d.getMinutes());}
 function histAmount(x){
   const b=x.len_before,a=x.len_after;
   if(x.type==="checkout"){
@@ -747,10 +750,11 @@ function histAmount(x){
 }
 function renderHistory(){
   const wrap=$("#histTable");if(!wrap)return;
-  $("#histCount").textContent=history.length+" 件";
-  if(!history.length){wrap.innerHTML=emptyState("履歴はまだありません。「持ち出し」画面から記録すると、ここに残ります");return;}
+  const items=history.filter(x=>x.type!=="keyout"&&x.type!=="keyin"); /* 鍵の記録は管理者用の作業ログで表示 */
+  $("#histCount").textContent=items.length+" 件";
+  if(!items.length){wrap.innerHTML=emptyState("履歴はまだありません。「持ち出し」画面から記録すると、ここに残ります");return;}
   let h='<table class="dt"><thead><tr><th>日時</th><th>種別</th><th>名前</th><th>品目</th><th class="r">数量・変化</th><th>メモ</th></tr></thead><tbody>';
-  history.forEach(x=>{
+  items.forEach(x=>{
     const t=HTYPE[x.type]||[x.type,"h-edit"];
     const item=x.type==="bulk"?'<span class="muted">CSVから一括取込</span>':
       (x.mat?`<span class="pill mat ${matCls(x.mat)}">${IC.mat}${x.mat}</span>`:"")+(x.koshu?shapeIco(x.koshu)+x.koshu:"")+(x.spec?` <span class="tnum">${x.spec}</span>`:"")+(x.thk!=null?` <span class="tnum muted">t${x.thk}</span>`:"");
@@ -765,6 +769,85 @@ function exportHistCSV(){
   history.forEach(x=>{const t=HTYPE[x.type]||[x.type];lines.push([fmtTs(x.ts),t[0],x.person||"",x.mat||"",x.koshu||"",x.thk==null?"":x.thk,x.spec||"",x.fin||"",x.loc||"",x.len_before==null?"":x.len_before,x.len_after==null?"":x.len_after,x.qty==null?"":x.qty,x.note||""].map(csvCell).join(","));});
   const blob=new Blob(["﻿"+lines.join("\r\n")],{type:"text/csv;charset=utf-8"});
   const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="入出庫履歴.csv";a.click();URL.revokeObjectURL(a.href);toast("入出庫履歴.csv を出力しました");
+}
+
+/* ===================== 作業ログ（管理者・日付別の監視ページ） ===================== */
+function renderWorklog(){
+  const wrap=$("#worklogWrap");if(!wrap)return;
+  if(!history.length){wrap.innerHTML=emptyState("記録はまだありません");return;}
+  const asc=[...history].sort((a,b)=>a.ts-b.ts||a.id-b.id);
+  /* 鍵セッション（持出→返却）の解析：期間中に同じ人の在庫記録が何件あるか */
+  const sessions=[];let cur=null;
+  for(const e of asc){
+    if(e.type==="keyout"){if(cur)sessions.push(cur);cur={person:e.person,out:e.ts,in:null,count:0};}
+    else if(e.type==="keyin"){if(cur){cur.in=e.ts;sessions.push(cur);cur=null;}}
+    else if(cur&&["checkout","add","edit","delete","bulk"].includes(e.type)&&(!cur.person||e.person===cur.person))cur.count++;
+  }
+  if(cur)sessions.push(cur);
+  /* 日付ごとにまとめる（新しい日付が上、日の中は時刻順） */
+  const byDate=new Map();
+  for(const e of asc){const d=fmtDateJ(e.ts);if(!byDate.has(d))byDate.set(d,[]);byDate.get(d).push(e);}
+  let h="";
+  for(const d of [...byDate.keys()].reverse()){
+    const evs=byDate.get(d);
+    const ses=sessions.filter(s=>fmtDateJ(s.out)===d);
+    h+=`<div class="wl-day"><div class="wl-date">${d}<span class="wl-daycount">${evs.length}件</span></div>`;
+    if(ses.length){
+      h+='<div class="wl-sessions">';
+      ses.forEach(s=>{
+        const noRec=s.count===0;
+        h+=`<div class="wl-ses${noRec?" warn":""}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="7.5" cy="15.5" r="4.5"/><path d="M10.7 12.3 21 2M15 8l3 3"/></svg><b>${s.person||"—"}</b>　${fmtTime(s.out)} 鍵持出 → ${s.in?fmtTime(s.in)+" 返却":'<span class="wl-bad">未返却⚠</span>'}　／　期間中の在庫記録 ${noRec?'<span class="wl-bad">0件（記録なし⚠）</span>':"<b>"+s.count+"件</b>"}</div>`;
+      });
+      h+="</div>";
+    }
+    h+='<div class="tbl-wrap"><table class="dt"><thead><tr><th style="width:64px">時刻</th><th>種別</th><th>名前</th><th>内容</th><th class="r">数量・変化</th><th>メモ</th></tr></thead><tbody>';
+    evs.forEach(x=>{
+      const t=HTYPE[x.type]||[x.type,"h-edit"];
+      const item=x.type==="keyout"?"鋼材倉庫の鍵を持ち出し":x.type==="keyin"?"鋼材倉庫の鍵を返却":x.type==="bulk"?"CSVから一括取込":
+        (x.mat?`<span class="pill mat ${matCls(x.mat)}">${IC.mat}${x.mat}</span>`:"")+(x.koshu?shapeIco(x.koshu)+x.koshu:"")+(x.spec?` <span class="tnum">${x.spec}</span>`:"")+(x.thk!=null?` <span class="tnum muted">t${x.thk}</span>`:"");
+      h+=`<tr><td class="tnum">${fmtTime(x.ts)}</td><td><span class="pill ${t[1]}" style="white-space:nowrap">${t[0]}</span></td><td>${x.person?"<b>"+x.person+"</b>":'<span class="muted">—</span>'}</td><td>${item||'<span class="muted">—</span>'}</td><td class="r tnum" style="white-space:nowrap">${(x.type==="keyout"||x.type==="keyin")?"—":histAmount(x)}</td><td class="muted" style="font-size:12px">${x.note||""}</td></tr>`;
+    });
+    h+="</tbody></table></div></div>";
+  }
+  wrap.innerHTML=h;
+}
+function exportWorklogCSV(){
+  if(!history.length){toast("出力対象がありません");return;}
+  const head=["日時","種別","名前","材質","鋼種","板厚(mm)","材料規格","表面仕上げ","保管場所","変更前長さ(mm)","変更後長さ(mm)","件数","メモ"];
+  const lines=[head.join(",")];
+  history.forEach(x=>{const t=HTYPE[x.type]||[x.type];lines.push([fmtTs(x.ts),t[0],x.person||"",x.mat||"",x.koshu||"",x.thk==null?"":x.thk,x.spec||"",x.fin||"",x.loc||"",x.len_before==null?"":x.len_before,x.len_after==null?"":x.len_after,x.qty==null?"":x.qty,x.note||""].map(csvCell).join(","));});
+  const blob=new Blob(["﻿"+lines.join("\r\n")],{type:"text/csv;charset=utf-8"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="作業ログ.csv";a.click();URL.revokeObjectURL(a.href);toast("作業ログ.csv を出力しました");
+}
+
+/* ===================== 鋼材倉庫の鍵（QRから開く） ===================== */
+let keyState=null;
+async function openKey(){
+  if(MODE!=="server"){toast("鍵の記録はサーバー版でのみ使えます");return;}
+  $("#keyOverlay").classList.add("show");
+  $("#keyPerson").value=localStorage.getItem(PERSON_KEY)||"";
+  const names=[...new Set(history.map(x=>x.person).filter(Boolean))];fillDatalist($("#dl_person"),names);
+  $("#keyStatus").textContent="状態を確認中…";
+  try{keyState=await apiGET("/api/key");renderKeyStatus();}
+  catch(e){$("#keyStatus").textContent="状態を取得できませんでした";}
+}
+function closeKey(){$("#keyOverlay").classList.remove("show");}
+function renderKeyStatus(){
+  const el=$("#keyStatus");if(!el||!keyState)return;
+  el.innerHTML=keyState.out
+    ?`現在：<b>${keyState.person||"？"}</b> さんが鍵を持ち出し中（${fmtTs(keyState.ts)}〜）`
+    :"🔑 鍵はあります（持ち出しできます）";
+}
+async function keyAction(action){
+  const person=$("#keyPerson").value.trim();
+  if(!person){toast("名前を入力してください");$("#keyPerson").focus();return;}
+  try{localStorage.setItem(PERSON_KEY,person);}catch(e){}
+  try{
+    const j=await apiSend("POST","/api/key",{action,person});
+    keyState=j.status;renderKeyStatus();loadHistory();
+    toast(action==="out"?"鍵の持ち出しを記録しました。行ってらっしゃい！":"鍵の返却を記録しました。おつかれさまでした");
+    setTimeout(closeKey,1400);
+  }catch(e){toast(e.message);}
 }
 
 /* ===================== QRラベル印刷（サーバー版のみ） ===================== */
@@ -784,6 +867,13 @@ function openQr(ids){
   $("#qrOverlay").classList.add("show");
 }
 function closeQr(){$("#qrOverlay").classList.remove("show");}
+function openKeyQr(){
+  $("#qrNote").innerHTML="このラベルを<b>鋼材倉庫の鍵の保管場所に貼ってください</b>。スマホで読み取ると「鍵の持ち出し／返却」画面が開き、誰がいつ倉庫へ行ったかが記録されます。";
+  let q="";try{q=QR.svg(qrServerBase()+"?key=1");}catch(e){}
+  $("#qrSheet").innerHTML=`<div class="qr-label"><div class="qr-svg">${q}</div><div class="qr-txt"><b>鋼材倉庫の鍵</b><span>行く前・返す時に</span><span>スマホで読み取り</span><span class="qr-id">KEY</span></div></div>`;
+  $("#qrCount").textContent="1 枚";
+  $("#qrOverlay").classList.add("show");
+}
 
 /* ===================== 計算ビュー ===================== */
 function initCalc(){
@@ -944,13 +1034,21 @@ async function init(){
   $("#btnHistRefresh").addEventListener("click",()=>{loadHistory();toast("履歴を更新しました");});
   $("#btnExportHist").addEventListener("click",exportHistCSV);
   $("#btnQrAll").addEventListener("click",()=>openQr(records.map(r=>r.id)));
+  $("#btnQrKey").addEventListener("click",openKeyQr);
+  $("#keyClose").addEventListener("click",closeKey);
+  $("#btnKeyOut").addEventListener("click",()=>keyAction("out"));
+  $("#btnKeyIn").addEventListener("click",()=>keyAction("in"));
+  $("#keyOverlay").addEventListener("click",e=>{if(e.target===$("#keyOverlay"))closeKey();});
+  $("#keyPerson").addEventListener("keydown",e=>{if(e.key==="Enter")keyAction(keyState&&keyState.out?"in":"out");});
+  $("#btnWorklogRefresh").addEventListener("click",()=>{loadHistory();toast("作業ログを更新しました");});
+  $("#btnExportWorklog").addEventListener("click",exportWorklogCSV);
   $("#qrClose").addEventListener("click",closeQr);$("#qrCancel").addEventListener("click",closeQr);
   $("#qrPrint").addEventListener("click",()=>{document.body.classList.add("qr-printing");window.print();});
   window.addEventListener("afterprint",()=>document.body.classList.remove("qr-printing"));
   $("#qrOverlay").addEventListener("click",e=>{if(e.target===$("#qrOverlay"))closeQr();});
-  if(MODE!=="server")$("#btnQrAll").style.display="none"; /* QRラベルはサーバー版のみ（URLが必要） */
+  if(MODE!=="server"){$("#btnQrAll").style.display="none";$("#btnQrKey").style.display="none";} /* QRラベルはサーバー版のみ（URLが必要） */
   document.addEventListener("keydown",e=>{
-    if(e.key==="Escape"){closeModal();closePin();closeHelp();closeCo();closeQr();}
+    if(e.key==="Escape"){closeModal();closePin();closeHelp();closeCo();closeQr();closeKey();}
     else if(e.key==="?"||e.key==="F1"){const t=(document.activeElement||{}).tagName;if(t!=="INPUT"&&t!=="SELECT"&&t!=="TEXTAREA"){e.preventDefault();openHelp();}}
   });
   $("#btnExportSearch").addEventListener("click",()=>{if(!lastSearch.length){toast("出力対象がありません");return;}exportCSV(lastSearch,"検索結果.csv");});
@@ -989,14 +1087,19 @@ async function init(){
   const _n=new Date(),_w=["日","月","火","水","木","金","土"][_n.getDay()];
   const _hd=$("#hdrDate");if(_hd)_hd.textContent=_n.getFullYear()+"/"+String(_n.getMonth()+1).padStart(2,"0")+"/"+String(_n.getDate()).padStart(2,"0")+"（"+_w+"）";
   startPolling();
-  /* QRラベル（?co=在庫ID）から開かれたとき：その在庫の持ち出し画面を直接開く */
-  const coParam=new URLSearchParams(location.search).get("co");
-  if(coParam!=null){
+  /* QRから開かれたとき：?co=在庫ID → 持ち出し画面 ／ ?key=1 → 鍵の持出・返却画面 */
+  const qs=new URLSearchParams(location.search);
+  const coParam=qs.get("co"),keyParam=qs.get("key");
+  if(coParam!=null||keyParam!=null){
     window.history.replaceState(null,"",location.pathname); /* 再読込で再度開かないようURLを掃除 */
+  }
+  if(coParam!=null){
     const tab=document.querySelector('.tab[data-view="checkout"]');if(tab)tab.click();
     const rec=records.find(x=>String(x.id)===String(coParam));
     if(rec)openCo(rec.id);
     else toast("この在庫は見つかりません（すでに使い切った可能性があります）");
+  }else if(keyParam!=null){
+    openKey();
   }
 }
 init();

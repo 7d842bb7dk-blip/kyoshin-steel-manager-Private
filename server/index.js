@@ -93,6 +93,18 @@ app.post("/api/checkout", (req, res) => {
   }
 });
 
+// ── 鋼材倉庫の鍵：持出/返却の記録と現在の状態 ──
+app.get("/api/key", (req, res) => res.json(dbm.keyStatus()));
+app.post("/api/key", (req, res) => {
+  const b = req.body || {};
+  if (b.action !== "out" && b.action !== "in") return res.status(400).json({ error: "actionが不正です" });
+  const r = dbm.keyEvent(b.action, b.person);
+  if (!r.ok) {
+    return res.status(400).json({ error: r.reason === "noperson" ? "名前を入力してください" : "鍵はすでに返却されています" });
+  }
+  res.json({ ok: true, status: r.status });
+});
+
 // ── マスタ設定（単価・比重・式割当）：取得は誰でも、保存は管理者パスコード必須 ──
 function adminPin() {
   try {

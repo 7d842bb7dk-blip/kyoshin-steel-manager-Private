@@ -60,6 +60,10 @@
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 7v10l9 4 9-4V7"/><path d="M12 11v10"/></svg>
     在庫管理
   </div>
+  <div class="tab admin-only" data-view="worklog">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="9" y="2" width="6" height="4" rx="1"/><path d="M9 12l2 2 4-4"/></svg>
+    作業ログ
+  </div>
   <div class="tab admin-only" data-view="calc">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M8 6h8M8 10h2M8 14h2M8 18h2M14 10h2M14 14h2M14 18h2"/></svg>
     重量・単価計算
@@ -145,12 +149,28 @@
       </div>
     </section>
 
+    <!-- ====== WORKLOG VIEW（作業ログ・管理者のみ） ====== -->
+    <section class="view" id="view-worklog">
+      <div class="panel">
+        <div class="panel-h">
+          <h2><svg class="sec-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="9" y="2" width="6" height="4" rx="1"/><path d="M9 12l2 2 4-4"/></svg>作業ログ（日付別） <span class="tag">ADMIN</span></h2>
+          <div style="display:flex;gap:8px">
+            <button class="btn sm" id="btnWorklogRefresh"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-2.6-6.4M21 3v6h-6"/></svg>更新</button>
+            <button class="btn sm" id="btnExportWorklog"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>CSV出力（全記録）</button>
+          </div>
+        </div>
+        <div class="wl-hint">鍵の持出→返却の間に在庫の記録（持ち出し・編集など）が1件も無い場合、<b class="wl-bad">記録なし⚠</b> と表示されます。実際に材料を使ったのに記録が無い人への確認にお使いください。</div>
+        <div id="worklogWrap"></div>
+      </div>
+    </section>
+
     <!-- ====== INVENTORY VIEW ====== -->
     <section class="view" id="view-inventory">
       <div class="panel">
         <div class="panel-h">
           <h2><svg class="sec-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 7v10l9 4 9-4V7"/></svg>在庫データ <span class="tag" id="invCount"></span></h2>
           <div style="display:flex;gap:8px">
+            <button class="btn sm" id="btnQrKey"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="7.5" cy="15.5" r="4.5"/><path d="M10.7 12.3 21 2M15 8l3 3"/></svg>鍵QR</button>
             <button class="btn sm" id="btnQrAll"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3.5" y="3.5" width="6.5" height="6.5" rx="1"/><rect x="14" y="3.5" width="6.5" height="6.5" rx="1"/><rect x="3.5" y="14" width="6.5" height="6.5" rx="1"/><path d="M14 14h3v3h-3zM20.5 14v3M14 20.5h3M18.5 18.5h2v2h-2z"/></svg>QRラベル</button>
             <button class="btn sm" id="btnImport"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 15V3M7 8l5-5 5 5M5 21h14"/></svg>CSV取込</button>
             <button class="btn sm" id="btnExportInv"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>CSV出力</button>
@@ -287,6 +307,27 @@
   </div>
 </div>
 
+<!-- ============================== 鍵の持出/返却 ============================== -->
+<div class="overlay" id="keyOverlay">
+  <div class="modal key-modal">
+    <div class="modal-h">
+      <h3><svg class="sec-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="7.5" cy="15.5" r="4.5"/><path d="M10.7 12.3 21 2M15 8l3 3M18 5l3 3"/></svg>鋼材倉庫の鍵</h3>
+      <button class="x" id="keyClose"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </div>
+    <div class="co-body">
+      <div class="key-status" id="keyStatus">—</div>
+      <label class="co-lab">あなたの名前<span class="req">*</span>
+        <input type="text" id="keyPerson" class="co-input" list="dl_person" placeholder="例: 山田" autocomplete="off">
+      </label>
+      <div class="key-btns">
+        <button class="key-btn out" id="btnKeyOut"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5M21 12H9"/></svg>鍵を借りて倉庫へ行く</button>
+        <button class="key-btn in" id="btnKeyIn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><path d="M10 17l-5-5 5-5M5 12h12"/></svg>鍵を返却する</button>
+      </div>
+      <div class="key-note">倉庫で材料を使ったら、材料のQRを読んで<b>残りの長さの登録</b>も忘れずに。</div>
+    </div>
+  </div>
+</div>
+
 <!-- ============================== 持ち出しモーダル ============================== -->
 <div class="overlay" id="coOverlay">
   <div class="modal co-modal">
@@ -299,11 +340,11 @@
       <div class="co-q">どれだけ使いますか？</div>
       <div class="co-modes">
         <button class="co-mode active" id="coModeAll"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 13l4 4L19 7"/></svg>全部 持ち出す</button>
-        <button class="co-mode" id="coModePart"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M7 21 21 7M4 8l4 4M8 4l4 4M3 3l4 4"/></svg>一部だけ使う</button>
+        <button class="co-mode" id="coModePart"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M7 21 21 7M4 8l4 4M8 4l4 4M3 3l4 4"/></svg>一部使った（残りを登録）</button>
       </div>
       <div class="co-part" id="coPart" style="display:none">
-        <label class="co-lab">使う長さ (mm)
-          <input type="number" id="coUsed" class="num co-input" inputmode="numeric" min="1" placeholder="例: 1000">
+        <label class="co-lab">残りの長さ (mm) — 使用後に残った長さを測って入力
+          <input type="number" id="coUsed" class="num co-input" inputmode="numeric" min="0" placeholder="例: 1500">
         </label>
         <div class="co-remain" id="coRemain"></div>
       </div>
@@ -361,7 +402,7 @@
 
       <div class="help-sec">
         <div class="help-h"><span class="help-ic red"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 7v10l7 3.1"/><path d="M14 17h8M18.5 13.5 22 17l-3.5 3.5"/></svg></span>持ち出し</div>
-        <p class="help-p">材料倉庫から材料を持ち出すときは、<b>その場でこの画面から記録</b>してください。使う材料の<b>「持ち出す」</b>ボタンを押し、<b>「全部 持ち出す」</b>か<b>「一部だけ使う」（使う長さを入力）</b>を選んで、<b>自分の名前</b>を入れて記録します。在庫の残り長さは自動で更新されます。<br>材料に<b>QRラベル</b>が貼ってある場合は、スマホのカメラで読み取るだけでその材料の持ち出し画面が直接開きます（ラベルは「在庫管理 → QRラベル」から印刷できます）。</p>
+        <p class="help-p">材料倉庫から材料を持ち出すときは、<b>その場でこの画面から記録</b>してください。使う材料の<b>「持ち出す」</b>ボタンを押し、<b>「全部 持ち出す」</b>か<b>「一部使った（残りを登録）」</b>を選びます。一部の場合は<b>使用後に残った長さを測って入力</b>すれば、使用量は自動計算されます。<b>自分の名前</b>を入れて記録完了。<br>材料の<b>QRラベル</b>をスマホで読み取ると、その材料の登録画面が直接開きます（ラベルは「在庫管理 → QRラベル」から印刷）。<br>また、<b>倉庫の鍵の置き場のQR</b>を読み取ると「鍵の持ち出し／返却」を記録できます。倉庫へ行くとき・鍵を返すときに読み取ってください。</p>
       </div>
 
       <div class="help-sec">
