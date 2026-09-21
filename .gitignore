@@ -8,6 +8,8 @@ server/data-dev/
 
 # CIPS名簿取込の診断ダンプ（個人情報を含むためローカルのみ）
 tools/cips_staff_dump.json
+# CIPS発注データの診断ダンプ（取引情報を含むためローカルのみ）
+tools/cips_hattyu_dump.json
 
 # ログ・OS
 *.log
