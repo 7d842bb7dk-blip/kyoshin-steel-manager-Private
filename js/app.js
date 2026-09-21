@@ -20,13 +20,15 @@
  * ===================================================================== */
 
 /* ===================== マスタデータ（Excel由来） ===================== */
-const MATERIALS=["SS400","SUS304","SUS316L","SUS310S","A6063"];
+const MATERIALS=["SS400","SUS304","SUS316L","SUS310S","A6063","A5052","アルミ"];
 const KOSHU_BY_MAT={
   "SS400":["角パイプ","丸パイプ(TP-S)","丸パイプ(TP-A)","チャンネル","アングル","フラットバー"],
-  "SUS304":["角パイプ","丸パイプ(TP-S)","丸パイプ(TP-A)","サニタリーパイプ","チャンネル","アングル","フラットバー"],
-  "SUS316L":["角パイプ","丸パイプ(TP-S)","丸パイプ(TP-A)","サニタリーパイプ","チャンネル","アングル","フラットバー"],
+  "SUS304":["角パイプ","丸パイプ(TP-S)","丸パイプ(TP-A)","サニタリーパイプ","化粧管","BA管","チャンネル","アングル","フラットバー"],
+  "SUS316L":["角パイプ","丸パイプ(TP-S)","丸パイプ(TP-A)","サニタリーパイプ","化粧管","BA管","チャンネル","アングル","フラットバー"],
   "SUS310S":["角パイプ","丸パイプ(TP-S)","丸パイプ(TP-A)","サニタリーパイプ","チャンネル","アングル","フラットバー"],
-  "A6063":["角パイプ","丸パイプ(TP-S)","丸パイプ(TP-A)","サニタリーパイプ","チャンネル","アングル"]
+  "A6063":["角パイプ","丸パイプ(TP-S)","丸パイプ(TP-A)","サニタリーパイプ","チャンネル","アングル"],
+  "A5052":["角パイプ","丸パイプ(TP-S)","丸パイプ(TP-A)","化粧管","チャンネル","アングル","フラットバー","丸棒","角棒"],
+  "アルミ":["角パイプ","丸パイプ(TP-S)","丸パイプ(TP-A)","化粧管","チャンネル","アングル","フラットバー","丸棒","角棒"]
 };
 const KIKAKU_BY_KOSHU={
   "角パイプ":["50*50","75*40","60*60","100*50","125*50"],
@@ -43,10 +45,10 @@ const FINISH_BY_MAT_KOSHU={
   "SUS316L|角パイプ":["HL","#400","未研","HOT"],"SUS316L|丸パイプ(TP-S)":["HL","#400","未研"],"SUS316L|丸パイプ(TP-A)":["HL","#400","未研"],"SUS316L|サニタリーパイプ":["#400","未研"],"SUS316L|チャンネル":["HL","#400","HOT"],"SUS316L|アングル":["HL","#400","HOT","COLD"],"SUS316L|フラットバー":["HL","#400","HOT","COLD"],
   "SUS310S|角パイプ":["HL","#400","未研","HOT"],"SUS310S|丸パイプ(TP-S)":["HL","#400","未研"],"SUS310S|丸パイプ(TP-A)":["HL","#400","未研"],"SUS310S|サニタリーパイプ":["#400","未研"],"SUS310S|チャンネル":["HL","#400","HOT"],"SUS310S|アングル":["HL","#400","HOT","COLD"],"SUS310S|フラットバー":["HL","#400","HOT","COLD"]
 };
-const FINISH_ALL=["HL","#400","未研","ミガキ","HOT","COLD","黒皮"];
+const FINISH_ALL=["HL","#400","未研","ミガキ","HOT","COLD","黒皮","サニタリー","BA"];
 const THICKNESS=[1,1.2,1.5,1.6,2,2.1,2.3,3,3.2,4,4.5,5,6];
-const LOCATIONS=["本社レーザー前","第二工場","第三工場","本社材料倉庫"];
-const DENSITY={"SUS304":7.93,"SUS316L":7.98,"SUS430":7.7,"SS400":7.85,"SGP":7.85,"STKM":7.85,"A5052":2.68,"A6063":2.7};
+const LOCATIONS=["本社レーザー前","第二工場","第三工場","本社材料倉庫"]; /* 在庫が空のときの初期候補。在庫があれば実データから動的生成（locOptions） */
+const DENSITY={"SUS304":7.93,"SUS316L":7.98,"SUS430":7.7,"SS400":7.85,"SGP":7.85,"STKM":7.85,"A5052":2.68,"A6063":2.7,"アルミ":2.7,"ﾁﾀﾝ":4.51,"チタン":4.51};
 
 /* キロ単価マスタ（合算ルール対応：同一キーが複数行ある場合は合計） */
 const PRICE=[];
@@ -65,6 +67,10 @@ const FORMULA_DESC={
   "丸パイプ(TP-S)":{view:"外径Φ・肉厚t",f:"π/4 × ( Φ² − (Φ−2t)² )"},
   "丸パイプ(TP-A)":{view:"外径Φ・肉厚t",f:"π/4 × ( Φ² − (Φ−2t)² )"},
   "サニタリーパイプ":{view:"外径Φ・肉厚t",f:"π/4 × ( Φ² − (Φ−2t)² )"},
+  "化粧管":{view:"外径Φ・肉厚t",f:"π/4 × ( Φ² − (Φ−2t)² )"},
+  "BA管":{view:"外径Φ・肉厚t",f:"π/4 × ( Φ² − (Φ−2t)² )"},
+  "丸棒":{view:"外径Φ（無垢）",f:"π/4 × Φ²"},
+  "角棒":{view:"A×B（無垢）",f:"A × B"},
   "角パイプ":{view:"外寸A×外寸B・肉厚t",f:"A×B − (A−2t)×(B−2t)"},
   "フラットバー":{view:"幅×厚t",f:"幅 × t"},
   "アングル":{view:"辺A×辺B・厚t",f:"t × (A + B − t)"},
@@ -77,11 +83,15 @@ function dims(spec){const n=normSpec(spec),p=n.split("*");const d1=parseFloat(p[
 function density(mat){return DENSITY[mat]!=null?DENSITY[mat]:(String(mat).startsWith("SUS")?7.93:7.85);}
 function sectionArea(mat,koshu,thk,spec){
   const{d1,d2}=dims(spec);const t=parseFloat(thk)||0;
-  if(koshu==="丸パイプ(TP-S)"||koshu==="丸パイプ(TP-A)"||koshu==="サニタリーパイプ"){const i=Math.max(d1-2*t,0);return Math.PI/4*(d1*d1-i*i);}
+  /* 丸管系（化粧管・BA管・種別不明の丸パイプも同じ式。2026-09 画像読取データ対応で追加） */
+  if(koshu==="丸パイプ(TP-S)"||koshu==="丸パイプ(TP-A)"||koshu==="サニタリーパイプ"||koshu==="化粧管"||koshu==="BA管"||koshu==="丸パイプ"){const i=Math.max(d1-2*t,0);return Math.PI/4*(d1*d1-i*i);}
   if(koshu==="角パイプ")return d1*d2-Math.max(d1-2*t,0)*Math.max(d2-2*t,0);
   if(koshu==="フラットバー")return d1*t;
   if(koshu==="アングル")return t*(d1+d2-t);
   if(koshu==="チャンネル")return t*(d1+2*d2-2*t);
+  /* 無垢材（棒）。板厚は使わない（2026-09 追加） */
+  if(koshu==="丸棒")return Math.PI/4*d1*d1;
+  if(koshu==="角棒")return d1*(d2||d1);
   return null;
 }
 function round(v,d){const f=Math.pow(10,d);return Math.round((v+Number.EPSILON)*f)/f;}
@@ -192,7 +202,12 @@ const SHAPE_SVG={
  "サニタリーパイプ":'<svg viewBox="0 0 24 24"><rect fill="#6b5fc0" x="10.4" y="2" width="3.2" height="3.4" rx="1"/><path fill="#6b5fc0" fill-rule="evenodd" d="M12 4.6a8 8 0 100 16 8 8 0 000-16zm0 4a4 4 0 110 8 4 4 0 010-8z"/></svg>',
  "チャンネル":'<svg viewBox="0 0 24 24"><path fill="#d08322" d="M5.5 4h12v3.6H9.6v8.8h7.9V20h-12z"/></svg>',
  "アングル":'<svg viewBox="0 0 24 24"><path fill="#c0566f" d="M5.5 4h3.7v12.4H20V20H5.5z"/></svg>',
- "フラットバー":'<svg viewBox="0 0 24 24"><rect fill="#5a7d8c" x="3" y="9.5" width="18" height="5" rx="2.4"/></svg>'
+ "フラットバー":'<svg viewBox="0 0 24 24"><rect fill="#5a7d8c" x="3" y="9.5" width="18" height="5" rx="2.4"/></svg>',
+ "化粧管":'<svg viewBox="0 0 24 24"><path fill="#b0568f" fill-rule="evenodd" d="M12 3a9 9 0 100 18 9 9 0 000-18zm0 3.4a5.6 5.6 0 110 11.2 5.6 5.6 0 010-11.2z"/></svg>',
+ "BA管":'<svg viewBox="0 0 24 24"><path fill="#8a7f3c" fill-rule="evenodd" d="M12 3a9 9 0 100 18 9 9 0 000-18zm0 3.7a5.3 5.3 0 110 10.6 5.3 5.3 0 010-10.6z"/></svg>',
+ "丸パイプ":'<svg viewBox="0 0 24 24"><path fill="#4d7f6b" fill-rule="evenodd" d="M12 3a9 9 0 100 18 9 9 0 000-18zm0 4a5 5 0 110 10 5 5 0 010-10z"/></svg>',
+ "丸棒":'<svg viewBox="0 0 24 24"><circle fill="#7a6f9c" cx="12" cy="12" r="8.5"/></svg>',
+ "角棒":'<svg viewBox="0 0 24 24"><rect fill="#9c6f5a" x="4.5" y="4.5" width="15" height="15" rx="1.5"/></svg>'
 };
 function shapeSVG(k){return SHAPE_SVG[k]||'<svg viewBox="0 0 24 24"><rect fill="#8a93a3" x="4" y="4" width="16" height="16" rx="3"/></svg>';}
 function shapeIco(k){return '<span class="shape-ic">'+shapeSVG(k)+'</span>';}
@@ -203,6 +218,8 @@ const fmtNum=(n,d=1)=>n==null?'<span class="muted">—</span>':n.toLocaleString(
 function fillSelect(sel,opts,blankLabel){sel.innerHTML="";const b=document.createElement("option");b.value="";b.textContent=blankLabel||"指定なし";sel.appendChild(b);opts.forEach(o=>{const e=document.createElement("option");e.value=o;e.textContent=o;sel.appendChild(e);});}
 function fillDatalist(dl,opts){dl.innerHTML="";opts.forEach(o=>{const e=document.createElement("option");e.value=o;dl.appendChild(e);});}
 function matCls(m){return "m-"+String(m).toLowerCase().replace(/[^a-z0-9]/g,"");}
+/* 保管場所の候補：在庫の実データから動的生成（在庫が空なら LOCATIONS を使用） */
+function locOptions(){const s=[...new Set(records.map(r=>r.loc).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"ja"));return s.length?s:LOCATIONS;}
 function finishOptions(mat,koshu){const k=mat+"|"+koshu;if(FINISH_BY_MAT_KOSHU[k]&&FINISH_BY_MAT_KOSHU[k].length)return FINISH_BY_MAT_KOSHU[k];return FINISH_ALL;}
 function toast(msg){const t=$("#toast");$("#toastMsg").textContent=msg;t.classList.add("show");clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove("show"),2200);}
 
@@ -332,7 +349,7 @@ function openModal(id){
   fillSelect($("#m_thk"),THICKNESS,"選択");$("#m_thk").value=r.thk!==""?r.thk:"";
   fillDatalist($("#dl_mspec"),r.koshu&&KIKAKU_BY_KOSHU[r.koshu]?KIKAKU_BY_KOSHU[r.koshu]:[]);$("#m_spec").value=r.spec||"";
   $("#m_len").value=r.len!==""?r.len:"";
-  fillSelect($("#m_loc"),LOCATIONS,"指定なし");$("#m_loc").value=r.loc||"";
+  fillSelect($("#m_loc"),locOptions(),"指定なし");$("#m_loc").value=r.loc||"";
   fillSelect($("#m_fin"),r.mat&&r.koshu?finishOptions(r.mat,r.koshu):FINISH_ALL,"指定なし");$("#m_fin").value=r.fin||"";
   modalPreview();
   $("#overlay").classList.add("show");
@@ -548,7 +565,7 @@ async function loadHistory(){
 function initCheckoutControls(){
   fillSelect($("#co_mat"),MATERIALS,"すべての材質");
   fillSelect($("#co_koshu"),[],"すべての鋼種");$("#co_koshu").disabled=true;
-  fillSelect($("#co_loc"),LOCATIONS,"すべての場所");
+  fillSelect($("#co_loc"),locOptions(),"すべての場所");
   $("#co_mat").addEventListener("change",()=>{
     const m=$("#co_mat").value;
     if(m){fillSelect($("#co_koshu"),KOSHU_BY_MAT[m],"すべての鋼種");$("#co_koshu").disabled=false;}
@@ -567,6 +584,9 @@ function initCheckoutControls(){
 function updateCoDatalist(){const k=$("#co_koshu").value;fillDatalist($("#dl_cospec"),k&&KIKAKU_BY_KOSHU[k]?KIKAKU_BY_KOSHU[k]:[].concat(...Object.values(KIKAKU_BY_KOSHU)));}
 function renderCheckout(){
   const wrap=$("#coList");if(!wrap)return;
+  /* 保管場所の候補を実データに追従させる（選択中の値は維持） */
+  const locSel=$("#co_loc"),opts=locOptions(),optsKey=opts.join("|");
+  if(locSel.dataset.opts!==optsKey){const cur=locSel.value;fillSelect(locSel,opts,"すべての場所");locSel.dataset.opts=optsKey;if(opts.includes(cur))locSel.value=cur;}
   const f={mat:$("#co_mat").value,koshu:$("#co_koshu").value,spec:$("#co_spec").value.trim(),loc:$("#co_loc").value};
   const hits=records.filter(r=>{
     if(f.mat&&r.mat!==f.mat)return false;
