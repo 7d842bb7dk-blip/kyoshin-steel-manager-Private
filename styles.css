@@ -424,8 +424,16 @@ select.m-in{width:auto;max-width:100%;cursor:pointer}
 .wl-bad{color:var(--accent-d);font-weight:800}
 
 /* ============ スマホ対応（倉庫でスマホ/タブレットから使う） ============ */
+.scan-btn{display:none} /* QR読み取りボタンはスマホのみ */
 @media(max-width:760px){
   /* スマホ＝持ち出し画面だけのシンプル表示。タブ・見出し・管理系ボタンは出さない */
+  .scan-btn{display:flex;flex-direction:column;align-items:center;gap:3px;width:100%;padding:17px 14px;margin-bottom:12px;
+    border-radius:16px;border:none;background:var(--accent);color:#fff;font-family:var(--jp);cursor:pointer;
+    box-shadow:0 6px 18px -8px var(--accent)}
+  .scan-btn svg{width:34px;height:34px;margin-bottom:2px}
+  .scan-btn .scan-t{font-size:18px;font-weight:800}
+  .scan-btn .scan-s{font-size:11.5px;opacity:.88}
+  .scan-btn:active{transform:scale(.98)}
   html,body{max-width:100vw;overflow-x:hidden}
   .strip{display:none}
   nav.tabs{display:none}

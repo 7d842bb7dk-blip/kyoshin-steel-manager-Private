@@ -120,6 +120,12 @@
 
     <!-- ====== CHECKOUT VIEW（持ち出し登録・現場向け） ====== -->
     <section class="view" id="view-checkout">
+      <button class="scan-btn" id="btnScan">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2"/><rect x="8" y="8" width="8" height="8" rx="1"/></svg>
+        <span class="scan-t" data-i18n="QRを読み取る">QRを読み取る</span>
+        <span class="scan-s" data-i18n="材料のラベルを撮影してください">材料のラベルを撮影してください</span>
+      </button>
+      <input type="file" id="scanFile" accept="image/*" capture="environment" style="display:none">
       <div class="panel">
         <div class="panel-h">
           <h2><svg class="sec-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>持ち出す材料をさがす</h2>
@@ -452,6 +458,7 @@
 
 <div class="toast" id="toast"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 13l4 4L19 7"/></svg><span id="toastMsg"></span></div>
 
+<script src="js/jsqr.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>

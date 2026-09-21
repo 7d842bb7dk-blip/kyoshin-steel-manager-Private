@@ -74,6 +74,8 @@ dist/               単体ファイル版（直接編集しない。build.py の
 ### 2. 外部依存を増やさないこと
 フロントはバニラ JS のみ（QRコード生成も `js/app.js` 内の自前実装）。
 サーバーは express / better-sqlite3 のみ。CDN・Webフォント・新規 npm パッケージは追加しない。
+**例外**：QR読み取り用の jsQR（MIT）を `js/jsqr.js` に同梱（ローカル配信・オフライン動作は維持。
+自前実装が現実的でないため）。これ以外の同梱追加も原則しない。
 
 ### 3. API とデータの互換を壊さないこと
 - API：`GET /api/state?since=v`（差分ポーリング）、`POST/PUT/DELETE /api/records`、

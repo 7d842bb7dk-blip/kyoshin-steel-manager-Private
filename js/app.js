@@ -271,9 +271,12 @@ function refillSelect(sel,opts,blank){
   const cur=sel.value;fillSelect(sel,opts,blank);sel.dataset.opts=key;
   if(opts.map(String).includes(cur))sel.value=cur;
 }
-/* 名前の選択肢：名簿マスタ（マスタ設定で編集）＋持ち出し/鍵の履歴に出てくる名前
- * （CSV取込などのシステム操作名は候補に入れない） */
-function personOptions(){return uniqVals([...STAFF,...history.filter(x=>x.type==="checkout"||x.type==="keyout"||x.type==="keyin").map(x=>x.person)]);}
+/* 名前の選択肢：名簿マスタ（マスタ設定で編集）。名簿が空のときだけ
+ * 持ち出し/鍵の履歴に出てくる名前で代用（システム操作名は候補に入れない） */
+function personOptions(){
+  if(STAFF.length)return uniqVals([...STAFF]);
+  return uniqVals(history.filter(x=>x.type==="checkout"||x.type==="keyout"||x.type==="keyin").map(x=>x.person));
+}
 /* 名前ピッカー：選択肢から選ぶ。前回の名前（端末に記憶）を自動選択。「直接入力」も可 */
 function setupPersonPicker(selSel,inpSel){
   const sel=$(selSel),inp=$(inpSel);if(!sel||!inp)return;
@@ -321,6 +324,9 @@ const I18N_VI={
   "指定なし":"Không chọn","部分一致 例: 50":"Tìm một phần, VD: 50","完全一致":"Khớp chính xác",
   "重量(kg)":"Trọng lượng (kg)","キロ単価":"Đơn giá/kg","材料費":"Chi phí","操作":"Thao tác","板厚":"Độ dày",
   "持ち出す材料をさがす":"Tìm vật liệu cần lấy",
+  "QRを読み取る":"Quét mã QR","材料のラベルを撮影してください":"Chụp nhãn QR trên vật liệu","読み取り中…":"Đang đọc…",
+  "QRを読み取れませんでした。ラベルに近づけて撮り直してください":"Không đọc được QR. Hãy chụp lại gần hơn",
+  "この在庫は見つかりません（すでに使い切った可能性があります）":"Không tìm thấy tồn kho này (có thể đã dùng hết)",
   "使う材料の「持ち出す」ボタンを押してください。空欄はすべて対象です。":"Nhấn nút 「Lấy ra」 của vật liệu cần dùng. Để trống = tất cả.",
   "持ち出す":"Lấy ra","条件に一致する在庫がありません":"Không có tồn kho phù hợp",
   "持ち出し登録":"Đăng ký lấy vật liệu","どれだけ使いますか？":"Bạn dùng bao nhiêu?",
@@ -945,6 +951,41 @@ async function keyAction(action){
   }catch(e){toast(e.message);}
 }
 
+/* ===================== QR読み取り（スマホ：撮影→解析。HTTP環境でも動く方式） ===================== */
+async function scanImageFile(file){
+  const url=URL.createObjectURL(file);
+  try{
+    const img=await new Promise((ok,ng)=>{const i=new Image();i.onload=()=>ok(i);i.onerror=ng;i.src=url;});
+    for(const max of[1000,640,1400]){
+      const sc=Math.min(1,max/Math.max(img.naturalWidth||img.width,img.naturalHeight||img.height));
+      const w=Math.max(1,Math.round((img.naturalWidth||img.width)*sc));
+      const h=Math.max(1,Math.round((img.naturalHeight||img.height)*sc));
+      const cv=document.createElement("canvas");cv.width=w;cv.height=h;
+      const cx=cv.getContext("2d");cx.drawImage(img,0,0,w,h);
+      const d=cx.getImageData(0,0,w,h);
+      if(typeof jsQR==="function"){
+        const r=jsQR(d.data,w,h,{inversionAttempts:"attemptBoth"});
+        if(r&&r.data)return r.data;
+      }
+    }
+    return null;
+  }finally{URL.revokeObjectURL(url);}
+}
+/* 読み取った文字列に応じて画面を開く（材料QR=?co / 鍵QR=?key） */
+function handleScanText(text){
+  let co=null,key=null;
+  try{const u=new URL(String(text));co=u.searchParams.get("co");key=u.searchParams.get("key");}
+  catch(e){const m=String(text).match(/co=(\d+)/);if(m)co=m[1];if(/[?&]key=/.test(String(text)))key="1";}
+  if(key!=null){openKey();return true;}
+  if(co!=null){
+    const rec=records.find(x=>String(x.id)===String(co));
+    if(rec)openCo(rec.id);
+    else toast(t("この在庫は見つかりません（すでに使い切った可能性があります）"));
+    return true;
+  }
+  return false;
+}
+
 /* ===================== QRラベル印刷（サーバー版のみ） ===================== */
 function qrServerBase(){return(qrBase||location.origin+"/").replace(/\/+$/,"")+"/";}
 function qrUrl(id){return qrServerBase()+"?co="+id;}
@@ -1150,6 +1191,16 @@ async function init(){
   $("#keyPerson").addEventListener("keydown",e=>{if(e.key==="Enter")keyAction(keyState&&keyState.out?"in":"out");});
   $("#btnWorklogRefresh").addEventListener("click",()=>{loadHistory();toast("作業ログを更新しました");});
   $("#btnExportWorklog").addEventListener("click",exportWorklogCSV);
+  /* QR読み取り（スマホ：カメラで撮影→解析） */
+  $("#btnScan").addEventListener("click",()=>$("#scanFile").click());
+  $("#scanFile").addEventListener("change",async e=>{
+    const f=e.target.files[0];e.target.value="";if(!f)return;
+    toast(t("読み取り中…"));
+    try{
+      const text=await scanImageFile(f);
+      if(!text||!handleScanText(text))toast(t("QRを読み取れませんでした。ラベルに近づけて撮り直してください"));
+    }catch(err){toast(t("QRを読み取れませんでした。ラベルに近づけて撮り直してください"));}
+  });
   $("#qrClose").addEventListener("click",closeQr);$("#qrCancel").addEventListener("click",closeQr);
   $("#qrPrint").addEventListener("click",()=>{document.body.classList.add("qr-printing");window.print();});
   window.addEventListener("afterprint",()=>document.body.classList.remove("qr-printing"));
@@ -1207,7 +1258,7 @@ async function init(){
     const tab=document.querySelector('.tab[data-view="checkout"]');if(tab)tab.click();
     const rec=records.find(x=>String(x.id)===String(coParam));
     if(rec)openCo(rec.id);
-    else toast("この在庫は見つかりません（すでに使い切った可能性があります）");
+    else toast(t("この在庫は見つかりません（すでに使い切った可能性があります）"));
   }else if(window.matchMedia("(max-width: 760px)").matches){
     /* スマホは持ち出し画面だけのシンプル表示（タブ等はCSSで非表示） */
     const tb=document.querySelector('.tab[data-view="checkout"]');if(tb)tb.click();
