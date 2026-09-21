@@ -6,6 +6,9 @@ server/data/
 # 開発用DB（server/dev.js が作る。各PCローカル）
 server/data-dev/
 
+# CIPS名簿取込の診断ダンプ（個人情報を含むためローカルのみ）
+tools/cips_staff_dump.json
+
 # ログ・OS
 *.log
 Thumbs.db

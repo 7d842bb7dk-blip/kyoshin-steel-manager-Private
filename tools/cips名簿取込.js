@@ -5,10 +5,10 @@
 //     cd C:\Users\PROGRAM-TSUJIMOTO\Desktop\プログラムツール\kyoshin-steel-manager
 //     node tools\cips名簿取込.js
 //
-//   ・CIPSへは読み取り専用アカウントで SELECT のみ（program-load-board と同じ設定を利用）
-//   ・取得した名前を、このシステムのマスタ「名簿」に上書き保存する
-//     （比重・単価・式・他の設定はそのまま。名簿だけ差し替え）
-//   ・再実行すれば最新の名簿に更新される。不要な名前は マスタ参照→名簿 で削除可
+//   ・CIPSへは読み取り専用アカウントで SELECT のみ
+//   ・退職者は自動判定で除外（判定に使った列と除外者数を表示）
+//   ・全列の生データを tools/cips_staff_dump.json に書き出す（git管理外・調整用）
+//   ・名簿だけを差し替え保存。再実行すれば最新に更新される
 // ─────────────────────────────────────────────────────────────
 const path = require("node:path");
 const fs = require("node:fs");
@@ -20,8 +20,17 @@ const BASE = process.env.STEEL_URL || "http://localhost:3001";
 const sql = require(path.join(PLB, "node_modules", "mssql"));
 const cfg = JSON.parse(fs.readFileSync(path.join(PLB, "server", "data", "cips-config.json"), "utf8"));
 
+const S = (v) => String(v == null ? "" : v).trim();
+/* 「値が入っている」判定：空・0・1900年代の空日付は「無し」とみなす */
+function hasValue(v) {
+  const s = S(v);
+  if (s === "" || s === "0" || s === "false") return false;
+  if (/^1900[-\/]?01[-\/]?01/.test(s)) return false;
+  if (v instanceof Date && v.getFullYear() <= 1900) return false;
+  return true;
+}
+
 (async () => {
-  // 1) CIPS から社員名を取得
   const pool = await sql.connect({
     server: cfg.server, port: cfg.port, database: cfg.database,
     user: cfg.user, password: cfg.password,
@@ -29,29 +38,43 @@ const cfg = JSON.parse(fs.readFileSync(path.join(PLB, "server", "data", "cips-co
     requestTimeout: 30000,
   });
   const cols = (await pool.request().query(
-    "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='master_company_staff'"
+    "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='master_company_staff' ORDER BY ORDINAL_POSITION"
   )).recordset.map(c => c.COLUMN_NAME);
-  console.log("[cips] master_company_staff の列:", cols.join(", "));
   const rows = (await pool.request().query("SELECT * FROM master_company_staff ORDER BY code")).recordset;
   await pool.close();
 
-  // 退職フラグらしき列があれば除外に使う（無ければ全員）
-  const retireCol = cols.find(c => /retire|taisyoku|delete|del_flg|invalid/i.test(c));
-  const names = [];
+  console.log("[cips] 列:", cols.join(", "));
+  console.log("[cips] 全", rows.length, "行");
+
+  // 調整用：全データをローカルに書き出す（git管理外）
+  fs.writeFileSync(path.join(__dirname, "cips_staff_dump.json"), JSON.stringify(rows, null, 1), "utf8");
+  console.log("[cips] 生データを tools/cips_staff_dump.json に保存（ローカルのみ）");
+
+  // ── 退職者の判定 ──
+  // 1) 列名に retire / taisyoku / 退職 / resign を含む列に値が入っていれば退職
+  // 2) 列名が del / delete_flag / invalid 系で値が真なら削除済み扱い
+  const retireCols = cols.filter(c => /retire|taisyoku|退職|resign|quit/i.test(c));
+  const deleteCols = cols.filter(c => /^(del($|_)|delete|del_flg|invalid|disable)/i.test(c));
+  console.log("[判定] 退職系の列:", retireCols.join(", ") || "（なし）", " / 削除系の列:", deleteCols.join(", ") || "（なし）");
+
+  const isRetired = (r) =>
+    retireCols.some(c => hasValue(r[c])) || deleteCols.some(c => hasValue(r[c]));
+
+  const names = [], excluded = [];
   for (const r of rows) {
-    if (retireCol && String(r[retireCol] ?? "").trim() !== "" && String(r[retireCol]).trim() !== "0") continue;
-    const name = String(r.name ?? "").trim();
-    if (name && !names.includes(name)) names.push(name);
+    const name = S(r.name);
+    if (!name) continue;
+    if (isRetired(r)) { excluded.push(name); continue; }
+    if (!names.includes(name)) names.push(name);
   }
-  console.log(`[cips] 取得: ${rows.length}行 → 名簿 ${names.length}名` + (retireCol ? `（除外判定列: ${retireCol}）` : "（除外判定列なし・全員）"));
-  console.log("  " + names.join("、"));
+  console.log(`[判定] 在籍 ${names.length}名 / 除外(退職・削除) ${excluded.length}名`);
+  if (excluded.length) console.log("  除外:", excluded.join("、"));
+  console.log("  取込:", names.join("、"));
   if (!names.length) { console.error("名前が取得できませんでした"); process.exit(1); }
 
-  // 2) 管理者パスコードを js/app.js から取得
+  // ── 名簿だけ差し替えて保存 ──
   const m = fs.readFileSync(path.join(APP, "js", "app.js"), "utf8").match(/const ADMIN_PIN="([^"]+)"/);
   if (!m) { console.error("ADMIN_PIN が見つかりません"); process.exit(1); }
-
-  // 3) 現在のマスタを取得し、名簿だけ差し替えて保存
   const cur = await (await fetch(BASE + "/api/masters")).json();
   const masters = cur.masters || {};
   masters.staff = names;
@@ -62,5 +85,6 @@ const cfg = JSON.parse(fs.readFileSync(path.join(PLB, "server", "data", "cips-co
   });
   const j = await res.json();
   if (!res.ok) { console.error("保存に失敗:", j.error || res.status); process.exit(1); }
-  console.log(`[done] 名簿 ${names.length}名 を保存しました（全PCに反映されます）`);
+  console.log(`[done] 名簿 ${names.length}名 を保存しました（全PCに反映）`);
+  console.log("※除外がおかしい場合は tools/cips_staff_dump.json を見せてください（調整します）");
 })().catch(e => { console.error("ERROR:", e.message); process.exit(1); });
