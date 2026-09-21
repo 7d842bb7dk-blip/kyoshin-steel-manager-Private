@@ -308,7 +308,11 @@ function toast(msg){const t=$("#toast");$("#toastMsg").textContent=msg;t.classLi
 const LANG_KEY="steel_mgr_lang";
 let LANG="ja";try{if(localStorage.getItem(LANG_KEY)==="vi")LANG="vi";}catch(e){}
 const I18N_VI={
-  "メニュー":"Menu","在庫検索":"Tìm kiếm tồn kho","持ち出し":"Lấy vật liệu","入出庫履歴":"Lịch sử xuất nhập",
+  "メニュー":"Menu","ホーム":"Trang chủ","在庫検索":"Tìm kiếm tồn kho","持ち出し":"Lấy vật liệu","入出庫履歴":"Lịch sử xuất nhập",
+  "材料を持ち出す":"Lấy vật liệu","使った材料の残りを登録":"Nhập phần còn lại sau khi dùng",
+  "倉庫の鍵":"Chìa khóa kho","持ち出し・返却を記録":"Ghi nhận mượn・trả chìa khóa",
+  "在庫をさがす":"Tìm tồn kho","材料の場所・残りを確認":"Xem vị trí・số lượng còn lại",
+  "材料や鍵置き場のQRを読むと、この画面を通らず直接開けます":"Quét QR trên vật liệu hoặc chỗ để chìa khóa để mở trực tiếp",
   "作業ログ":"Nhật ký công việc","在庫管理":"Quản lý tồn kho","重量・単価計算":"Tính trọng lượng・chi phí","マスタ参照":"Cài đặt master",
   "使い方":"Hướng dẫn",
   "検索条件":"Điều kiện tìm kiếm","材質":"Vật liệu","鋼種":"Loại thép","板厚 (mm)":"Độ dày (mm)","材料規格":"Quy cách",
@@ -378,7 +382,7 @@ function applyLang(){
 function toggleLang(){LANG=LANG==="ja"?"vi":"ja";try{localStorage.setItem(LANG_KEY,LANG);}catch(e){}location.reload();}
 
 /* ===================== ナビ ===================== */
-const PG={search:["在庫検索","SEARCH / INVENTORY LOOKUP"],checkout:["持ち出し","CHECKOUT / TAKE OUT"],history:["入出庫履歴","HISTORY / IN-OUT LOG"],worklog:["作業ログ","WORK LOG / DAILY MONITOR"],inventory:["在庫管理","INVENTORY / DATA MANAGEMENT"],calc:["重量・単価計算","CALCULATOR / WEIGHT & COST"],master:["マスタ参照","MASTER / REFERENCE DATA"]};
+const PG={home:["ホーム","HOME"],search:["在庫検索","SEARCH / INVENTORY LOOKUP"],checkout:["持ち出し","CHECKOUT / TAKE OUT"],history:["入出庫履歴","HISTORY / IN-OUT LOG"],worklog:["作業ログ","WORK LOG / DAILY MONITOR"],inventory:["在庫管理","INVENTORY / DATA MANAGEMENT"],calc:["重量・単価計算","CALCULATOR / WEIGHT & COST"],master:["マスタ参照","MASTER / REFERENCE DATA"]};
 document.querySelectorAll(".tab").forEach(it=>it.addEventListener("click",()=>{
   document.querySelectorAll(".tab").forEach(n=>n.classList.remove("active"));it.classList.add("active");
   const v=it.dataset.view;document.querySelectorAll(".view").forEach(s=>s.classList.remove("active"));$("#view-"+v).classList.add("active");
@@ -1150,6 +1154,11 @@ async function init(){
   $("#keyPerson").addEventListener("keydown",e=>{if(e.key==="Enter")keyAction(keyState&&keyState.out?"in":"out");});
   $("#btnWorklogRefresh").addEventListener("click",()=>{loadHistory();toast("作業ログを更新しました");});
   $("#btnExportWorklog").addEventListener("click",exportWorklogCSV);
+  /* スマホ用ホーム画面 */
+  const gotoTab=v=>{const tb=document.querySelector('.tab[data-view="'+v+'"]');if(tb)tb.click();};
+  $("#homeCheckout").addEventListener("click",()=>gotoTab("checkout"));
+  $("#homeSearch").addEventListener("click",()=>gotoTab("search"));
+  $("#homeKey").addEventListener("click",openKey);
   $("#qrClose").addEventListener("click",closeQr);$("#qrCancel").addEventListener("click",closeQr);
   $("#qrPrint").addEventListener("click",()=>{document.body.classList.add("qr-printing");window.print();});
   window.addEventListener("afterprint",()=>document.body.classList.remove("qr-printing"));
@@ -1209,6 +1218,9 @@ async function init(){
     else toast("この在庫は見つかりません（すでに使い切った可能性があります）");
   }else if(keyParam!=null){
     openKey();
+  }else if(window.matchMedia("(max-width: 760px)").matches){
+    /* スマホは最初にシンプルなホーム画面を表示 */
+    const tb=document.querySelector('.tab[data-view="home"]');if(tb)tb.click();
   }
 }
 init();
