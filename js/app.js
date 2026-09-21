@@ -106,7 +106,13 @@ function weightKg(mat,koshu,thk,spec,len){const a=sectionArea(mat,koshu,thk,spec
 function unitPrice(mat,koshu,fin){
   let rows;
   if(mat==="SS400"||mat==="A6063")rows=PRICE.filter(p=>p.mat===mat&&p.koshu===koshu);
-  else rows=PRICE.filter(p=>p.mat===mat&&p.koshu===koshu&&p.fin===fin);
+  else{
+    rows=PRICE.filter(p=>p.mat===mat&&p.koshu===koshu&&p.fin===fin);
+    /* 仕上げ完全一致の行が無いときだけ「仕上げ不問(null)」行で代用。
+     * 既存マスタにSUS系のnull行は無いため、従来の挙動（完全一致・合算）は変わらない。
+     * CIPS発注実績から作る平均単価行（fin=null）を新しい組み合わせに使うための追加（2026-09） */
+    if(!rows.length)rows=PRICE.filter(p=>p.mat===mat&&p.koshu===koshu&&p.fin==null);
+  }
   if(!rows.length)return null;
   return rows.reduce((s,p)=>s+p.price,0);
 }
