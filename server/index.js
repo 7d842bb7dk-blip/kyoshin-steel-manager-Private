@@ -127,6 +127,16 @@ app.put("/api/masters", (req, res) => {
   }
 });
 
+// ── QRラベル印刷済みの目印（印刷後に付ける） ──
+app.post("/api/labeled", (req, res) => {
+  try {
+    const r = dbm.markLabeled((req.body || {}).ids);
+    res.json({ ok: true, ...r });
+  } catch (e) {
+    res.status(500).json({ error: `目印の保存に失敗: ${e.message}` });
+  }
+});
+
 // ── 入出庫履歴（新しい順） ──
 app.get("/api/history", (req, res) => {
   res.json({ items: dbm.getHistory(req.query.limit), version: dbm.getVersion() });

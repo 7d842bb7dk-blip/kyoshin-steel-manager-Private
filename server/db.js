@@ -43,6 +43,9 @@ db.exec(`
   );
 `);
 
+// QRラベル印刷済みの目印（後付け列。既存DBには自動で追加）
+try { db.exec("ALTER TABLE records ADD COLUMN qr_printed_at INTEGER"); } catch (e) { /* 既にある */ }
+
 const now = () => Date.now();
 
 // ── version ──
@@ -85,6 +88,7 @@ function rowToRec(r) {
     id: r.id, mat: r.mat || "", koshu: r.koshu || "",
     thk: r.thk, spec: r.spec || "", len: r.len,
     loc: r.loc || "", fin: r.fin || "",
+    qr: r.qr_printed_at || null, // QRラベル印刷済みの目印（印刷日時）
   };
 }
 function getRecords() {
@@ -149,6 +153,17 @@ function deleteRecord(id, person) {
   db.prepare("DELETE FROM records WHERE id=?").run(Number(id));
   logHistory("delete", before, { person, len_before: before.len, len_after: null });
   return { ok: true, version: bumpVersion() };
+}
+
+// ── QRラベル印刷済みの目印を付ける ──
+function markLabeled(ids) {
+  if (!Array.isArray(ids) || !ids.length) return { marked: 0, version: getVersion() };
+  const t = now();
+  const st = db.prepare("UPDATE records SET qr_printed_at=? WHERE id=?");
+  let marked = 0;
+  const tx = db.transaction(() => { for (const id of ids) marked += st.run(t, Number(id)).changes; });
+  tx();
+  return { marked, version: marked ? bumpVersion() : getVersion() };
 }
 
 // ── 持ち出し（現場の出庫）：全部→レコード削除 / 一部→残り長さに更新 ──
@@ -267,7 +282,7 @@ module.exports = {
   getVersion, bumpVersion,
   getRecords, getRecordCount,
   addRecord, updateRecord, deleteRecord, bulkAdd,
-  checkoutRecord, getHistory,
+  checkoutRecord, getHistory, markLabeled,
   keyStatus, keyEvent,
   getMasters, getMastersVersion, setMasters,
   seedIfEmpty, getState,

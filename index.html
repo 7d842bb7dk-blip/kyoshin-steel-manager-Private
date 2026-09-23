@@ -301,6 +301,7 @@
     <div class="modal-foot">
       <span class="help-foot-note" id="qrCount"></span>
       <div style="margin-left:auto;display:flex;gap:9px">
+        <button class="btn ghost" id="qrOnlyNew"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 5h18M6 12h12M10 19h4"/></svg>未印刷のみ</button>
         <button class="btn ghost" id="qrCancel">閉じる</button>
         <button class="btn primary" id="qrPrint"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9V3h12v6M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v7H6z"/></svg>印刷</button>
       </div>
@@ -487,6 +488,7 @@
 <div class="toast" id="toast"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 13l4 4L19 7"/></svg><span id="toastMsg"></span></div>
 
 <script src="js/jsqr.js"></script>
+<script src="js/vendor/zxing-reader.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>

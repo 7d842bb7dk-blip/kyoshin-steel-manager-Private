@@ -481,8 +481,8 @@ function renderInventory(){
   $("#footCount").textContent=records.length+" 件";
   const wrap=$("#invTable");
   if(!records.length){wrap.innerHTML=emptyState("在庫データがありません。「新規登録」から追加してください");return;}
-  let h='<table class="dt"><thead><tr><th>材質</th><th>鋼種</th><th class="r">板厚</th><th>材料規格</th><th class="r">長さ</th><th>保管場所</th><th>仕上げ</th><th class="r">重量(kg)</th><th class="r">単価</th><th class="r">材料費</th><th class="r">操作</th></tr></thead><tbody>';
-  records.forEach(r=>{const c=compute(r);h+=`<tr><td><span class="pill mat ${matCls(r.mat)}">${IC.mat}${r.mat}</span></td><td>${shapeIco(r.koshu)}${r.koshu}</td><td class="r tnum">${r.thk}</td><td class="tnum">${r.spec}</td><td class="r tnum">${Number(r.len).toLocaleString()}</td><td>${r.loc?'<span class="pill loc">'+IC.loc+r.loc+'</span>':'<span class="muted">—</span>'}</td><td><span class="pill fin">${IC.fin}${r.fin||"—"}</span></td><td class="r tnum">${fmtKg(c.weight)}</td><td class="r tnum">${c.unit==null?'<span class="muted">—</span>':c.unit.toLocaleString()}</td><td class="r tnum"><b>${fmtYen(c.cost)}</b></td><td class="r"><div class="row-acts">${MODE==="server"?`<button class="icobtn" data-qrone="${r.id}" title="QRラベルを印刷"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3.5" y="3.5" width="6.5" height="6.5" rx="1"/><rect x="14" y="3.5" width="6.5" height="6.5" rx="1"/><rect x="3.5" y="14" width="6.5" height="6.5" rx="1"/><path d="M14 14h3v3h-3zM20.5 14v3M14 20.5h3M18.5 18.5h2v2h-2z"/></svg></button>`:""}<button class="icobtn" data-edit="${r.id}" title="編集"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20h4L18.5 9.5a2.1 2.1 0 0 0-3-3L5 17v3z"/><path d="M13.5 6.5l3 3"/></svg></button><button class="icobtn del" data-del="${r.id}" title="削除"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg></button></div></td></tr>`;});
+  let h='<table class="dt"><thead><tr><th>材質</th><th>鋼種</th><th class="r">板厚</th><th>材料規格</th><th class="r">長さ</th><th>保管場所</th><th>仕上げ</th><th class="r">重量(kg)</th><th class="r">単価</th><th class="r">材料費</th><th>QR</th><th class="r">操作</th></tr></thead><tbody>';
+  records.forEach(r=>{const c=compute(r);h+=`<tr><td><span class="pill mat ${matCls(r.mat)}">${IC.mat}${r.mat}</span></td><td>${shapeIco(r.koshu)}${r.koshu}</td><td class="r tnum">${r.thk}</td><td class="tnum">${r.spec}</td><td class="r tnum">${Number(r.len).toLocaleString()}</td><td>${r.loc?'<span class="pill loc">'+IC.loc+r.loc+'</span>':'<span class="muted">—</span>'}</td><td><span class="pill fin">${IC.fin}${r.fin||"—"}</span></td><td class="r tnum">${fmtKg(c.weight)}</td><td class="r tnum">${c.unit==null?'<span class="muted">—</span>':c.unit.toLocaleString()}</td><td class="r tnum"><b>${fmtYen(c.cost)}</b></td><td>${r.qr?`<span class="lab-ok" title="ラベル印刷済み ${fmtTs(r.qr)}">✔済</span>`:'<span class="lab-no">未</span>'}</td><td class="r"><div class="row-acts">${MODE==="server"?`<button class="icobtn" data-qrone="${r.id}" title="QRラベルを印刷"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3.5" y="3.5" width="6.5" height="6.5" rx="1"/><rect x="14" y="3.5" width="6.5" height="6.5" rx="1"/><rect x="3.5" y="14" width="6.5" height="6.5" rx="1"/><path d="M14 14h3v3h-3zM20.5 14v3M14 20.5h3M18.5 18.5h2v2h-2z"/></svg></button>`:""}<button class="icobtn" data-edit="${r.id}" title="編集"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20h4L18.5 9.5a2.1 2.1 0 0 0-3-3L5 17v3z"/><path d="M13.5 6.5l3 3"/></svg></button><button class="icobtn del" data-del="${r.id}" title="削除"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg></button></div></td></tr>`;});
   h+="</tbody></table>";wrap.innerHTML=h;
   wrap.querySelectorAll("[data-edit]").forEach(b=>b.addEventListener("click",()=>openModal(+b.dataset.edit)));
   wrap.querySelectorAll("[data-del]").forEach(b=>b.addEventListener("click",()=>delRecord(+b.dataset.del)));
@@ -556,14 +556,22 @@ const QR=(()=>{
   (()=>{let x=1;for(let i=0;i<255;i++){EXP[i]=x;LOG[x]=i;x<<=1;if(x&0x100)x^=0x11d;}for(let i=255;i<512;i++)EXP[i]=EXP[i-255];})();
   const gmul=(a,b)=>(a&&b)?EXP[LOG[a]+LOG[b]]:0;
 
-  /* バージョン別テーブル（レベルM）：[ブロック毎EC語数, [[ブロック数, データ語数], ...]] */
-  const TBL={
-    1:[10,[[1,16]]],2:[16,[[1,28]]],3:[26,[[1,44]]],4:[18,[[2,32]]],5:[24,[[2,43]]],
-    6:[16,[[4,27]]],7:[18,[[4,31]]],8:[22,[[2,38],[2,39]]],9:[22,[[3,36],[2,37]]],10:[26,[[4,43],[1,44]]]
+  /* バージョン別テーブル：[ブロック毎EC語数, [[ブロック数, データ語数], ...]]
+   * M=誤り訂正15%（画面表示用） / Q=25%（印刷ラベル用。汚れ・かすれに強い） */
+  const TBLS={
+    M:{
+      1:[10,[[1,16]]],2:[16,[[1,28]]],3:[26,[[1,44]]],4:[18,[[2,32]]],5:[24,[[2,43]]],
+      6:[16,[[4,27]]],7:[18,[[4,31]]],8:[22,[[2,38],[2,39]]],9:[22,[[3,36],[2,37]]],10:[26,[[4,43],[1,44]]]
+    },
+    Q:{
+      1:[13,[[1,13]]],2:[22,[[1,22]]],3:[18,[[2,17]]],4:[26,[[2,24]]],5:[18,[[2,15],[2,16]]],
+      6:[24,[[4,19]]],7:[18,[[2,14],[4,15]]],8:[22,[[4,18],[2,19]]],9:[20,[[4,16],[4,17]]],10:[24,[[6,19],[2,20]]]
+    }
   };
+  const LVL_BITS={M:0,Q:3}; /* 形式情報の誤り訂正レベル表示ビット */
   const ALIGN={1:[],2:[6,18],3:[6,22],4:[6,26],5:[6,30],6:[6,34],7:[6,22,38],8:[6,24,42],9:[6,26,46],10:[6,28,50]};
-  const dataLenOf=v=>TBL[v][1].reduce((s,[n,c])=>s+n*c,0);
-  const capacity=v=>dataLenOf(v)-(v<10?2:3); /* バイトモードの最大文字数（モード+長さ分を差引） */
+  const dataLenOf=(v,lvl)=>TBLS[lvl][v][1].reduce((s,[n,c])=>s+n*c,0);
+  const capacity=(v,lvl)=>dataLenOf(v,lvl)-(v<10?2:3); /* バイトモードの最大文字数（モード+長さ分を差引） */
 
   /* リード・ソロモン誤り訂正 */
   function rs(data,ecLen){
@@ -582,11 +590,11 @@ const QR=(()=>{
   }
 
   /* データ符号化（バイトモード）→ 符号語列 */
-  function encode(text){
+  function encode(text,lvl){
     const bytes=new TextEncoder().encode(text);
-    let v=0;for(let i=1;i<=10;i++){if(bytes.length<=capacity(i)){v=i;break;}}
+    let v=0;for(let i=1;i<=10;i++){if(bytes.length<=capacity(i,lvl)){v=i;break;}}
     if(!v)throw new Error("QR: データが長すぎます("+bytes.length+"バイト)");
-    const[ecLen,blocksDef]=TBL[v],dataLen=dataLenOf(v);
+    const[ecLen,blocksDef]=TBLS[lvl][v],dataLen=dataLenOf(v,lvl);
     const bits=[];const push=(val,len)=>{for(let i=len-1;i>=0;i--)bits.push((val>>i)&1);};
     push(4,4);push(bytes.length,v<10?8:16);
     for(const b of bytes)push(b,8);
@@ -615,8 +623,9 @@ const QR=(()=>{
     (i,j)=>((i*j)%2+(i*j)%3)%2===0,(i,j)=>((i+j)%2+(i*j)%3)%2===0
   ];
 
-  function matrix(text){
-    const{v,codewords}=encode(text);
+  function matrix(text,lvl){
+    lvl=TBLS[lvl]?lvl:"M";
+    const{v,codewords}=encode(text,lvl);
     const size=17+4*v;
     const m=Array.from({length:size},()=>new Int8Array(size).fill(-1));
     const isData=Array.from({length:size},()=>new Uint8Array(size));
@@ -655,7 +664,7 @@ const QR=(()=>{
     }
     /* 形式情報の書込み（マスク番号込み） */
     const setFormat=(mm,mask)=>{
-      const bits=bchFormat((0<<3)|mask); /* レベルM=0 */
+      const bits=bchFormat((LVL_BITS[lvl]<<3)|mask);
       for(let i=0;i<15;i++){
         const b=(bits>>i)&1;
         if(i<6)mm[i][8]=b;else if(i<8)mm[i+1][8]=b;else mm[size-15+i][8]=b;
@@ -699,9 +708,9 @@ const QR=(()=>{
     return best.map(row=>Array.from(row));
   }
 
-  /* SVG 出力（quiet zone 4モジュール込み） */
-  function svg(text){
-    const m=matrix(text),n=m.length,q=4,S=n+q*2;
+  /* SVG 出力（quiet zone 4モジュール込み）。lvl省略時はM、印刷ラベルは"Q"を推奨 */
+  function svg(text,lvl){
+    const m=matrix(text,lvl),n=m.length,q=4,S=n+q*2;
     let d="";
     for(let i=0;i<n;i++)for(let j=0;j<n;j++)if(m[i][j])d+="M"+(j+q)+" "+(i+q)+"h1v1h-1z";
     return'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 '+S+" "+S+'" shape-rendering="crispEdges"><rect width="'+S+'" height="'+S+'" fill="#fff"/><path d="'+d+'" fill="#000"/></svg>';
@@ -968,7 +977,35 @@ async function keyAction(){
   }catch(e){toast(e.message);}
 }
 
-/* ===================== QR読み取り（スマホ：撮影→解析。HTTP環境でも動く方式） ===================== */
+/* ===================== QR読み取り（スマホ：撮影→解析。HTTP環境でも動く方式） =====================
+ * 3段構えで解読を試す：
+ *  ① BarcodeDetector（Android Chrome等の端末内蔵デコーダ。最も強い）
+ *  ② zxing-wasm（js/vendor に同梱した業界標準デコーダ。iPhone向けの本命）
+ *  ③ jsQR（多段リサイズ＋中央切り抜き。最後の砦） */
+let zxingReady=false;
+function prepZxing(){
+  if(zxingReady||!window.ZXingWASM)return;
+  try{ZXingWASM.prepareZXingModule({overrides:{locateFile:(f)=>"js/vendor/"+f}});zxingReady=true;}catch(e){}
+}
+async function decodeQrPhoto(file){
+  try{
+    if("BarcodeDetector" in window){
+      const bmp=await createImageBitmap(file);
+      const det=new BarcodeDetector({formats:["qr_code"]});
+      const rs=await det.detect(bmp);
+      if(bmp.close)bmp.close();
+      if(rs&&rs.length&&rs[0].rawValue)return rs[0].rawValue;
+    }
+  }catch(e){}
+  try{
+    if(window.ZXingWASM){
+      prepZxing();
+      const rs=await ZXingWASM.readBarcodes(file,{formats:["QRCode"],tryHarder:true,maxNumberOfSymbols:1});
+      if(rs&&rs.length&&rs[0].text)return rs[0].text;
+    }
+  }catch(e){}
+  return await scanImageFile(file);
+}
 async function scanImageFile(file){
   if(typeof jsQR!=="function")return null;
   const url=URL.createObjectURL(file);
@@ -1014,13 +1051,16 @@ function handleScanText(text){
 /* ===================== QRラベル印刷（サーバー版のみ） ===================== */
 function qrServerBase(){return(qrBase||location.origin+"/").replace(/\/+$/,"")+"/";}
 function qrUrl(id){return qrServerBase()+"?co="+id;}
+let qrTargetIds=null; /* いま印刷モーダルに出している在庫ID（鍵QRのときはnull） */
 function openQr(ids){
   const list=records.filter(r=>ids.includes(r.id));
   if(!list.length){toast("印刷対象の在庫がありません");return;}
-  $("#qrNote").innerHTML="ラベルを切り取って<b>材料（または棚）に貼って</b>ください。スマホのカメラで読み取ると、その材料の<b>持ち出し画面が直接開きます</b>。<br>リンク先：<b class=\"tnum\">"+qrServerBase()+"</b>（サーバーのアドレスが変わった場合は刷り直してください）";
+  qrTargetIds=list.map(r=>r.id);
+  const unprinted=records.filter(r=>!r.qr).length;
+  $("#qrNote").innerHTML="ラベルを切り取って<b>材料（または棚）に貼って</b>ください。スマホのカメラで読み取ると、その材料の<b>持ち出し画面が直接開きます</b>。<br>リンク先：<b class=\"tnum\">"+qrServerBase()+"</b>／印刷すると各在庫に<b>「✔済」の目印</b>が付きます（全体で未印刷 "+unprinted+" 件）";
   let h="";
   for(const r of list){
-    let q="";try{q=QR.svg(qrUrl(r.id));}catch(e){}
+    let q="";try{q=QR.svg(qrUrl(r.id),"Q");}catch(e){} /* 印刷は誤り訂正Q（汚れに強い） */
     h+=`<div class="qr-label"><div class="qr-svg">${q}</div><div class="qr-txt"><b>${r.mat} ${r.koshu}</b><span class="tnum">${r.spec} × t${r.thk}</span><span>長さ ${Number(r.len).toLocaleString()}mm</span><span>${r.loc||""}${r.fin?"・"+r.fin:""}</span><span class="qr-id">No.${r.id}</span></div></div>`;
   }
   $("#qrSheet").innerHTML=h;
@@ -1028,9 +1068,21 @@ function openQr(ids){
   $("#qrOverlay").classList.add("show");
 }
 function closeQr(){$("#qrOverlay").classList.remove("show");}
+/* 印刷後に「印刷済み」の目印を付ける（印刷ダイアログを閉じた後に確認） */
+async function markPrinted(){
+  if(MODE!=="server"||!qrTargetIds||!qrTargetIds.length)return;
+  const ids=qrTargetIds;
+  if(!confirm(ids.length+" 件の在庫に「ラベル印刷済み ✔」の目印を付けますか？\n（印刷をキャンセルした場合は「キャンセル」を押してください）"))return;
+  try{
+    await apiSend("POST","/api/labeled",{ids});
+    await refresh();
+    toast(ids.length+" 件に印刷済みの目印を付けました");
+  }catch(e){toast("目印の保存に失敗しました: "+e.message);}
+}
 function openKeyQr(){
+  qrTargetIds=null;
   $("#qrNote").innerHTML="このラベルを<b>鋼材倉庫の鍵の保管場所に貼ってください</b>。スマホで読み取ると「鍵の持ち出し／返却」画面が開き、誰がいつ倉庫へ行ったかが記録されます。";
-  let q="";try{q=QR.svg(qrServerBase()+"?key=1");}catch(e){}
+  let q="";try{q=QR.svg(qrServerBase()+"?key=1","Q");}catch(e){}
   $("#qrSheet").innerHTML=`<div class="qr-label"><div class="qr-svg">${q}</div><div class="qr-txt"><b>鋼材倉庫の鍵</b><span>行く前・返す時に</span><span>スマホで読み取り</span><span class="qr-id">KEY</span></div></div>`;
   $("#qrCount").textContent="1 枚";
   $("#qrOverlay").classList.add("show");
@@ -1236,13 +1288,22 @@ async function init(){
     const f=e.target.files[0];e.target.value="";if(!f)return;
     toast(t("読み取り中…"));
     try{
-      const text=await scanImageFile(f);
+      const text=await decodeQrPhoto(f);
       if(!text||!handleScanText(text))toast(t("QRを読み取れませんでした。ラベルに近づけて撮り直してください"));
     }catch(err){toast(t("QRを読み取れませんでした。ラベルに近づけて撮り直してください"));}
   });
   $("#qrClose").addEventListener("click",closeQr);$("#qrCancel").addEventListener("click",closeQr);
   $("#qrPrint").addEventListener("click",()=>{document.body.classList.add("qr-printing");window.print();});
-  window.addEventListener("afterprint",()=>document.body.classList.remove("qr-printing"));
+  window.addEventListener("afterprint",()=>{
+    const was=document.body.classList.contains("qr-printing");
+    document.body.classList.remove("qr-printing");
+    if(was)setTimeout(markPrinted,300);
+  });
+  $("#qrOnlyNew").addEventListener("click",()=>{
+    const ids=records.filter(r=>!r.qr).map(r=>r.id);
+    if(!ids.length){toast("未印刷の在庫はありません（すべて印刷済み）");return;}
+    openQr(ids);
+  });
   $("#qrOverlay").addEventListener("click",e=>{if(e.target===$("#qrOverlay"))closeQr();});
   if(MODE!=="server"){$("#btnQrAll").style.display="none";$("#btnQrKey").style.display="none";} /* QRラベルはサーバー版のみ（URLが必要） */
   document.addEventListener("keydown",e=>{

@@ -357,6 +357,12 @@ main.content{flex:1;overflow:auto;padding:20px 22px 48px;background:var(--bg)}
 .co-remain{font-size:12.5px;font-weight:700;color:var(--ok);margin-top:7px;min-height:17px}
 .co-remain .co-over{color:var(--warn)}
 
+/* QRラベル印刷済みの目印（在庫管理） */
+.lab-ok{display:inline-block;background:#e2f3e9;color:#1e6b43;font-size:10.5px;font-weight:800;border-radius:999px;padding:2px 8px;white-space:nowrap}
+.lab-no{display:inline-block;background:#fde3e4;color:#bb1820;font-size:10.5px;font-weight:800;border-radius:999px;padding:2px 8px}
+
+/* 印刷レイアウト：2列・QR大きめ（スマホカメラで読みやすく） */
+
 /* 入出庫履歴の種別ピル */
 .pill.h-out{background:var(--accent-soft);color:var(--accent-d)}
 .pill.h-in{background:#e2f3e9;color:#1e6b43}
@@ -390,7 +396,11 @@ select.m-in{width:auto;max-width:100%;cursor:pointer}
   body.qr-printing #qrOverlay{position:static;display:block!important;background:#fff;padding:0}
   body.qr-printing .qr-modal{width:100%;max-width:none;box-shadow:none;border:none;border-radius:0}
   body.qr-printing .modal-h,body.qr-printing .modal-foot,body.qr-printing .qr-note{display:none!important}
-  body.qr-printing .qr-sheet{max-height:none;overflow:visible;padding:0;grid-template-columns:repeat(3,1fr)}
+  body.qr-printing .qr-sheet{max-height:none;overflow:visible;padding:0;grid-template-columns:repeat(2,1fr);gap:6mm}
+  body.qr-printing .qr-label{padding:5mm 6mm;gap:5mm}
+  body.qr-printing .qr-svg{width:34mm;height:34mm}
+  body.qr-printing .qr-txt{font-size:10.5pt;gap:1mm}
+  body.qr-printing .qr-txt b{font-size:12pt}
 }
 
 /* ============ 鋼材倉庫の鍵（QRから開くモーダル） ============ */
