@@ -9,9 +9,11 @@ const path = require("node:path");
 const os = require("node:os");
 const fs = require("node:fs");
 const https = require("node:https");
+const tls = require("node:tls");
 const { execFile } = require("node:child_process");
 const express = require("express");
 const dbm = require("./db");
+const acme = require("./acme");
 
 const BOOT = Date.now(); // 起動時刻。変わっていたらクライアントは再読み込み（自動反映の波及用）
 
@@ -22,17 +24,18 @@ const HOST = process.env.HOST || "0.0.0.0";
 
 app.use(express.json({ limit: "8mb" }));
 
-// ── アドレスの一本化：正式アドレスは https://<IP>/（証明書があるとき） ──
-//    旧アドレス（http://<IP>:3001 等）でページを開いたら正式アドレスへ自動転送する。
+// ── アドレスの一本化：正式アドレス（canonicalBase）以外で開いたページは正式アドレスへ転送 ──
+//    Let's Encrypt 証明書があれば https://<ドメイン>/、無ければ https://<IP>/。
 //    /api/* は転送しない（開きっぱなしの旧ページのポーリングを壊さないため）。
 //    localhost はサーバー機での開発用にそのまま通す。
 app.use((req, res, next) => {
-  if (!httpsOn || req.secure) return next();
+  if (!httpsOn) return next();
   if (req.path.startsWith("/api/")) return next();
-  if (req.path === "/ca.crt") return next(); // 証明書を信頼する前でも取得できるようhttpのまま通す
+  if (req.path === "/ca.crt") return next(); // 証明書を信頼する前でも取得できるようそのまま通す
   if (req.hostname === "localhost" || req.hostname === "127.0.0.1") return next();
-  const suffix = HTTPS_PORT === 443 ? "" : `:${HTTPS_PORT}`;
-  res.redirect(302, `https://${lanIP()}${suffix}${req.originalUrl}`);
+  const want = new URL(canonicalBase());
+  if (req.secure && req.hostname === want.hostname) return next();
+  res.redirect(302, want.origin + req.originalUrl);
 });
 
 // ── 状態取得（差分ポーリング対応） ──
@@ -231,16 +234,26 @@ function lanIP() {
   return "localhost";
 }
 function canonicalBase() { // 正式アドレス（QRラベルのリンク先・誘導リンクに使う）
-  if (httpsOn) return `https://${lanIP()}${HTTPS_PORT === 443 ? "" : ":" + HTTPS_PORT}/`;
+  const suffix = HTTPS_PORT === 443 ? "" : ":" + HTTPS_PORT;
+  if (httpsOn && leCtx && leDomain) return `https://${leDomain}${suffix}/`;
+  if (httpsOn) return `https://${lanIP()}${suffix}/`;
   return `http://${lanIP()}:${PORT}/`;
 }
 app.get("/api/health", (req, res) =>
   res.json({ ok: true, version: dbm.getVersion(), base: canonicalBase(),
     httpsBase: httpsOn ? canonicalBase() : null }));
 
-// ── 社内CA証明書の配布：各端末で1回インストール＋信頼すると「安全ではありません」が消える ──
+// ── Let's Encrypt 証明書の読み直し（取得ツールから呼ぶ。サーバー機の中からだけ受け付ける） ──
+app.post("/api/tls-reload", (req, res) => {
+  const ip = String(req.socket.remoteAddress || "");
+  if (!/^(::1|127\.0\.0\.1|::ffff:127\.0\.0\.1)$/.test(ip)) return res.status(403).json({ error: "forbidden" });
+  const ok = loadLe();
+  res.json({ ok, domain: leDomain, base: canonicalBase() });
+});
+
+// ── 社内CA証明書の配布（旧方式。Let's Encrypt 導入後は不要だが、IP直打ち用に残す） ──
 app.get("/ca.crt", (req, res) => {
-  const p = path.join(__dirname, "data", "tls", "ca.pem");
+  const p = path.join(acme.TLS_DIR, "ca.pem");
   if (!fs.existsSync(p)) return res.status(404).send("CA証明書がありません");
   res.set("Content-Type", "application/x-x509-ca-cert");
   res.set("Content-Disposition", 'attachment; filename="kyoshin-ca.crt"');
@@ -273,18 +286,55 @@ const server = app.listen(PORT, HOST, () => {
 });
 
 // ── HTTPS（正式アドレス。カメラの「かざすだけスキャン」はHTTPSでしか使えない） ──
-//    証明書は server/data/tls/（自己署名・Git対象外）。無ければ tools/TLS証明書を作る.bat で生成。
-//    443（ポート表記なしの https://<IP>/）で起動し、使えなければ 3443 に退避する。
+//    ・Let's Encrypt 証明書（ドメイン名宛て）があれば、そのドメインでのアクセスに使う（端末の設定不要）。
+//    ・IP直打ちには社内CA証明書（server/data/tls/cert.pem）で応答する。
+//    ・証明書ファイルは server/data/tls/（Git対象外）。取得は tools/証明書を自動取得.bat。
+//    443（ポート表記なし）で起動し、使えなければ 3443 に退避する。
 let HTTPS_PORT = parseInt(process.env.HTTPS_PORT || "443", 10);
 let httpsOn = false;
 let httpsServer = null;
-function startHttps(tls, port) {
-  const s = https.createServer(tls, app);
+let leCtx = null, leDomain = null;
+function loadLe() {
+  try {
+    const cfg = acme.readCfg();
+    const f = acme.leFiles(false);
+    if (!cfg || !cfg.domain || !fs.existsSync(f.cert) || !fs.existsSync(f.key)) { leCtx = null; leDomain = null; return false; }
+    leCtx = tls.createSecureContext({ key: fs.readFileSync(f.key), cert: fs.readFileSync(f.cert) });
+    leDomain = String(cfg.domain).toLowerCase();
+    const exp = acme.certExpiry(f.cert);
+    console.log(`[tls] Let's Encrypt 証明書: ${leDomain}（期限 ${exp ? exp.toLocaleDateString("ja-JP") : "?"}）`);
+    return true;
+  } catch (e) {
+    console.error("[tls] Let's Encrypt 証明書の読み込みに失敗:", e.message);
+    leCtx = null; leDomain = null;
+    return false;
+  }
+}
+loadLe();
+// 期限30日前になったら自動更新（12時間ごとに確認。未設定なら何もしない）
+let renewing = false;
+async function renewTick() {
+  if (renewing) return;
+  renewing = true;
+  try {
+    const r = await acme.renewIfNeeded((m) => console.log("[acme] " + m));
+    if (r && r.ok) loadLe();
+  } catch (e) {
+    console.error("[acme] 証明書の自動更新に失敗（次回再試行）:", e.message);
+  } finally { renewing = false; }
+}
+setTimeout(renewTick, 60 * 1000);
+setInterval(renewTick, 12 * 3600 * 1000);
+function startHttps(tlsOpts, port) {
+  const s = https.createServer({
+    ...tlsOpts,
+    SNICallback: (name, cb) => cb(null, (leCtx && String(name).toLowerCase() === leDomain) ? leCtx : undefined),
+  }, app);
   s.on("error", (e) => {
     if (port === 443) {
       console.log(`[steel-manager] 443で起動できず(${e.code})。3443で再試行します`);
       HTTPS_PORT = 3443;
-      startHttps(tls, 3443);
+      startHttps(tlsOpts, 3443);
     } else {
       console.error("[steel-manager] HTTPS起動失敗:", e.message);
     }
@@ -292,26 +342,23 @@ function startHttps(tls, port) {
   s.listen(port, HOST, () => {
     httpsOn = true;
     httpsServer = s;
-    const suffix = port === 443 ? "" : `:${port}`;
-    console.log(`[steel-manager] 正式アドレス: https://${lanIP()}${suffix}/`);
+    console.log(`[steel-manager] 正式アドレス: ${canonicalBase()}`);
   });
 }
 try {
-  const tlsDir = path.join(__dirname, "data", "tls");
-  const tls = {
-    key: fs.readFileSync(path.join(tlsDir, "key.pem")),
-    cert: fs.readFileSync(path.join(tlsDir, "cert.pem")),
-  };
-  startHttps(tls, HTTPS_PORT);
+  startHttps({
+    key: fs.readFileSync(path.join(acme.TLS_DIR, "key.pem")),
+    cert: fs.readFileSync(path.join(acme.TLS_DIR, "cert.pem")),
+  }, HTTPS_PORT);
 } catch (e) {
   console.log("[steel-manager] HTTPSは無効（server/data/tls/ に cert.pem / key.pem が無い）");
 }
 
 // ── http:80 も開けておく（アドレスバーに素のIPを打った人を https へ転送するため） ──
-try {
+if (process.env.HTTP80 !== "0") {
   const s80 = app.listen(80, HOST, () => console.log("[steel-manager] http:80 → https へ転送"));
   s80.on("error", (e) => console.log(`[steel-manager] http:80 は使用不可(${e.code})`));
-} catch (e) {}
+}
 
 process.on("SIGINT", () => { if (httpsServer) httpsServer.close(); server.close(() => process.exit(0)); });
 process.on("SIGTERM", () => { if (httpsServer) httpsServer.close(); server.close(() => process.exit(0)); });
