@@ -28,11 +28,11 @@ const KOSHU_BY_MAT={
   "SUS310S":["角パイプ","丸パイプ(TP-S)","丸パイプ(TP-A)","サニタリーパイプ","チャンネル","アングル","フラットバー"],
   "A6063":["角パイプ","丸パイプ(TP-S)","丸パイプ(TP-A)","サニタリーパイプ","化粧管","BA管","チャンネル","アングル","フラットバー","丸棒","角棒"]
 };
-const KIKAKU_BY_KOSHU={
+let KIKAKU_BY_KOSHU={ /* 既定値。管理者モードのマスタ設定で編集できる（applyMasters で上書き） */
   "角パイプ":["50*50","75*40","60*60","100*50","125*50"],
   "丸パイプ(TP-S)":["Φ27.2","Φ34","Φ48.6","Φ38.1"],
   "丸パイプ(TP-A)":["Φ21.7","Φ48.6","Φ38.1","Φ34"],
-  "サニタリーパイプ":["Φ27.2","Φ48.6","Φ38.1","Φ34"],
+  "サニタリーパイプ":["Φ25.4","Φ31.8","Φ38.1","Φ50.8","Φ63.5","Φ76.3"], /* JIS G3447 呼び径 1S〜3S の外径 */
   "チャンネル":["80*40","100*50"],
   "アングル":["40*40","50*50"],
   "フラットバー":["30","50","60","65"]
@@ -80,7 +80,8 @@ function formulaDesc(koshu){return AREA_FORMULAS[KOSHU_FORMULA[koshu]]||null;}
 
 /* ── マスタ設定（管理者が画面から編集可能。保存先＝サーバーDB／単体版は localStorage） ── */
 let STAFF=[]; /* 名簿（持ち出し・鍵で名前を選択肢から選ぶための一覧。マスタ設定で編集） */
-const DEFAULT_MASTERS={density:{...DENSITY},price:PRICE.map(p=>({...p})),koshuFormula:{...KOSHU_FORMULA},staff:[]};
+const DEFAULT_MASTERS={density:{...DENSITY},price:PRICE.map(p=>({...p})),koshuFormula:{...KOSHU_FORMULA},staff:[],
+  kikaku:Object.fromEntries(Object.entries(KIKAKU_BY_KOSHU).map(([k,v])=>[k,[...v]]))};
 function applyMasters(m){
   const src=(m&&typeof m==="object")?m:DEFAULT_MASTERS;
   DENSITY={...(src.density&&Object.keys(src.density).length?src.density:DEFAULT_MASTERS.density)};
@@ -88,12 +89,36 @@ function applyMasters(m){
     .map(p=>({mat:String(p.mat||""),koshu:String(p.koshu||""),fin:(p.fin===""||p.fin==null)?null:String(p.fin),price:Number(p.price)||0}));
   KOSHU_FORMULA={...(src.koshuFormula&&Object.keys(src.koshuFormula).length?src.koshuFormula:DEFAULT_MASTERS.koshuFormula)};
   STAFF=Array.isArray(src.staff)?src.staff.map(s=>String(s).trim()).filter(Boolean):[];
+  const kk=(src.kikaku&&Object.keys(src.kikaku).length?src.kikaku:DEFAULT_MASTERS.kikaku);
+  KIKAKU_BY_KOSHU={};
+  Object.entries(kk).forEach(([k,arr])=>{
+    if(!Array.isArray(arr))return;
+    const a=arr.map(s=>String(s).trim()).filter(Boolean);
+    if(a.length)KIKAKU_BY_KOSHU[k]=a;
+  });
 }
 
 /* ===================== 計算エンジン（Excel数式と同一） ===================== */
 function normSpec(s){return String(s==null?"":s).replace(/[Φφ]/g,"").replace(/[×Xx]/g,"*").trim();}
 function dims(spec){const n=normSpec(spec),p=n.split("*");const d1=parseFloat(p[0]);const d2=p.length>1?parseFloat(p[1]):NaN;return{d1:isFinite(d1)?d1:0,d2:isFinite(d2)?d2:0};}
 function density(mat){return DENSITY[mat]!=null?DENSITY[mat]:(String(mat).startsWith("SUS")?7.93:7.85);}
+
+/* サニタリーパイプは呼び径(1S/1.5S/2S…)で外径と肉厚が決まる（JIS G3447）。
+ * 外径→肉厚の対応表。登録フォームで板厚が未選択のとき自動補完する */
+const SANITARY_T={"25.4":1.2,"31.8":1.2,"32":1.2,"38.1":1.2,"50":1.5,"50.8":1.5,"63.5":2,"76.3":2,"89.1":2,"101.6":2,"114.3":3,"139.8":3};
+function sanitaryThk(spec){const{d1}=dims(spec);if(!d1)return null;const t=SANITARY_T[String(d1)];return t!=null?t:null;}
+function hookSanitaryThk(koshuSel,specEl,thkSel){
+  const fill=()=>{
+    if(!String($(koshuSel).value).includes("サニタリー"))return;
+    const cur=$(thkSel).value;
+    if(cur!==""&&Number(cur)!==0)return; /* 手で選んだ値は上書きしない */
+    const t=sanitaryThk($(specEl).value);
+    if(t!=null){$(thkSel).value=String(t);$(thkSel).dispatchEvent(new Event("change",{bubbles:true}));}
+  };
+  $(specEl).addEventListener("input",fill);
+  $(specEl).addEventListener("change",fill);
+  $(koshuSel).addEventListener("change",fill);
+}
 function sectionArea(mat,koshu,thk,spec){
   const{d1,d2}=dims(spec);const t=parseFloat(thk)||0;
   const fm=AREA_FORMULAS[KOSHU_FORMULA[koshu]];
@@ -330,7 +355,7 @@ const I18N_VI={
   "重量(kg)":"Trọng lượng (kg)","キロ単価":"Đơn giá/kg","材料費":"Chi phí","操作":"Thao tác","板厚":"Độ dày",
   "持ち出す材料をさがす":"Tìm vật liệu cần lấy",
   "QRを読み取る":"Quét mã QR","ラベルを撮影して、シャッターを押すと読み取ります":"Chụp nhãn QR rồi bấm nút chụp để đọc","読み取り中…":"Đang đọc…",
-  "ふつうのカメラアプリをラベルにかざして、出てきたリンクを押してもOK（いちばん確実）":"Cũng có thể dùng camera thường của máy: hướng vào nhãn rồi bấm liên kết hiện ra (cách chắc chắn nhất)",
+  "ふつうのカメラアプリをラベルにかざして、出てきたリンクを押してもOK":"Cũng có thể dùng camera thường của máy: hướng vào nhãn rồi bấm liên kết hiện ra",
   "QRラベルを枠に入れてください":"Đưa nhãn QR vào giữa khung",
   "カメラを起動できませんでした（許可を確認してください）。かわりに撮影します":"Không mở được camera (hãy kiểm tra quyền truy cập). Sẽ chụp ảnh thay thế",
   "ライト":"Đèn",
@@ -342,9 +367,8 @@ const I18N_VI={
   "登録する":"Đăng ký","残材を登録しました":"Đã đăng ký vật liệu vào kho","保存に失敗しました: ":"Lưu thất bại: ",
   "例: 2500":"VD: 2500",
   "QRを読み取れませんでした。ラベルに近づけて撮り直してください":"Không đọc được QR. Hãy chụp lại gần hơn",
-  "読み取れませんでした（写真は調査用に送信済み）。スマホのカメラアプリで大きく撮ってから「写真から選ぶ」も試してください":"Không đọc được (ảnh đã được gửi để kiểm tra). Hãy chụp to và rõ bằng camera của máy, rồi bấm 「Chọn từ ảnh đã chụp」",
+  "読み取れませんでした（写真は調査用に送信済み）。明るい場所でもう一度お試しください":"Không đọc được (ảnh đã được gửi để kiểm tra). Hãy thử lại ở nơi sáng hơn",
   "このシステムのQRではないようです":"Có vẻ không phải mã QR của hệ thống này",
-  "うまく読めないとき：写真から選ぶ":"Khi khó đọc: chọn từ ảnh đã chụp",
   "この在庫は見つかりません（すでに使い切った可能性があります）":"Không tìm thấy tồn kho này (có thể đã dùng hết)",
   "使う材料の「持ち出す」ボタンを押してください。空欄はすべて対象です。":"Nhấn nút 「Lấy ra」 của vật liệu cần dùng. Để trống = tất cả.",
   "持ち出す":"Lấy ra","条件に一致する在庫がありません":"Không có tồn kho phù hợp",
@@ -1285,9 +1309,12 @@ function renderMasters(){
   h+='</tbody></table><div class="m-addwrap"><button class="btn ghost sm m-add" data-add="formula"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>鋼種を追加</button></div>';
   $("#mFormula").innerHTML=h;
 
-  h='<table class="dt"><thead><tr><th>鋼種</th><th>材料規格候補</th></tr></thead><tbody>';
-  Object.entries(KIKAKU_BY_KOSHU).forEach(([k,arr])=>{h+=`<tr><td>${shapeIco(k)}<b>${k}</b></td><td>${arr.map(x=>'<span class="pill fin" style="margin:2px 3px 2px 0">'+x+'</span>').join("")}</td></tr>`;});
-  h+="</tbody></table>";$("#mSpec").innerHTML=h;
+  h='<table class="dt"><thead><tr><th>鋼種</th><th>材料規格候補（カンマ区切りで追加・編集）</th><th></th></tr></thead><tbody>';
+  /* 規格が未設定の鋼種（化粧管・丸棒など）も行を出して、そのまま追加できるようにする */
+  const kikakuKoshu=[...new Set([].concat(...Object.values(KOSHU_BY_MAT)).concat(Object.keys(KIKAKU_BY_KOSHU)))];
+  kikakuKoshu.forEach(k=>{h+=mKrow(k,KIKAKU_BY_KOSHU[k]||[]);});
+  h+='</tbody></table><div class="m-addwrap"><button class="btn ghost sm m-add" data-add="kikaku"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>鋼種を追加</button></div>';
+  $("#mSpec").innerHTML=h;
 
   h='<table class="dt"><thead><tr><th>名前</th><th></th></tr></thead><tbody>';
   STAFF.forEach(s=>{h+=mSrow(s);});
@@ -1295,6 +1322,7 @@ function renderMasters(){
   const ms=$("#mStaff");if(ms)ms.innerHTML=h;
 }
 function mSrow(v){return `<tr data-srow><td>${mIn("name",v,"text",'placeholder="例: 山田"')}</td><td class="r">${M_DEL}</td></tr>`;}
+function mKrow(k,arr){return `<tr data-krow><td style="width:200px">${mIn("koshu",k,"text",'placeholder="例: 化粧管"')}</td><td>${mIn("list",(arr||[]).join(", "),"text",'placeholder="例: 50*50, 75*40, Φ34"')}</td><td class="r" style="width:60px">${M_DEL}</td></tr>`;}
 /* 画面のテーブルからマスタを読み取る（空行・不正値は除外） */
 function collectMasters(){
   const density={};
@@ -1322,10 +1350,16 @@ function collectMasters(){
     const v=tr.querySelector('[data-f="name"]').value.trim();
     if(v&&!staff.includes(v))staff.push(v);
   });
-  return{density,price,koshuFormula,staff};
+  const kikaku={};
+  document.querySelectorAll("#mSpec [data-krow]").forEach(tr=>{
+    const k=tr.querySelector('[data-f="koshu"]').value.trim();
+    const list=tr.querySelector('[data-f="list"]').value.split(/[,、\s]+/).map(s=>s.trim()).filter(Boolean);
+    if(k&&list.length)kikaku[k]=[...new Set(list)];
+  });
+  return{density,price,koshuFormula,staff,kikaku};
 }
 async function saveMasters(reset){
-  if(reset&&!confirm("単価・比重・式の割り当てを、プログラムの既定値に戻しますか？"))return;
+  if(reset&&!confirm("単価・比重・式の割り当て・規格候補を、プログラムの既定値に戻しますか？"))return;
   const masters=reset?null:collectMasters();
   if(!reset&&(!Object.keys(masters.density).length||!masters.price.length||!Object.keys(masters.koshuFormula).length)){toast("比重・単価・式の各表に1行以上必要です");return;}
   if(MODE==="server"){
@@ -1425,7 +1459,11 @@ async function init(){
     fillDatalist($("#dl_nsspec"),k?specOptions(k):[]);
     fillSelect($("#ns_fin"),finOptions($("#ns_mat").value,k),"指定なし");
   });
-  /* QR読み取り（スマホ：カメラで撮影→解析。#scanFile2 はカメラ強制なしの「写真から選ぶ」） */
+  /* サニタリーパイプ：規格の外径から板厚を自動補完（在庫の追加/編集・残材登録・重量計算） */
+  hookSanitaryThk("#m_koshu","#m_spec","#m_thk");
+  hookSanitaryThk("#ns_koshu","#ns_spec","#ns_thk");
+  hookSanitaryThk("#c_koshu","#c_spec","#c_thk");
+  /* QR読み取りの撮影フォールバック（HTTPやカメラ許可拒否のとき） */
   const onScanPhoto=async e=>{
     const f=e.target.files[0];e.target.value="";if(!f)return;
     toast(t("読み取り中…"));
@@ -1441,16 +1479,14 @@ async function init(){
     }
     if(MODE==="server"){
       reportScanFail(blob,d); /* 写真を調査用に自動送信 */
-      toast(t("読み取れませんでした（写真は調査用に送信済み）。スマホのカメラアプリで大きく撮ってから「写真から選ぶ」も試してください"));
+      toast(t("読み取れませんでした（写真は調査用に送信済み）。明るい場所でもう一度お試しください"));
     }else{
       toast(t("QRを読み取れませんでした。ラベルに近づけて撮り直してください"));
     }
   };
   /* HTTPSなら「かざすだけ」ライブスキャナー、HTTPなら従来の撮影方式 */
   $("#btnScan").addEventListener("click",()=>{if(canLiveScan())openScanner();else $("#scanFile").click();});
-  $("#btnScanAlt").addEventListener("click",()=>$("#scanFile2").click());
   $("#scanFile").addEventListener("change",onScanPhoto);
-  $("#scanFile2").addEventListener("change",onScanPhoto);
   $("#scanClose").addEventListener("click",closeScanner);
   $("#scanTorch").addEventListener("click",toggleTorch);
   $("#scanOverlay").addEventListener("click",e=>{if(e.target===$("#scanOverlay"))closeScanner();});
@@ -1472,7 +1508,7 @@ async function init(){
     /* 読み取りはデコーダ（jsQR / zxing-wasm）が同梱されていれば単一ファイル版でも使える。
      * どのデコーダも無い環境（想定外）だけボタンを隠す */
     if(typeof jsQR!=="function"&&!window.ZXingWASM&&!("BarcodeDetector" in window)){
-      $("#btnScan").style.display="none";$("#btnScanAlt").style.display="none";
+      $("#btnScan").style.display="none";
     }
   }
   document.addEventListener("keydown",e=>{
@@ -1496,6 +1532,7 @@ async function init(){
       if(kind==="density")tb.insertAdjacentHTML("beforeend",mDrow("",""));
       else if(kind==="price")tb.insertAdjacentHTML("beforeend",mProw({mat:"",koshu:"",fin:null,price:""}));
       else if(kind==="staff")tb.insertAdjacentHTML("beforeend",mSrow(""));
+      else if(kind==="kikaku")tb.insertAdjacentHTML("beforeend",mKrow("",[]));
       else tb.insertAdjacentHTML("beforeend",mFrow("","round"));
       const last=tb.lastElementChild.querySelector("input");if(last)last.focus();
     }
