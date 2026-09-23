@@ -169,7 +169,7 @@
             <button class="btn sm" id="btnExportWorklog"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>CSV出力（全記録）</button>
           </div>
         </div>
-        <div class="wl-hint">鍵の持出→返却の間に在庫の記録（持ち出し・編集など）が1件も無い場合、<b class="wl-bad">記録なし⚠</b> と表示されます。実際に材料を使ったのに記録が無い人への確認にお使いください。</div>
+        <div class="wl-hint">鍵QRで<b>倉庫入り</b>した後、その日のうちに本人の在庫記録（持ち出し・編集など）が1件も無い場合、<b class="wl-bad">記録なし⚠</b> と表示されます（倉庫入りから1時間以内は「作業中」扱い）。実際に材料を使ったのに記録が無い人への確認にお使いください。</div>
         <div id="worklogWrap"></div>
       </div>
     </section>
@@ -330,16 +330,15 @@
       <button class="x" id="keyClose"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
     </div>
     <div class="co-body">
-      <div class="key-status" id="keyStatus">—</div>
+      <div class="key-status" data-i18n="これから鋼材倉庫へ行くことを記録します">これから鋼材倉庫へ行くことを記録します</div>
       <label class="co-lab"><span data-i18n="あなたの名前">あなたの名前</span><span class="req">*</span>
         <select id="keyPersonSel" class="co-input"></select>
         <input type="text" id="keyPerson" class="co-input" style="display:none;margin-top:7px" placeholder="例: 山田" autocomplete="off">
       </label>
       <div class="key-btns">
-        <button class="key-btn out" id="btnKeyOut"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5M21 12H9"/></svg>鍵を借りて倉庫へ行く</button>
-        <button class="key-btn in" id="btnKeyIn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><path d="M10 17l-5-5 5-5M5 12h12"/></svg>鍵を返却する</button>
+        <button class="key-btn out" id="btnKeyOut"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5M21 12H9"/></svg><span data-i18n="記録して倉庫へ行く">記録して倉庫へ行く</span></button>
       </div>
-      <div class="key-note">倉庫で材料を使ったら、材料のQRを読んで<b>残りの長さの登録</b>も忘れずに。</div>
+      <div class="key-note">倉庫で材料を使ったら、材料のQRを読んで<b>残りの長さの登録</b>を。鍵は使い終わったらフックに戻すだけでOK（返却の操作はありません）。</div>
     </div>
   </div>
 </div>

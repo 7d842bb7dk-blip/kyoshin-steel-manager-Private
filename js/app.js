@@ -20,15 +20,13 @@
  * ===================================================================== */
 
 /* ===================== マスタデータ（Excel由来） ===================== */
-const MATERIALS=["SS400","SUS304","SUS316L","SUS310S","A6063","A5052","アルミ"];
+const MATERIALS=["SS400","SUS304","SUS316L","SUS310S","A6063"]; /* アルミ系はすべて A6063 に統一（2026-09-23） */
 const KOSHU_BY_MAT={
   "SS400":["角パイプ","丸パイプ(TP-S)","丸パイプ(TP-A)","チャンネル","アングル","フラットバー"],
   "SUS304":["角パイプ","丸パイプ(TP-S)","丸パイプ(TP-A)","サニタリーパイプ","化粧管","BA管","チャンネル","アングル","フラットバー"],
   "SUS316L":["角パイプ","丸パイプ(TP-S)","丸パイプ(TP-A)","サニタリーパイプ","化粧管","BA管","チャンネル","アングル","フラットバー"],
   "SUS310S":["角パイプ","丸パイプ(TP-S)","丸パイプ(TP-A)","サニタリーパイプ","チャンネル","アングル","フラットバー"],
-  "A6063":["角パイプ","丸パイプ(TP-S)","丸パイプ(TP-A)","サニタリーパイプ","チャンネル","アングル"],
-  "A5052":["角パイプ","丸パイプ(TP-S)","丸パイプ(TP-A)","化粧管","チャンネル","アングル","フラットバー","丸棒","角棒"],
-  "アルミ":["角パイプ","丸パイプ(TP-S)","丸パイプ(TP-A)","化粧管","チャンネル","アングル","フラットバー","丸棒","角棒"]
+  "A6063":["角パイプ","丸パイプ(TP-S)","丸パイプ(TP-A)","サニタリーパイプ","化粧管","BA管","チャンネル","アングル","フラットバー","丸棒","角棒"]
 };
 const KIKAKU_BY_KOSHU={
   "角パイプ":["50*50","75*40","60*60","100*50","125*50"],
@@ -45,10 +43,10 @@ const FINISH_BY_MAT_KOSHU={
   "SUS316L|角パイプ":["HL","#400","未研","HOT"],"SUS316L|丸パイプ(TP-S)":["HL","#400","未研"],"SUS316L|丸パイプ(TP-A)":["HL","#400","未研"],"SUS316L|サニタリーパイプ":["#400","未研"],"SUS316L|チャンネル":["HL","#400","HOT"],"SUS316L|アングル":["HL","#400","HOT","COLD"],"SUS316L|フラットバー":["HL","#400","HOT","COLD"],
   "SUS310S|角パイプ":["HL","#400","未研","HOT"],"SUS310S|丸パイプ(TP-S)":["HL","#400","未研"],"SUS310S|丸パイプ(TP-A)":["HL","#400","未研"],"SUS310S|サニタリーパイプ":["#400","未研"],"SUS310S|チャンネル":["HL","#400","HOT"],"SUS310S|アングル":["HL","#400","HOT","COLD"],"SUS310S|フラットバー":["HL","#400","HOT","COLD"]
 };
-const FINISH_ALL=["HL","#400","未研","ミガキ","HOT","COLD","黒皮","サニタリー","BA"];
+const FINISH_ALL=["HL","#400","未研","ミガキ","HOT","COLD","黒皮","BA"]; /* サニタリーは仕上げではなく鋼種（サニタリーパイプ）で扱う */
 const THICKNESS=[1,1.2,1.5,1.6,2,2.1,2.3,3,3.2,4,4.5,5,6];
 const LOCATIONS=["本社レーザー前","第二工場","第三工場","本社材料倉庫"]; /* 在庫が空のときの初期候補。在庫があれば実データから動的生成（locOptions） */
-let DENSITY={"SUS304":7.93,"SUS316L":7.98,"SUS430":7.7,"SS400":7.85,"SGP":7.85,"STKM":7.85,"A5052":2.68,"A6063":2.7,"アルミ":2.7,"チタン":4.51};
+let DENSITY={"SUS304":7.93,"SUS316L":7.98,"SUS430":7.7,"SS400":7.85,"SGP":7.85,"STKM":7.85,"A5052":2.68,"A6063":2.7,"チタン":4.51};
 
 /* キロ単価マスタ（合算ルール対応：同一キーが複数行ある場合は合計） */
 let PRICE=[];
@@ -342,6 +340,7 @@ const I18N_VI={
   "例: 1500":"VD: 1500","例: ◯◯案件で使用":"VD: dùng cho dự án ◯◯","例: 山田":"VD: Nguyen Van A",
   "名前を選んでください":"Hãy chọn tên của bạn","（名前を直接入力）":"(Tự nhập tên)",
   "鋼材倉庫の鍵":"Chìa khóa kho thép","鍵を借りて倉庫へ行く":"Mượn chìa khóa, vào kho","鍵を返却する":"Trả chìa khóa",
+  "これから鋼材倉庫へ行くことを記録します":"Ghi nhận bạn sắp vào kho thép","記録して倉庫へ行く":"Ghi nhận và vào kho",
   "倉庫で材料を使ったら、材料のQRを読んで残りの長さの登録も忘れずに。":"Dùng vật liệu xong, nhớ quét QR của vật liệu và nhập chiều dài còn lại.",
   "状態を確認中…":"Đang kiểm tra…","状態を取得できませんでした":"Không lấy được trạng thái",
   "🔑 鍵はあります（持ち出しできます）":"🔑 Chìa khóa đang có (có thể mượn)","さんが鍵を持ち出し中":"đang giữ chìa khóa",
@@ -884,14 +883,16 @@ function renderWorklog(){
   const wrap=$("#worklogWrap");if(!wrap)return;
   if(!history.length){wrap.innerHTML=emptyState("記録はまだありません");return;}
   const asc=[...history].sort((a,b)=>a.ts-b.ts||a.id-b.id);
-  /* 鍵セッション（持出→返却）の解析：期間中に同じ人の在庫記録が何件あるか */
-  const sessions=[];let cur=null;
-  for(const e of asc){
-    if(e.type==="keyout"){if(cur)sessions.push(cur);cur={person:e.person,out:e.ts,in:null,count:0};}
-    else if(e.type==="keyin"){if(cur){cur.in=e.ts;sessions.push(cur);cur=null;}}
-    else if(cur&&["checkout","add","edit","delete","bulk"].includes(e.type)&&(!cur.person||e.person===cur.person))cur.count++;
-  }
-  if(cur)sessions.push(cur);
+  /* 倉庫入り（keyout）ごとの解析：その日のうち（次に本人が倉庫入りするまで）に
+   * 本人の在庫記録が何件あるか。返却の操作は無い運用（2026-09-23〜） */
+  const outs=asc.filter(e=>e.type==="keyout");
+  const sessions=outs.map(o=>{
+    const dayEnd=new Date(o.ts);dayEnd.setHours(23,59,59,999);
+    const next=outs.find(e=>e.person===o.person&&e.ts>o.ts);
+    const end=Math.min(dayEnd.getTime(),next?next.ts:Infinity);
+    const count=asc.filter(e=>["checkout","add","edit","delete","bulk"].includes(e.type)&&e.person===o.person&&e.ts>=o.ts&&e.ts<=end).length;
+    return {person:o.person,out:o.ts,count,recent:(Date.now()-o.ts)<3600e3};
+  });
   /* 日付ごとにまとめる（新しい日付が上、日の中は時刻順） */
   const byDate=new Map();
   for(const e of asc){const d=fmtDateJ(e.ts);if(!byDate.has(d))byDate.set(d,[]);byDate.get(d).push(e);}
@@ -903,8 +904,8 @@ function renderWorklog(){
     if(ses.length){
       h+='<div class="wl-sessions">';
       ses.forEach(s=>{
-        const noRec=s.count===0;
-        h+=`<div class="wl-ses${noRec?" warn":""}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="7.5" cy="15.5" r="4.5"/><path d="M10.7 12.3 21 2M15 8l3 3"/></svg><b>${s.person||"—"}</b>　${fmtTime(s.out)} 鍵持出 → ${s.in?fmtTime(s.in)+" 返却":'<span class="wl-bad">未返却⚠</span>'}　／　期間中の在庫記録 ${noRec?'<span class="wl-bad">0件（記録なし⚠）</span>':"<b>"+s.count+"件</b>"}</div>`;
+        const noRec=s.count===0&&!s.recent;
+        h+=`<div class="wl-ses${noRec?" warn":""}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="7.5" cy="15.5" r="4.5"/><path d="M10.7 12.3 21 2M15 8l3 3"/></svg><b>${s.person||"—"}</b>　${fmtTime(s.out)} 倉庫入り　／　その後の在庫記録 ${s.count>0?"<b>"+s.count+"件</b>":(s.recent?"（作業中）":'<span class="wl-bad">0件（記録なし⚠）</span>')}</div>`;
       });
       h+="</div>";
     }
@@ -929,30 +930,22 @@ function exportWorklogCSV(){
 }
 
 /* ===================== 鋼材倉庫の鍵（QRから開く） ===================== */
-let keyState=null;
+/* 鍵置き場のQRから開く。「これから倉庫へ行く」ことを記録するだけ（返却の操作は無し。
+ * 鍵はフックに戻すだけでよい。2026-09-23 仕様変更） */
 async function openKey(){
   if(MODE!=="server"){toast("鍵の記録はサーバー版でのみ使えます");return;}
   $("#keyOverlay").classList.add("show");
   setupPersonPicker("#keyPersonSel","#keyPerson");
-  $("#keyStatus").textContent=t("状態を確認中…");
-  try{keyState=await apiGET("/api/key");renderKeyStatus();}
-  catch(e){$("#keyStatus").textContent=t("状態を取得できませんでした");}
 }
 function closeKey(){$("#keyOverlay").classList.remove("show");}
-function renderKeyStatus(){
-  const el=$("#keyStatus");if(!el||!keyState)return;
-  el.innerHTML=keyState.out
-    ?`<b>${keyState.person||"？"}</b> ${t("さんが鍵を持ち出し中")}（${fmtTs(keyState.ts)}〜）`
-    :t("🔑 鍵はあります（持ち出しできます）");
-}
-async function keyAction(action){
+async function keyAction(){
   const person=pickerValue("#keyPersonSel","#keyPerson");
   if(!person){toast(t("名前を入力してください"));$("#keyPersonSel").focus();return;}
   try{localStorage.setItem(PERSON_KEY,person);}catch(e){}
   try{
-    const j=await apiSend("POST","/api/key",{action,person});
-    keyState=j.status;renderKeyStatus();loadHistory();
-    toast(t(action==="out"?"鍵の持ち出しを記録しました。行ってらっしゃい！":"鍵の返却を記録しました。おつかれさまでした"));
+    await apiSend("POST","/api/key",{action:"out",person});
+    loadHistory();
+    toast(t("鍵の持ち出しを記録しました。行ってらっしゃい！"));
     setTimeout(closeKey,1400);
   }catch(e){toast(e.message);}
 }
@@ -1191,10 +1184,9 @@ async function init(){
   $("#btnQrAll").addEventListener("click",()=>openQr(records.map(r=>r.id)));
   $("#btnQrKey").addEventListener("click",openKeyQr);
   $("#keyClose").addEventListener("click",closeKey);
-  $("#btnKeyOut").addEventListener("click",()=>keyAction("out"));
-  $("#btnKeyIn").addEventListener("click",()=>keyAction("in"));
+  $("#btnKeyOut").addEventListener("click",keyAction);
   $("#keyOverlay").addEventListener("click",e=>{if(e.target===$("#keyOverlay"))closeKey();});
-  $("#keyPerson").addEventListener("keydown",e=>{if(e.key==="Enter")keyAction(keyState&&keyState.out?"in":"out");});
+  $("#keyPerson").addEventListener("keydown",e=>{if(e.key==="Enter")keyAction();});
   $("#btnWorklogRefresh").addEventListener("click",()=>{loadHistory();toast("作業ログを更新しました");});
   $("#btnExportWorklog").addEventListener("click",exportWorklogCSV);
   /* QR読み取り（スマホ：カメラで撮影→解析） */
