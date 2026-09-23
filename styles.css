@@ -450,6 +450,15 @@ select.m-in{width:auto;max-width:100%;cursor:pointer}
 .ns-hint{font-size:12px;color:var(--ink-soft);background:var(--bg);border-radius:8px;padding:8px 12px;line-height:1.6;margin-bottom:4px}
 .ns-row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 
+/* ─── 保管場所の案内（登録後に大きく表示） ─── */
+.loc-modal{width:400px;max-width:94vw;padding:26px 24px 20px;text-align:center}
+.loc-head{display:flex;align-items:center;justify-content:center;gap:7px;font-size:14px;font-weight:800;color:var(--ink-soft)}
+.loc-big{font-family:var(--mono);font-size:84px;font-weight:800;line-height:1.1;color:var(--accent);letter-spacing:.02em;margin:6px 0 2px}
+.loc-msg{font-size:21px;font-weight:800;color:var(--ink)}
+.loc-msg.loc-vi{font-size:15px;font-weight:700;color:var(--ink-soft);margin-top:5px;font-family:"Segoe UI",Arial,var(--jp)}
+.loc-cur{font-size:12.5px;color:var(--ink-faint);margin-top:9px;min-height:1em}
+.loc-btns{display:flex;justify-content:center;gap:10px;margin-top:16px;flex-wrap:wrap}
+
 /* ─── かざすだけQRスキャナー ─── */
 .scan-modal{width:480px;max-width:96vw}
 .scan-videowrap{position:relative;background:#000;overflow:hidden}

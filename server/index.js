@@ -29,6 +29,7 @@ app.use(express.json({ limit: "8mb" }));
 app.use((req, res, next) => {
   if (!httpsOn || req.secure) return next();
   if (req.path.startsWith("/api/")) return next();
+  if (req.path === "/ca.crt") return next(); // 証明書を信頼する前でも取得できるようhttpのまま通す
   if (req.hostname === "localhost" || req.hostname === "127.0.0.1") return next();
   const suffix = HTTPS_PORT === 443 ? "" : `:${HTTPS_PORT}`;
   res.redirect(302, `https://${lanIP()}${suffix}${req.originalUrl}`);
@@ -236,6 +237,15 @@ function canonicalBase() { // 正式アドレス（QRラベルのリンク先・
 app.get("/api/health", (req, res) =>
   res.json({ ok: true, version: dbm.getVersion(), base: canonicalBase(),
     httpsBase: httpsOn ? canonicalBase() : null }));
+
+// ── 社内CA証明書の配布：各端末で1回インストール＋信頼すると「安全ではありません」が消える ──
+app.get("/ca.crt", (req, res) => {
+  const p = path.join(__dirname, "data", "tls", "ca.pem");
+  if (!fs.existsSync(p)) return res.status(404).send("CA証明書がありません");
+  res.set("Content-Type", "application/x-x509-ca-cert");
+  res.set("Content-Disposition", 'attachment; filename="kyoshin-ca.crt"');
+  res.send(fs.readFileSync(p));
+});
 
 // 未定義の /api/* は JSON で 404
 app.use("/api", (req, res) => res.status(404).json({ error: "Not Found" }));

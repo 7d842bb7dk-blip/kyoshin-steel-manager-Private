@@ -457,6 +457,15 @@ select.m-in{width:auto;max-width:100%;cursor:pointer}
 .ns-hint{font-size:12px;color:var(--ink-soft);background:var(--bg);border-radius:8px;padding:8px 12px;line-height:1.6;margin-bottom:4px}
 .ns-row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 
+/* ─── 保管場所の案内（登録後に大きく表示） ─── */
+.loc-modal{width:400px;max-width:94vw;padding:26px 24px 20px;text-align:center}
+.loc-head{display:flex;align-items:center;justify-content:center;gap:7px;font-size:14px;font-weight:800;color:var(--ink-soft)}
+.loc-big{font-family:var(--mono);font-size:84px;font-weight:800;line-height:1.1;color:var(--accent);letter-spacing:.02em;margin:6px 0 2px}
+.loc-msg{font-size:21px;font-weight:800;color:var(--ink)}
+.loc-msg.loc-vi{font-size:15px;font-weight:700;color:var(--ink-soft);margin-top:5px;font-family:"Segoe UI",Arial,var(--jp)}
+.loc-cur{font-size:12.5px;color:var(--ink-faint);margin-top:9px;min-height:1em}
+.loc-btns{display:flex;justify-content:center;gap:10px;margin-top:16px;flex-wrap:wrap}
+
 /* ─── かざすだけQRスキャナー ─── */
 .scan-modal{width:480px;max-width:96vw}
 .scan-videowrap{position:relative;background:#000;overflow:hidden}
@@ -924,6 +933,21 @@ select.m-in{width:auto;max-width:100%;cursor:pointer}
         <button class="key-btn out" id="btnKeyOut"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5M21 12H9"/></svg><span data-i18n="記録して倉庫へ行く">記録して倉庫へ行く</span></button>
       </div>
       <div class="key-note">倉庫で材料を使ったら、材料のQRを読んで<b>残りの長さの登録</b>を。鍵は使い終わったらフックに戻すだけでOK（返却の操作はありません）。</div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================== 保管場所の案内（登録後に大きく表示） ============================== -->
+<div class="overlay" id="locOverlay">
+  <div class="modal loc-modal">
+    <div class="loc-head"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px"><path d="M12 21s7-5.5 7-11a7 7 0 1 0-14 0c0 5.5 7 11 7 11z"/><circle cx="12" cy="10" r="2.3"/></svg><span data-i18n="この材料の置き場所">この材料の置き場所</span></div>
+    <div class="loc-big" id="locBig">A-1</div>
+    <div class="loc-msg" id="locMsgJa">になおしてください</div>
+    <div class="loc-msg loc-vi" id="locMsgVi">Hãy chuyển đến kệ A-1</div>
+    <div class="loc-cur" id="locCur"></div>
+    <div class="loc-btns">
+      <button class="btn ghost" id="locClose" data-i18n="閉じる">閉じる</button>
+      <button class="btn primary" id="locApply" style="display:none"></button>
     </div>
   </div>
 </div>
@@ -11269,6 +11293,121 @@ function applyMasters(m){
   });
 }
 
+/* ── 保管場所ガイド（「材料保管場所_住所一覧」PDF 2026-09 版より） ──────────
+ * 登録・残り長さ入力のあと「〇-〇 になおしてください」と大きく案内する。
+ * 長さ帯(min/max)は現在の在庫の最短〜最長。境界は要確認のため、外れた場合は最も近い棚を提案。 */
+const LOC_GUIDE=[
+  /* アングル（E=短尺・A=長尺） */
+  {loc:"E-1",cat:"angle",fin:["HOT"],sizes:["25*25","30*30"],min:1430,max:1796},
+  {loc:"E-2",cat:"angle",fin:["HOT"],sizes:["40*40"],min:1290,max:2500},
+  {loc:"E-3",cat:"angle",fin:["HOT"],sizes:["50*50","50*70"],min:1030,max:1870},
+  {loc:"E-4",cat:"angle",fin:["HOT"],sizes:["60*60","65*65"],min:1500,max:1580},
+  {loc:"E-5",cat:"angle",fin:["COLD"],sizes:["25*25","30*30","40*40","40*50","50*50"],min:1370,max:2390},
+  {loc:"E-6",cat:"angle",fin:["#400"],sizes:["25*25","30*30","40*40","50*50","50*65","75*50","75*75"],min:1330,max:2530},
+  {loc:"E-7",cat:"angle",fin:["HL"],sizes:["20*20","25*25","30*30","40*40","50*50","65*65"],min:1340,max:2660},
+  {loc:"A-1",cat:"angle",fin:["COLD"],sizes:null,min:3200,max:5100},
+  {loc:"A-3",cat:"angle",fin:["HL"],sizes:null,min:2300,max:4700},
+  {loc:"A-4",cat:"angle",fin:["#400"],sizes:null,min:2460,max:5500},
+  {loc:"A-7",cat:"angle",fin:null,sizes:["50*50"],min:2980,max:6060},
+  /* 角パイプ 未研 */
+  {loc:"E-10",cat:"kaku",fin:["未研"],sizes:["50*30","50*50","60*30","75*45","80*40","100*40"],min:1180,max:2910},
+  {loc:"E-11",cat:"kaku",fin:["未研"],sizes:["75*75","100*100"],min:655,max:1570},
+  {loc:"G-1",cat:"kaku",fin:["未研"],sizes:["10*10"],min:3830,max:3830},
+  {loc:"G-2",cat:"kaku",fin:["未研"],sizes:["30*20","40*20","50*20"],min:1750,max:2100},
+  {loc:"G-3",cat:"kaku",fin:["未研"],sizes:["35*35","40*20","50*50","60*60"],min:2440,max:5830},
+  {loc:"G-4",cat:"kaku",fin:["未研"],sizes:["50*20","50*50","60*20","60*40","60*60"],min:1850,max:3950},
+  {loc:"G-5",cat:"kaku",fin:["未研"],sizes:["60*40","60*60","75*75","80*40","90*30"],min:2480,max:4540},
+  {loc:"G-6",cat:"kaku",fin:["未研"],sizes:["75*75","80*40","100*50"],min:1900,max:3630},
+  {loc:"G-7",cat:"kaku",fin:["未研"],sizes:["80*40","90*30","100*40","100*50","150*50"],min:1900,max:4400},
+  {loc:"H-7",cat:"kaku",fin:["未研","#400"],sizes:["80*80","100*40","100*100","120*60"],min:3100,max:6000},
+  /* 角パイプ #400 */
+  {loc:"F-9",cat:"kaku",fin:["#400"],sizes:["25*10","30*30","40*40","50*20","50*30","50*50","60*30","60*60"],min:1270,max:2410},
+  {loc:"F-10",cat:"kaku",fin:["#400"],sizes:["25*12","25*25","30*30","50*50","60*30","80*40"],min:1200,max:2090},
+  {loc:"B-2",cat:"kaku",fin:["#400"],sizes:["30*50","40*20","40*40","50*25","50*30","50*50"],min:2130,max:4600},
+  {loc:"B-3",cat:"kaku",fin:["#400"],sizes:["40*80","50*50","60*40","60*60"],min:2080,max:4610},
+  {loc:"B-4",cat:"kaku",fin:["#400"],sizes:["50*50","60*60","80*40","100*40","100*50"],min:2600,max:3600},
+  {loc:"B-5",cat:"kaku",fin:["#400"],sizes:["75*75","80*40","100*50","120*60"],min:2400,max:3030},
+  {loc:"B-6",cat:"kaku",fin:["#400"],sizes:["80*80","100*40","150*50","150*100"],min:510,max:4490},
+  {loc:"B-7",cat:"kaku",fin:["#400"],sizes:["150*100"],min:1510,max:1610},
+  /* 角パイプ HL（E-12は仕上げ混在） */
+  {loc:"E-12",cat:"kaku",fin:["HL"],sizes:["16*16","19*19","30*30","35*35","40*20","40*40","50*15","50*30","50*50","60*40","75*45"],min:1195,max:2580},
+  {loc:"F-11",cat:"kaku",fin:["HL"],sizes:["30*30","35*35","40*40","50*12","50*50","75*75","100*40","100*50","120*60"],min:1130,max:2300},
+  {loc:"F-12",cat:"kaku",fin:["HL"],sizes:["35*35","40*40","50*50","60*60","80*40","100*50"],min:1650,max:2290},
+  {loc:"H-1",cat:"kaku",fin:["HL"],sizes:["10*10","12*6","16*16","19*19","28*28","32*16","40*18","40*20","40*25","50*12"],min:2210,max:5000},
+  {loc:"H-2",cat:"kaku",fin:["HL"],sizes:["30*30","35*35","40*20","40*40","50*30","50*50","60*30"],min:2190,max:5000},
+  {loc:"H-3",cat:"kaku",fin:["HL"],sizes:["60*40","60*60","80*40","80*60","90*30","100*40","100*50"],min:2580,max:4770},
+  {loc:"H-4",cat:"kaku",fin:["HL"],sizes:["60*60","75*75","125*75"],min:2620,max:4500},
+  /* 丸パイプ（未研 TP-A/TP-S） */
+  {loc:"F-1",cat:"maru",fin:["未研"],sizes:["3","6","8","9.53","10","10.5","11","12","12.7","13","13.8","14","15","16","17.3","18","19","20"],min:850,max:2150},
+  {loc:"F-3",cat:"maru",fin:["未研"],sizes:["19","21.7","22","27.2","34"],min:1540,max:2340},
+  {loc:"F-4",cat:"maru",fin:["未研"],sizes:["38","42.7","50.8","60.5"],min:1170,max:1960},
+  {loc:"H-6",cat:"maru",fin:["未研"],sizes:["25","25.4","27.2","28","32","34","38","42.7","50.3"],min:2300,max:3810},
+  {loc:"H-5",cat:"maru",fin:["未研"],sizes:null,min:2000,max:4000},
+  /* 化粧管・BA管 #400 */
+  {loc:"F-2",cat:"kesho",fin:["#400","BA"],sizes:["6","6.35","8","10","12","12.7","19"],min:1200,max:2350},
+  {loc:"D-1",cat:"kesho",fin:["#400","BA"],sizes:["6","6.35","8","9.53","10","12","13.8","16","19"],min:2310,max:4000},
+  {loc:"D-2",cat:"kesho",fin:["#400"],sizes:["21.7","22","25.4"],min:2050,max:4000},
+  {loc:"D-3",cat:"kesho",fin:["#400"],sizes:["34","42.7","45","48.6","50"],min:2370,max:3710},
+  {loc:"D-4",cat:"kesho",fin:["#400"],sizes:["60.5","76.3","89.1"],min:2570,max:4020},
+  {loc:"F-5",cat:"kesho",fin:["#400"],sizes:["19","21.7","22","25","27.2","30","32","34","38","42.7"],min:1280,max:2520},
+  {loc:"F-6",cat:"kesho",fin:["#400"],sizes:["50","50.8","76.3"],min:1150,max:2300},
+  {loc:"C-7",cat:"kesho",fin:["#400"],sizes:["216.3"],min:4000,max:4000},
+  /* 化粧管 HL */
+  {loc:"D-5",cat:"kesho",fin:["HL"],sizes:["12","21.7","22","25.4"],min:2480,max:3930},
+  {loc:"D-6",cat:"kesho",fin:["HL"],sizes:["48.6","60.5","76.3"],min:2285,max:3250},
+  {loc:"D-7",cat:"kesho",fin:["HL"],sizes:["75.3","76.3","89.1","101.6"],min:2655,max:3800},
+  {loc:"C-4",cat:"kesho",fin:["HL"],sizes:["89.1","101.6","114.3","139.8"],min:2260,max:3440},
+  {loc:"F-7",cat:"kesho",fin:["HL"],sizes:["21.7","27.2","48.6","50","50.3","60.5","76.3","89.1","101.6"],min:1320,max:2270},
+  /* サニタリー管（チタン管もC-3） */
+  {loc:"F-8",cat:"sani",fin:null,sizes:null,min:790,max:2270},
+  {loc:"C-3",cat:"sani",fin:null,sizes:null,min:2190,max:3750},
+  /* チャンネル */
+  {loc:"C-5",cat:"chan",fin:null,sizes:["40*20","60*30","80*40","100*50","130*65","150*75"],min:1610,max:3740},
+  {loc:"C-6",cat:"chan",fin:null,sizes:["60*30","80*40","100*50"],min:2300,max:4530},
+  /* アルミ材 */
+  {loc:"C-2",cat:"alumi",fin:null,sizes:null,min:2000,max:8000},
+  {loc:"C-1",cat:"alumi",fin:null,sizes:null,min:2610,max:4786},
+];
+function locCategory(mat,koshu){
+  const m=String(mat||""),k=String(koshu||"");
+  if(/アルミ|A5052|A6063/.test(m))return "alumi";
+  if(m.includes("チタン"))return "sani";
+  if(k.includes("アングル"))return "angle";
+  if(k.includes("角パイプ"))return "kaku";
+  if(k.includes("サニタリー"))return "sani";
+  if(k.includes("化粧")||k.includes("BA管"))return "kesho";
+  if(k.includes("丸パイプ"))return "maru";
+  if(k.includes("チャンネル"))return "chan";
+  return null; /* SS400・フラットバー等はPDFに棚の定義がないため案内しない */
+}
+function suggestLoc(rec){
+  const cat=locCategory(rec.mat,rec.koshu);
+  if(!cat)return null;
+  const fin=String(rec.fin||"").trim();
+  const spec=normSpec(rec.spec);
+  const len=Number(rec.len)||0;
+  const finOk=g=>{
+    if(!g.fin)return true;
+    if(g.fin.includes(fin))return true;
+    /* 片#400・両#400 は #400 の棚として扱う */
+    if(fin.includes("#400")&&g.fin.some(f=>f.includes("#400")))return true;
+    return false;
+  };
+  const base=LOC_GUIDE.filter(g=>g.cat===cat&&finOk(g));
+  if(!base.length)return null;
+  const mk=(g,ignoreSize)=>{
+    if(!ignoreSize&&g.sizes&&!g.sizes.includes(spec))return null;
+    const inRange=len>=g.min&&len<=g.max;
+    return{g,inRange,dist:inRange?0:(len<g.min?g.min-len:len-g.max),
+      width:g.max-g.min,sized:!!(g.sizes&&g.sizes.includes(spec))};
+  };
+  let cands=base.map(g=>mk(g,false)).filter(Boolean);
+  if(!cands.length)cands=base.map(g=>mk(g,true)).filter(Boolean); /* サイズ表に無い寸法は長さと仕上げで判断 */
+  if(!cands.length)return null;
+  cands.sort((a,b)=>(a.inRange===b.inRange?0:(a.inRange?-1:1))||(b.sized-a.sized)||(a.dist-b.dist)||(a.width-b.width));
+  return cands[0].g.loc;
+}
+
 /* ===================== 計算エンジン（Excel数式と同一） ===================== */
 function normSpec(s){return String(s==null?"":s).replace(/[Φφ]/g,"").replace(/[×Xx]/g,"*").trim();}
 function dims(spec){const n=normSpec(spec),p=n.split("*");const d1=parseFloat(p[0]);const d2=p.length>1?parseFloat(p[1]):NaN;return{d1:isFinite(d1)?d1:0,d2:isFinite(d2)?d2:0};}
@@ -11541,6 +11680,8 @@ const I18N_VI={
   "QRを読み取れませんでした。ラベルに近づけて撮り直してください":"Không đọc được QR. Hãy chụp lại gần hơn",
   "読み取れませんでした（写真は調査用に送信済み）。明るい場所でもう一度お試しください":"Không đọc được (ảnh đã được gửi để kiểm tra). Hãy thử lại ở nơi sáng hơn",
   "このシステムのQRではないようです":"Có vẻ không phải mã QR của hệ thống này",
+  "この材料の置き場所":"Vị trí để vật liệu này","閉じる":"Đóng",
+  "保管場所を変更しました":"Đã đổi vị trí kệ",
   "この在庫は見つかりません（すでに使い切った可能性があります）":"Không tìm thấy tồn kho này (có thể đã dùng hết)",
   "使う材料の「持ち出す」ボタンを押してください。空欄はすべて対象です。":"Nhấn nút 「Lấy ra」 của vật liệu cần dùng. Để trống = tất cả.",
   "持ち出す":"Lấy ra","条件に一致する在庫がありません":"Không có tồn kho phù hợp",
@@ -12043,7 +12184,9 @@ async function submitCo(){
       const j=await apiSend("POST","/api/checkout",{id:coTarget.id,person,usedLen,note});
       await refresh();loadHistory();
       toast(j.removed?t("持ち出しを記録しました（全部使用・在庫から削除）"):t("持ち出しを記録しました（残り ")+Number(j.remain).toLocaleString()+" mm）");
+      const guideRec=j.removed?null:{...coTarget,len:j.remain};
       closeCo();
+      if(guideRec)showLocGuide(guideRec); /* 残った材料の置き場所を大きく案内 */
     }catch(e){toast(t("記録に失敗しました: ")+e.message);}
     return;
   }
@@ -12056,6 +12199,38 @@ async function submitCo(){
   saveRecords();renderInventory();runSearch();updateFoot();renderCheckout();renderWorklog();
   toast(remain<=0?t("持ち出しを記録しました（全部使用・在庫から削除）"):t("持ち出しを記録しました（残り ")+remain.toLocaleString()+" mm）");
   closeCo();
+}
+
+/* ── 保管場所ガイドの表示（登録・残り長さ入力の直後に大きく案内） ── */
+let locGuideRec=null,locGuideTo=null;
+function showLocGuide(rec){
+  if(MODE!=="server"||!rec)return;
+  const to=suggestLoc(rec);
+  if(!to)return;
+  locGuideRec=rec;locGuideTo=to;
+  const same=String(rec.loc||"").trim()===to;
+  $("#locBig").textContent=to;
+  $("#locMsgJa").textContent=same?"に置いてください":"になおしてください";
+  $("#locMsgVi").textContent=same?("Đặt vào kệ "+to):("Hãy chuyển đến kệ "+to);
+  $("#locCur").textContent=same?"":("いまの登録："+(String(rec.loc||"").trim()||"未設定"));
+  const ap=$("#locApply");
+  if(!same&&rec.id!=null){
+    ap.style.display="";
+    ap.textContent=(LANG==="ja")?("登録も "+to+" に変更する"):("Đổi đăng ký sang "+to);
+  }else ap.style.display="none";
+  $("#locOverlay").classList.add("show");
+}
+function closeLocGuide(){$("#locOverlay").classList.remove("show");locGuideRec=null;locGuideTo=null;}
+async function applyLocGuide(){
+  const r=locGuideRec,to=locGuideTo;
+  if(!r||!to||r.id==null){closeLocGuide();return;}
+  let person="";try{person=localStorage.getItem(PERSON_KEY)||"";}catch(e){}
+  try{
+    await apiSend("PUT","/api/records/"+r.id,{mat:r.mat,koshu:r.koshu,thk:r.thk,spec:r.spec,len:r.len,loc:to,fin:r.fin,person});
+    await refresh();renderCheckout();
+    toast(t("保管場所を変更しました")+"（"+to+"）");
+  }catch(e){toast(t("記録に失敗しました: ")+e.message);}
+  closeLocGuide();
 }
 
 /* ===================== 履歴の共通部品（作業ログで使用） ===================== */
@@ -12152,7 +12327,11 @@ async function submitNs(){
   try{localStorage.setItem(PERSON_KEY,person);}catch(e){}
   const body={mat:rec.mat,koshu:rec.koshu,thk:Number(rec.thk),spec:rec.spec,len:Number(rec.len),loc:rec.loc,fin:rec.fin,person};
   if(MODE==="server"){
-    try{await apiSend("POST","/api/records",body);await refresh();loadHistory();toast(t("残材を登録しました"));closeNs();}
+    try{
+      const j=await apiSend("POST","/api/records",body);
+      await refresh();loadHistory();toast(t("残材を登録しました"));closeNs();
+      showLocGuide({id:j.id,mat:body.mat,koshu:body.koshu,thk:body.thk,spec:body.spec,len:body.len,loc:body.loc,fin:body.fin});
+    }
     catch(e){toast(t("保存に失敗しました: ")+e.message);}
     return;
   }
@@ -12661,6 +12840,9 @@ async function init(){
   $("#btnScan").addEventListener("click",()=>{if(canLiveScan())openScanner();else $("#scanFile").click();});
   $("#scanFile").addEventListener("change",onScanPhoto);
   $("#scanClose").addEventListener("click",closeScanner);
+  $("#locClose").addEventListener("click",closeLocGuide);
+  $("#locApply").addEventListener("click",applyLocGuide);
+  $("#locOverlay").addEventListener("click",e=>{if(e.target===$("#locOverlay"))closeLocGuide();});
   $("#scanTorch").addEventListener("click",toggleTorch);
   $("#scanOverlay").addEventListener("click",e=>{if(e.target===$("#scanOverlay"))closeScanner();});
   $("#qrClose").addEventListener("click",closeQr);$("#qrCancel").addEventListener("click",closeQr);
@@ -12685,7 +12867,7 @@ async function init(){
     }
   }
   document.addEventListener("keydown",e=>{
-    if(e.key==="Escape"){closeModal();closePin();closeHelp();closeCo();closeQr();closeKey();closeNs();closeScanner();}
+    if(e.key==="Escape"){closeModal();closePin();closeHelp();closeCo();closeQr();closeKey();closeNs();closeScanner();closeLocGuide();}
     else if(e.key==="?"||e.key==="F1"){const t=(document.activeElement||{}).tagName;if(t!=="INPUT"&&t!=="SELECT"&&t!=="TEXTAREA"){e.preventDefault();openHelp();}}
   });
   $("#btnExportSearch").addEventListener("click",()=>{if(!lastSearch.length){toast("出力対象がありません");return;}exportCSV(lastSearch,"検索結果.csv");});

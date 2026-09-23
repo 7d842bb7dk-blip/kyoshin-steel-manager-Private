@@ -374,6 +374,21 @@
   </div>
 </div>
 
+<!-- ============================== 保管場所の案内（登録後に大きく表示） ============================== -->
+<div class="overlay" id="locOverlay">
+  <div class="modal loc-modal">
+    <div class="loc-head"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px"><path d="M12 21s7-5.5 7-11a7 7 0 1 0-14 0c0 5.5 7 11 7 11z"/><circle cx="12" cy="10" r="2.3"/></svg><span data-i18n="この材料の置き場所">この材料の置き場所</span></div>
+    <div class="loc-big" id="locBig">A-1</div>
+    <div class="loc-msg" id="locMsgJa">になおしてください</div>
+    <div class="loc-msg loc-vi" id="locMsgVi">Hãy chuyển đến kệ A-1</div>
+    <div class="loc-cur" id="locCur"></div>
+    <div class="loc-btns">
+      <button class="btn ghost" id="locClose" data-i18n="閉じる">閉じる</button>
+      <button class="btn primary" id="locApply" style="display:none"></button>
+    </div>
+  </div>
+</div>
+
 <!-- ============================== かざすだけQRスキャナー（HTTPS時のみ） ============================== -->
 <div class="overlay" id="scanOverlay">
   <div class="modal scan-modal">
