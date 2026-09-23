@@ -167,7 +167,7 @@ function markLabeled(ids) {
 }
 
 // ── 持ち出し（現場の出庫）：全部→レコード削除 / 一部→残り長さに更新 ──
-const _checkoutTx = db.transaction((id, usedLen, person, note) => {
+const _checkoutTx = db.transaction((id, usedLen, person, note, newLoc) => {
   const r = db.prepare("SELECT * FROM records WHERE id=?").get(Number(id));
   if (!r) return { ok: false, reason: "notfound" };
   const len = Number(r.len) || 0;
@@ -175,18 +175,23 @@ const _checkoutTx = db.transaction((id, usedLen, person, note) => {
   if (!Number.isFinite(used) || used <= 0) return { ok: false, reason: "badlen" };
   if (used > len) return { ok: false, reason: "over" };
   const remain = Math.round((len - used) * 100) / 100;
+  let n = note;
   if (remain <= 0) {
     db.prepare("DELETE FROM records WHERE id=?").run(r.id);
+  } else if (newLoc && newLoc !== r.loc) {
+    // 残りの長さに合わせて保管場所も移す（保管場所ガイドの決定）
+    db.prepare("UPDATE records SET len=?, loc=?, updated_at=? WHERE id=?").run(remain, newLoc, now(), r.id);
+    n = (str(note) ? str(note) + " / " : "") + `保管場所 ${r.loc || "未設定"}→${newLoc}`;
   } else {
     db.prepare("UPDATE records SET len=?, updated_at=? WHERE id=?").run(remain, now(), r.id);
   }
-  logHistory("checkout", r, { person, note, len_before: len, len_after: remain > 0 ? remain : 0 });
-  return { ok: true, removed: remain <= 0, remain: remain > 0 ? remain : 0 };
+  logHistory("checkout", r, { person, note: n, len_before: len, len_after: remain > 0 ? remain : 0 });
+  return { ok: true, removed: remain <= 0, remain: remain > 0 ? remain : 0, loc: remain > 0 ? (newLoc || r.loc) : null };
 });
 function checkoutRecord(id, opts) {
   const o = opts || {};
   if (!str(o.person)) return { ok: false, reason: "noperson", version: getVersion() };
-  const res = _checkoutTx(id, o.usedLen, str(o.person), o.note);
+  const res = _checkoutTx(id, o.usedLen, str(o.person), o.note, str(o.loc) || null);
   if (!res.ok) return { ...res, version: getVersion() };
   return { ...res, version: bumpVersion() };
 }

@@ -92,7 +92,7 @@ app.post("/api/records/bulk", (req, res) => {
 app.post("/api/checkout", (req, res) => {
   try {
     const b = req.body || {};
-    const r = dbm.checkoutRecord(b.id, { person: b.person, usedLen: b.usedLen, note: b.note });
+    const r = dbm.checkoutRecord(b.id, { person: b.person, usedLen: b.usedLen, note: b.note, loc: b.loc });
     if (!r.ok) {
       const msg =
         r.reason === "notfound" ? "該当の在庫が見つかりません（他の人が先に持ち出した可能性）"

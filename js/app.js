@@ -101,19 +101,24 @@ function applyMasters(m){
 /* ── 保管場所ガイド（「材料保管場所_住所一覧」PDF 2026-09 版より） ──────────
  * 登録・残り長さ入力のあと「〇-〇 になおしてください」と大きく案内する。
  * 長さ帯(min/max)は現在の在庫の最短〜最長。境界は要確認のため、外れた場合は最も近い棚を提案。 */
+const ANG_HOT=["HOT","未研",""];
 const LOC_GUIDE=[
-  /* アングル（E=短尺・A=長尺） */
-  {loc:"E-1",cat:"angle",fin:["HOT"],sizes:["25*25","30*30"],min:1430,max:1796},
-  {loc:"E-2",cat:"angle",fin:["HOT"],sizes:["40*40"],min:1290,max:2500},
-  {loc:"E-3",cat:"angle",fin:["HOT"],sizes:["50*50","50*70"],min:1030,max:1870},
-  {loc:"E-4",cat:"angle",fin:["HOT"],sizes:["60*60","65*65"],min:1500,max:1580},
+  /* アングル（E=短尺・A=長尺）。HOT系＝HOT・未研・仕上げ空欄。
+   * A-3=HL・A-4=#400 はPDFの現場指定どおり（旧データは逆に登録されている分あり） */
+  {loc:"E-1",cat:"angle",fin:ANG_HOT,sizes:["25*25","30*30"],min:1430,max:1796},
+  {loc:"E-2",cat:"angle",fin:ANG_HOT,sizes:["40*40"],min:1290,max:2500},
+  {loc:"E-3",cat:"angle",fin:ANG_HOT,sizes:["50*50","50*70"],min:1030,max:1870},
+  {loc:"E-4",cat:"angle",fin:ANG_HOT,sizes:["60*60","65*65"],min:1500,max:1580},
   {loc:"E-5",cat:"angle",fin:["COLD"],sizes:["25*25","30*30","40*40","40*50","50*50"],min:1370,max:2390},
   {loc:"E-6",cat:"angle",fin:["#400"],sizes:["25*25","30*30","40*40","50*50","50*65","75*50","75*75"],min:1330,max:2530},
   {loc:"E-7",cat:"angle",fin:["HL"],sizes:["20*20","25*25","30*30","40*40","50*50","65*65"],min:1340,max:2660},
   {loc:"A-1",cat:"angle",fin:["COLD"],sizes:null,min:3200,max:5100},
   {loc:"A-3",cat:"angle",fin:["HL"],sizes:null,min:2300,max:4700},
   {loc:"A-4",cat:"angle",fin:["#400"],sizes:null,min:2460,max:5500},
-  {loc:"A-7",cat:"angle",fin:null,sizes:["50*50"],min:2980,max:6060},
+  {loc:"A-2",cat:"angle",fin:ANG_HOT,sizes:s=>{const[a,b]=s.split("*").map(Number);return a>0&&b>0&&(a!==b||a>=60);},min:2940,max:4150},
+  {loc:"A-5",cat:"angle",fin:ANG_HOT,sizes:s=>{const[a,b]=s.split("*").map(Number);return a>0&&a===b&&a<=30;},min:2300,max:6100},
+  {loc:"A-6",cat:"angle",fin:ANG_HOT,sizes:["40*40"],min:2300,max:6100},
+  {loc:"A-7",cat:"angle",fin:ANG_HOT,sizes:["50*50"],min:2980,max:6060},
   /* 角パイプ 未研 */
   {loc:"E-10",cat:"kaku",fin:["未研"],sizes:["50*30","50*50","60*30","75*45","80*40","100*40"],min:1180,max:2910},
   {loc:"E-11",cat:"kaku",fin:["未研"],sizes:["75*75","100*100"],min:655,max:1570},
@@ -200,11 +205,12 @@ function suggestLoc(rec){
   };
   const base=LOC_GUIDE.filter(g=>g.cat===cat&&finOk(g));
   if(!base.length)return null;
+  const sizeHit=g=>!!g.sizes&&(typeof g.sizes==="function"?g.sizes(spec):g.sizes.includes(spec));
   const mk=(g,ignoreSize)=>{
-    if(!ignoreSize&&g.sizes&&!g.sizes.includes(spec))return null;
+    const sized=sizeHit(g);
+    if(!ignoreSize&&g.sizes&&!sized)return null;
     const inRange=len>=g.min&&len<=g.max;
-    return{g,inRange,dist:inRange?0:(len<g.min?g.min-len:len-g.max),
-      width:g.max-g.min,sized:!!(g.sizes&&g.sizes.includes(spec))};
+    return{g,inRange,dist:inRange?0:(len<g.min?g.min-len:len-g.max),width:g.max-g.min,sized};
   };
   let cands=base.map(g=>mk(g,false)).filter(Boolean);
   if(!cands.length)cands=base.map(g=>mk(g,true)).filter(Boolean); /* サイズ表に無い寸法は長さと仕上げで判断 */
@@ -485,8 +491,8 @@ const I18N_VI={
   "QRを読み取れませんでした。ラベルに近づけて撮り直してください":"Không đọc được QR. Hãy chụp lại gần hơn",
   "読み取れませんでした（写真は調査用に送信済み）。明るい場所でもう一度お試しください":"Không đọc được (ảnh đã được gửi để kiểm tra). Hãy thử lại ở nơi sáng hơn",
   "このシステムのQRではないようです":"Có vẻ không phải mã QR của hệ thống này",
-  "この材料の置き場所":"Vị trí để vật liệu này","閉じる":"Đóng",
-  "保管場所を変更しました":"Đã đổi vị trí kệ",
+  "この材料の置き場所":"Vị trí để vật liệu này",
+  "保管場所の登録を変更しました":"Đã đổi vị trí đăng ký",
   "この在庫は見つかりません（すでに使い切った可能性があります）":"Không tìm thấy tồn kho này (có thể đã dùng hết)",
   "使う材料の「持ち出す」ボタンを押してください。空欄はすべて対象です。":"Nhấn nút 「Lấy ra」 của vật liệu cần dùng. Để trống = tất cả.",
   "持ち出す":"Lấy ra","条件に一致する在庫がありません":"Không có tồn kho phù hợp",
@@ -984,14 +990,17 @@ async function submitCo(){
   }
   const note=$("#coNote").value.trim();
   try{localStorage.setItem(PERSON_KEY,person);}catch(e){}
+  /* 残りが出る場合は、残りの長さで置き場所を決めて一緒に登録する（確認なしで決定） */
+  const remainPre=usedLen==null?0:Math.round((len-usedLen)*100)/100;
+  const prevLoc=String(coTarget.loc||"").trim();
+  const newLoc=remainPre>0?suggestLoc({...coTarget,len:remainPre}):null;
   if(MODE==="server"){
     try{
-      const j=await apiSend("POST","/api/checkout",{id:coTarget.id,person,usedLen,note});
+      const j=await apiSend("POST","/api/checkout",{id:coTarget.id,person,usedLen,note,loc:newLoc});
       await refresh();loadHistory();
       toast(j.removed?t("持ち出しを記録しました（全部使用・在庫から削除）"):t("持ち出しを記録しました（残り ")+Number(j.remain).toLocaleString()+" mm）");
-      const guideRec=j.removed?null:{...coTarget,len:j.remain};
       closeCo();
-      if(guideRec)showLocGuide(guideRec); /* 残った材料の置き場所を大きく案内 */
+      if(!j.removed&&newLoc)showLocGuide(newLoc,prevLoc); /* 残った材料の置き場所を大きく案内 */
     }catch(e){toast(t("記録に失敗しました: ")+e.message);}
     return;
   }
@@ -999,44 +1008,26 @@ async function submitCo(){
   const used=usedLen==null?len:usedLen;
   const remain=Math.round((len-used)*100)/100;
   if(remain<=0){records=records.filter(x=>x.id!==coTarget.id);}
-  else{const i=records.findIndex(x=>x.id===coTarget.id);records[i]={...coTarget,len:remain};}
+  else{const i=records.findIndex(x=>x.id===coTarget.id);records[i]={...coTarget,len:remain,loc:newLoc||coTarget.loc};}
   localHist("checkout",coTarget,{person,note,len_before:len,len_after:remain>0?remain:0});
   saveRecords();renderInventory();runSearch();updateFoot();renderCheckout();renderWorklog();
   toast(remain<=0?t("持ち出しを記録しました（全部使用・在庫から削除）"):t("持ち出しを記録しました（残り ")+remain.toLocaleString()+" mm）");
   closeCo();
+  if(remain>0&&newLoc)showLocGuide(newLoc,prevLoc);
 }
 
-/* ── 保管場所ガイドの表示（登録・残り長さ入力の直後に大きく案内） ── */
-let locGuideRec=null,locGuideTo=null;
-function showLocGuide(rec){
-  if(MODE!=="server"||!rec)return;
-  const to=suggestLoc(rec);
+/* ── 保管場所ガイドの表示（登録・残り長さ入力の直後に大きく案内） ──
+ * 置き場所は suggestLoc で決定済み・登録にも反映済み。ここでは結果を大きく知らせるだけ */
+function showLocGuide(to,prevLoc){
   if(!to)return;
-  locGuideRec=rec;locGuideTo=to;
-  const same=String(rec.loc||"").trim()===to;
+  const prev=String(prevLoc||"").trim();
   $("#locBig").textContent=to;
-  $("#locMsgJa").textContent=same?"に置いてください":"になおしてください";
-  $("#locMsgVi").textContent=same?("Đặt vào kệ "+to):("Hãy chuyển đến kệ "+to);
-  $("#locCur").textContent=same?"":("いまの登録："+(String(rec.loc||"").trim()||"未設定"));
-  const ap=$("#locApply");
-  if(!same&&rec.id!=null){
-    ap.style.display="";
-    ap.textContent=(LANG==="ja")?("登録も "+to+" に変更する"):("Đổi đăng ký sang "+to);
-  }else ap.style.display="none";
+  $("#locMsgJa").textContent="になおしてください";
+  $("#locMsgVi").textContent="Hãy cất vào kệ "+to;
+  $("#locCur").textContent=(prev&&prev!==to)?(t("保管場所の登録を変更しました")+"："+prev+" → "+to):"";
   $("#locOverlay").classList.add("show");
 }
-function closeLocGuide(){$("#locOverlay").classList.remove("show");locGuideRec=null;locGuideTo=null;}
-async function applyLocGuide(){
-  const r=locGuideRec,to=locGuideTo;
-  if(!r||!to||r.id==null){closeLocGuide();return;}
-  let person="";try{person=localStorage.getItem(PERSON_KEY)||"";}catch(e){}
-  try{
-    await apiSend("PUT","/api/records/"+r.id,{mat:r.mat,koshu:r.koshu,thk:r.thk,spec:r.spec,len:r.len,loc:to,fin:r.fin,person});
-    await refresh();renderCheckout();
-    toast(t("保管場所を変更しました")+"（"+to+"）");
-  }catch(e){toast(t("記録に失敗しました: ")+e.message);}
-  closeLocGuide();
-}
+function closeLocGuide(){$("#locOverlay").classList.remove("show");}
 
 /* ===================== 履歴の共通部品（作業ログで使用） ===================== */
 const HTYPE={checkout:["持ち出し","h-out"],add:["登録","h-in"],edit:["編集","h-edit"],delete:["削除","h-del"],bulk:["CSV取込","h-in"],keyout:["鍵 持出","h-out"],keyin:["鍵 返却","h-in"]};
@@ -1130,12 +1121,16 @@ async function submitNs(){
   if(!(Number(rec.len)>0)){toast(t("残りの長さを入力してください"));$("#ns_len").focus();return;}
   if(!person){toast(t("名前を入力してください"));$("#nsPersonSel").focus();return;}
   try{localStorage.setItem(PERSON_KEY,person);}catch(e){}
+  /* 置き場所は棚割りから決定（選ばれた場所と違っても確認なしで決定した方で登録） */
+  const newLoc=suggestLoc({mat:rec.mat,koshu:rec.koshu,fin:rec.fin,spec:rec.spec,len:Number(rec.len)});
+  if(newLoc)rec.loc=newLoc;
+  const pickedLoc=$("#ns_loc").value;
   const body={mat:rec.mat,koshu:rec.koshu,thk:Number(rec.thk),spec:rec.spec,len:Number(rec.len),loc:rec.loc,fin:rec.fin,person};
   if(MODE==="server"){
     try{
-      const j=await apiSend("POST","/api/records",body);
+      await apiSend("POST","/api/records",body);
       await refresh();loadHistory();toast(t("残材を登録しました"));closeNs();
-      showLocGuide({id:j.id,mat:body.mat,koshu:body.koshu,thk:body.thk,spec:body.spec,len:body.len,loc:body.loc,fin:body.fin});
+      if(newLoc)showLocGuide(newLoc,pickedLoc);
     }
     catch(e){toast(t("保存に失敗しました: ")+e.message);}
     return;
@@ -1144,6 +1139,7 @@ async function submitNs(){
   localHist("add",rec,{person,len_after:Number(rec.len)});
   saveRecords();renderInventory();runSearch();updateFoot();renderCheckout();renderWorklog();
   toast(t("残材を登録しました"));closeNs();
+  if(newLoc)showLocGuide(newLoc,pickedLoc);
 }
 
 /* ===================== 鋼材倉庫の鍵（QRから開く） ===================== */
@@ -1646,7 +1642,6 @@ async function init(){
   $("#scanFile").addEventListener("change",onScanPhoto);
   $("#scanClose").addEventListener("click",closeScanner);
   $("#locClose").addEventListener("click",closeLocGuide);
-  $("#locApply").addEventListener("click",applyLocGuide);
   $("#locOverlay").addEventListener("click",e=>{if(e.target===$("#locOverlay"))closeLocGuide();});
   $("#scanTorch").addEventListener("click",toggleTorch);
   $("#scanOverlay").addEventListener("click",e=>{if(e.target===$("#scanOverlay"))closeScanner();});
