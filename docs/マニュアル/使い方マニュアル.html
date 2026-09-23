@@ -88,9 +88,9 @@
       <div class="toc-thumb"><svg viewBox="0 0 750 1624"><image href="shots/shot-scan.png" width="750" height="1624"/></svg></div>
       <div class="toc-body">
         <div class="toc-t">在庫を使う</div>
-        <div class="toc-s">QRに<b>かざすだけ</b>で読み取り。使った後の<b>残りの長さ</b>を登録する／<span class="vi">Dùng vật liệu</span></div>
+        <div class="toc-s">鍵置き場のQRにかざして倉庫へ → 使った後の<b>残りの長さ</b>を登録する／<span class="vi" style="white-space:nowrap">Dùng vật liệu</span></div>
       </div>
-      <div class="toc-pg">→ 3ページ</div>
+      <div class="toc-pg">→ 3〜4ページ</div>
     </div>
     <div class="toc-card">
       <div class="toc-no">3</div>
@@ -99,7 +99,7 @@
         <div class="toc-t">新しい在庫を登録する</div>
         <div class="toc-s">今日納入された定尺の残りなど、リストに無い材料を登録する／<span class="vi" style="white-space:nowrap">Đăng ký vật liệu mới</span></div>
       </div>
-      <div class="toc-pg">→ 4ページ</div>
+      <div class="toc-pg">→ 5ページ</div>
     </div>
   </div>
 
@@ -147,15 +147,15 @@
     </div>
     <div style="flex:1;min-width:0">
       <div class="pt"><div class="n">1</div><div><b>アプリを開く</b>（スマホは最初からこの画面）。ここが在庫の一覧です</div></div>
-      <div class="pt"><div class="n">2</div><div><b>材質・鋼種で絞り込む</b>。上の検索欄に規格の一部（例：50）を入れて探すこともできます</div></div>
+      <div class="pt"><div class="n">2</div><div><b>材質・鋼種で絞り込む</b>。「材料規格」の欄に一部だけ（例：50）を入れて探すこともできます</div></div>
       <div class="zbox" style="margin:2mm 0 4mm">
-        <div class="zttl">【拡大】絞り込み欄</div>
-        <svg viewBox="20 800 710 160"><image href="shots/shot-checkout.png" width="750" height="1624"/></svg>
+        <div class="zttl">【拡大】絞り込み欄（空欄はすべて対象）</div>
+        <svg viewBox="20 780 710 420"><image href="shots/shot-checkout.png" width="750" height="1624"/></svg>
       </div>
       <div class="pt"><div class="n">3</div><div><b>カードを見る</b>。1枚 ＝ 材料1本。<b>長さ・置き場所（棚番号）・仕上げ</b>が分かります</div></div>
       <div class="zbox" style="margin:2mm 0 4mm">
         <div class="zttl">【拡大】在庫カードの見方</div>
-        <svg viewBox="20 1020 710 260"><image href="shots/shot-checkout.png" width="750" height="1624"/></svg>
+        <svg viewBox="20 1240 710 285"><image href="shots/shot-checkout.png" width="750" height="1624"/></svg>
         <div style="font-size:9pt;color:var(--soft);margin-top:2mm">この材料は「SUS304の角パイプ 50*50・板厚t2、残り3,000mm、置き場所B-2」という意味です</div>
       </div>
       <div class="gnote"><b>PCも同じアドレスでOK。</b>「在庫検索」タブなら、もっと細かい絞り込みと合計重量・合計金額の集計ができます。</div>
@@ -170,44 +170,75 @@
   <div class="foot"><span>① 在庫があるか確認する</span><span>2</span></div>
 </div>
 
-<!-- ============ ② 在庫を使う ============ -->
+<!-- ============ ② 前半：まず倉庫の鍵を借りる ============ -->
 <div class="page">
   <div class="step-h">
     <div class="step-no">2</div>
     <div>
-      <div class="step-t">在庫を使う 〜 使ったら残りの長さを登録</div>
-      <div class="step-vi">Phần 2: Dùng vật liệu — nhập chiều dài còn lại sau khi dùng</div>
+      <div class="step-t">在庫を使う（前半）〜 まず倉庫の鍵を借りる</div>
+      <div class="step-vi">Phần 2a: Mượn chìa khóa kho — quét QR tại chỗ treo chìa khóa</div>
+    </div>
+  </div>
+
+  <div class="pt"><div class="n">1</div><div><b>プログラム室の鍵置き場へ。</b>鍵のフックの横に、この<b>「鋼材倉庫の鍵」のQRの貼り紙</b>が貼ってあります</div></div>
+  <div style="border:0.6mm solid var(--line);border-radius:4mm;overflow:hidden;margin:2mm 0 4mm">
+    <svg viewBox="40 90 830 320" style="display:block;width:100%"><image href="shots/keyplace.png" width="900" height="640"/></svg>
+  </div>
+
+  <div style="display:flex;gap:7mm;align-items:flex-start">
+    <div style="flex:1;min-width:0">
+      <div class="pt"><div class="n">2</div><div>スマホでアプリを開き、赤い<b>「QRを読み取る」</b>を押してカメラを起動 → <b>貼り紙にかざす</b>（枠に入れるだけ・シャッター不要）</div></div>
+      <div class="pt"><div class="n">3</div><div>「鋼材倉庫の鍵」画面が開くので、<b>名前を確認</b>（前回の名前が自動で入っています）して<b>「記録して倉庫へ行く」</b>を押す</div></div>
+      <div class="pt"><div class="n">4</div><div><b>フックから鍵を取って倉庫へ！</b>これで「誰がいつ倉庫に入ったか」が自動で記録されます</div></div>
+      <div class="gnote" style="margin-top:3mm"><b>帰ってきたら：鍵をフックに掛けるだけ。</b>アプリの操作はいっさいありません（返却ボタンはそもそも無し）。</div>
+      <div class="note" style="margin-top:3mm">うまく読み取れないときは、<b>ふつうのカメラアプリ</b>で貼り紙にかざして、出てきたリンクを開いてもOKです。</div>
+    </div>
+    <div style="width:52mm;flex:0 0 auto;display:flex;flex-direction:column;gap:4mm">
+      <div class="zbox">
+        <div class="zttl">【手順2】貼り紙にかざす</div>
+        <svg viewBox="105 585 540 520"><image href="shots/shot-scankey.png" width="750" height="1624"/></svg>
+      </div>
+      <div class="zbox">
+        <div class="zttl">【手順3】この画面が出たら押すだけ</div>
+        <svg viewBox="78 386 594 622"><image href="shots/shot-key.png" width="750" height="1624"/></svg>
+      </div>
+    </div>
+  </div>
+
+  <div class="foot"><span>② 在庫を使う（前半・鍵を借りる）</span><span>3</span></div>
+</div>
+
+<!-- ============ ② 後半：材料を使って残りを登録 ============ -->
+<div class="page">
+  <div class="step-h">
+    <div class="step-no">2</div>
+    <div>
+      <div class="step-t">在庫を使う（後半）〜 使ったら残りの長さを登録</div>
+      <div class="step-vi">Phần 2b: Dùng vật liệu — nhập chiều dài còn lại sau khi dùng</div>
     </div>
   </div>
 
   <div style="display:flex;gap:7mm;align-items:flex-start">
     <div style="flex:1.15;min-width:0">
-      <div class="pt"><div class="n">1</div><div><b>倉庫へ行くとき</b>：「QRを読み取る」で鍵置き場のQRに<b>かざす</b> → 名前を確認して<b>「記録して倉庫へ行く」</b>（鍵を返すときの操作はありません。フックに戻すだけ）</div></div>
-      <div class="pt" style="margin-top:2.5mm"><div class="n">2</div><div><b>材料のQRにかざす</b>：赤い「QRを読み取る」を押すとカメラが起動。<b>ラベルを枠に入れるだけで自動で読み取り</b>、その材料の画面が開きます（シャッター不要）</div></div>
+      <div class="pt"><div class="n">1</div><div><b>材料のQRにかざす</b>：赤い「QRを読み取る」を押すとカメラが起動。<b>ラベルを枠に入れるだけで自動で読み取り</b>、その材料の画面が開きます（シャッター不要）</div></div>
       <div class="zbox" style="margin:2mm auto 3.5mm;width:62mm">
         <div class="zttl">【拡大】枠に入れるだけ</div>
         <svg viewBox="105 545 540 600"><image href="shots/shot-scan.png" width="750" height="1624"/></svg>
       </div>
-      <div class="pt"><div class="n">3</div><div><b>使い方を選ぶ</b>：全部使ったら「<b>全部 持ち出す</b>」、一部だけなら「<b>一部使った（残りを登録）</b>」</div></div>
-      <div class="pt"><div class="n">4</div><div><b>残った長さを測って入力</b>：使用量は自動計算。<b>「持ち出しを記録」</b>で完了！</div></div>
+      <div class="pt"><div class="n">2</div><div><b>使い方を選ぶ</b>：全部使ったら「<b>全部 持ち出す</b>」、一部だけなら「<b>一部使った（残りを登録）</b>」</div></div>
+      <div class="pt"><div class="n">3</div><div><b>残った長さを測って入力</b>：使用量は自動計算。<b>「持ち出しを記録」</b>で完了！</div></div>
       <div class="zbox" style="margin:2mm 0 3.5mm">
         <div class="zttl">【拡大】残りの長さ（mm）— 例：残り1.5mなら「1500」</div>
         <svg viewBox="95 755 565 255"><image href="shots/shot-co.png" width="750" height="1624"/></svg>
       </div>
       <div class="note"><b>入力するのは「使った長さ」ではなく「残った長さ」です。</b>登録しないと在庫と実物がズレて、次に使う人が困ります。使ったその場で必ず登録を（1回10秒）。</div>
     </div>
-    <div style="width:56mm;flex:0 0 auto;display:flex;flex-direction:column;gap:4mm">
-      <div class="zbox">
-        <div class="zttl">【手順1】鍵QRにかざすとこの画面</div>
-        <svg viewBox="78 378 594 630"><image href="shots/shot-key.png" width="750" height="1624"/></svg>
-      </div>
-      <div class="phoneframe">
-        <img src="shots/shot-co.png" alt="持ち出し登録画面">
-      </div>
+    <div class="phoneframe" style="width:56mm">
+      <img src="shots/shot-co.png" alt="持ち出し登録画面">
     </div>
   </div>
 
-  <div class="foot"><span>② 在庫を使う</span><span>3</span></div>
+  <div class="foot"><span>② 在庫を使う（後半・残りの長さを登録）</span><span>4</span></div>
 </div>
 
 <!-- ============ ③ 新しい在庫を登録する ============ -->
@@ -229,12 +260,12 @@
       <div class="pt"><div class="n">1</div><div>持ち出し画面の<b>「＋ 残材を登録」</b>を押す</div></div>
       <div class="zbox" style="margin:2mm 0 4mm">
         <div class="zttl">【拡大】このボタン</div>
-        <svg viewBox="15 478 720 183"><image href="shots/shot-checkout.png" width="750" height="1624"/></svg>
+        <svg viewBox="15 479 720 178"><image href="shots/shot-checkout.png" width="750" height="1624"/></svg>
       </div>
       <div class="pt"><div class="n">2</div><div><b>材料の情報を選ぶ</b>：材質 → 鋼種 → 板厚 → 材料規格（例：50*50）。サニタリーパイプは規格を入れると<b>板厚が自動で入ります</b></div></div>
       <div class="pt"><div class="n">3</div><div><b>残りの長さ(mm)</b>を測って入力し、<b>置き場所（棚番号）</b>を選ぶ</div></div>
       <div class="pt"><div class="n">4</div><div>名前を確認して<b>「登録する」</b>で完了。すぐ在庫一覧に出ます</div></div>
-      <div class="gnote" style="margin-top:2mm"><b>QRラベルは後日、事務所が印刷して貼ります</b>（登録した本人が貼る必要はありません）。</div>
+      <div class="gnote" style="margin-top:2mm"><b>QRラベルは後日、事務所が印刷して貼ります</b>（本人が貼る必要はありません）。</div>
     </div>
   </div>
 
@@ -262,7 +293,7 @@
     </tr>
   </table>
 
-  <div class="foot"><span>③ 新しい在庫を登録する ・ Q&amp;A</span><span>4</span></div>
+  <div class="foot"><span>③ 新しい在庫を登録する ・ Q&amp;A</span><span>5</span></div>
 </div>
 
 </body>

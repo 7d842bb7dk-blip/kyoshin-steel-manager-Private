@@ -1250,9 +1250,9 @@ async function markPrinted(){
 }
 function openKeyQr(){
   qrTargetIds=null;
-  $("#qrNote").innerHTML="このラベルを<b>鋼材倉庫の鍵の保管場所に貼ってください</b>。スマホで読み取ると「鍵の持ち出し／返却」画面が開き、誰がいつ倉庫へ行ったかが記録されます。";
+  $("#qrNote").innerHTML="このラベルを<b>鋼材倉庫の鍵の保管場所に貼ってください</b>。スマホでかざすと「鋼材倉庫の鍵」画面が開き、誰がいつ倉庫へ行ったかが記録されます（返却の操作はありません）。";
   let q="";try{q=QR.svg(qrServerBase()+"?key=1","Q");}catch(e){}
-  $("#qrSheet").innerHTML=`<div class="qr-label"><div class="qr-svg">${q}</div><div class="qr-txt"><b>鋼材倉庫の鍵</b><span>行く前・返す時に</span><span>スマホで読み取り</span><span class="qr-id">KEY</span></div></div>`;
+  $("#qrSheet").innerHTML=`<div class="qr-label"><div class="qr-svg">${q}</div><div class="qr-txt"><b>鋼材倉庫の鍵</b><span>倉庫へ行く前に</span><span>スマホでかざす</span><span class="qr-id">KEY</span></div></div>`;
   $("#qrCount").textContent="1 枚";
   $("#qrOverlay").classList.add("show");
 }
