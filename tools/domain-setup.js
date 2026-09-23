@@ -19,6 +19,10 @@ const log = (m) => console.log("  " + m);
   console.log("  事前準備：https://www.duckdns.org でログインし、サブドメインを1つ作成");
   console.log("  （その画面の上部に表示される token をコピーしておく）");
   console.log("");
+  const reach = await acme.duckReachable();
+  if (!reach.ok) throw new Error(reach.message);
+  console.log("  DuckDNS への接続：OK");
+  console.log("");
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
 
   let sub = (await rl.question("1) DuckDNS のサブドメイン名（例: kyoshin-zaiko）: ")).trim().toLowerCase();

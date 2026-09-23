@@ -50,8 +50,22 @@ function lanIP() {
 
 // ── DuckDNS（A レコードと、検証用 TXT レコードの設定） ──
 function duckSub(domain) { return String(domain).toLowerCase().replace(/\.duckdns\.org\.?$/, ""); }
+const FW_BLOCKED = "DuckDNS に接続できません。社内のファイアウォール（FortiGate）でまだブロックされています（duckdns.org の許可が必要）";
+function duckNetError(e) {
+  const code = String((e && e.cause && e.cause.code) || "");
+  // FortiGate の Webフィルターは差し替えた証明書でブロック画面を返すため、証明書エラーになる
+  if (/CERT|SELF_SIGNED|UNABLE_TO_VERIFY/.test(code)) return new Error(FW_BLOCKED);
+  return new Error("DuckDNS に接続できません（" + (code || (e && e.message)) + "）");
+}
+// 設定前の疎通確認（ブロック中かどうか）
+async function duckReachable() {
+  try { await fetch("https://www.duckdns.org/", { method: "HEAD" }); return { ok: true }; }
+  catch (e) { return { ok: false, message: duckNetError(e).message }; }
+}
 async function duck(params) {
-  const r = await fetch("https://www.duckdns.org/update?" + new URLSearchParams(params).toString());
+  let r;
+  try { r = await fetch("https://www.duckdns.org/update?" + new URLSearchParams(params).toString()); }
+  catch (e) { throw duckNetError(e); }
   const t = (await r.text()).trim();
   if (!t.startsWith("OK")) throw new Error("DuckDNS の更新に失敗しました（サブドメイン名かトークンが違う可能性）");
   return t;
@@ -251,6 +265,6 @@ async function renewIfNeeded(log) {
 
 module.exports = {
   DATA_DIR, TLS_DIR, CFG_PATH, DIRS,
-  readCfg, writeCfg, leFiles, certExpiry, lanIP, duckSub,
+  readCfg, writeCfg, leFiles, certExpiry, lanIP, duckSub, duckReachable,
   setARecord, issue, renewIfNeeded, makeCsr, Acme,
 };
