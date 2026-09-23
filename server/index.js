@@ -22,6 +22,18 @@ const HOST = process.env.HOST || "0.0.0.0";
 
 app.use(express.json({ limit: "8mb" }));
 
+// ── アドレスの一本化：正式アドレスは https://<IP>/（証明書があるとき） ──
+//    旧アドレス（http://<IP>:3001 等）でページを開いたら正式アドレスへ自動転送する。
+//    /api/* は転送しない（開きっぱなしの旧ページのポーリングを壊さないため）。
+//    localhost はサーバー機での開発用にそのまま通す。
+app.use((req, res, next) => {
+  if (!httpsOn || req.secure) return next();
+  if (req.path.startsWith("/api/")) return next();
+  if (req.hostname === "localhost" || req.hostname === "127.0.0.1") return next();
+  const suffix = HTTPS_PORT === 443 ? "" : `:${HTTPS_PORT}`;
+  res.redirect(302, `https://${lanIP()}${suffix}${req.originalUrl}`);
+});
+
 // ── 状態取得（差分ポーリング対応） ──
 app.get("/api/state", (req, res) => {
   const version = dbm.getVersion();
@@ -217,9 +229,13 @@ function lanIP() {
   }
   return "localhost";
 }
+function canonicalBase() { // 正式アドレス（QRラベルのリンク先・誘導リンクに使う）
+  if (httpsOn) return `https://${lanIP()}${HTTPS_PORT === 443 ? "" : ":" + HTTPS_PORT}/`;
+  return `http://${lanIP()}:${PORT}/`;
+}
 app.get("/api/health", (req, res) =>
-  res.json({ ok: true, version: dbm.getVersion(), base: `http://${lanIP()}:${PORT}/`,
-    httpsBase: httpsOn ? `https://${lanIP()}:${HTTPS_PORT}/` : null }));
+  res.json({ ok: true, version: dbm.getVersion(), base: canonicalBase(),
+    httpsBase: httpsOn ? canonicalBase() : null }));
 
 // 未定義の /api/* は JSON で 404
 app.use("/api", (req, res) => res.status(404).json({ error: "Not Found" }));
@@ -246,24 +262,46 @@ const server = app.listen(PORT, HOST, () => {
   } catch (e) { console.error("[seed] 失敗:", e && e.message); }
 });
 
-// ── HTTPS（スマホの「かざすだけスキャン」用。カメラAPIはHTTPSでしか使えない） ──
-//    証明書は server/data/tls/（自己署名・Git対象外）。無ければ tools/TLS証明書を作る.bat で生成
-const HTTPS_PORT = parseInt(process.env.HTTPS_PORT || "3443", 10);
+// ── HTTPS（正式アドレス。カメラの「かざすだけスキャン」はHTTPSでしか使えない） ──
+//    証明書は server/data/tls/（自己署名・Git対象外）。無ければ tools/TLS証明書を作る.bat で生成。
+//    443（ポート表記なしの https://<IP>/）で起動し、使えなければ 3443 に退避する。
+let HTTPS_PORT = parseInt(process.env.HTTPS_PORT || "443", 10);
 let httpsOn = false;
 let httpsServer = null;
+function startHttps(tls, port) {
+  const s = https.createServer(tls, app);
+  s.on("error", (e) => {
+    if (port === 443) {
+      console.log(`[steel-manager] 443で起動できず(${e.code})。3443で再試行します`);
+      HTTPS_PORT = 3443;
+      startHttps(tls, 3443);
+    } else {
+      console.error("[steel-manager] HTTPS起動失敗:", e.message);
+    }
+  });
+  s.listen(port, HOST, () => {
+    httpsOn = true;
+    httpsServer = s;
+    const suffix = port === 443 ? "" : `:${port}`;
+    console.log(`[steel-manager] 正式アドレス: https://${lanIP()}${suffix}/`);
+  });
+}
 try {
   const tlsDir = path.join(__dirname, "data", "tls");
   const tls = {
     key: fs.readFileSync(path.join(tlsDir, "key.pem")),
     cert: fs.readFileSync(path.join(tlsDir, "cert.pem")),
   };
-  httpsServer = https.createServer(tls, app).listen(HTTPS_PORT, HOST, () => {
-    httpsOn = true;
-    console.log(`[steel-manager] HTTPS（かざすだけスキャン用）: https://localhost:${HTTPS_PORT}`);
-  });
+  startHttps(tls, HTTPS_PORT);
 } catch (e) {
   console.log("[steel-manager] HTTPSは無効（server/data/tls/ に cert.pem / key.pem が無い）");
 }
+
+// ── http:80 も開けておく（アドレスバーに素のIPを打った人を https へ転送するため） ──
+try {
+  const s80 = app.listen(80, HOST, () => console.log("[steel-manager] http:80 → https へ転送"));
+  s80.on("error", (e) => console.log(`[steel-manager] http:80 は使用不可(${e.code})`));
+} catch (e) {}
 
 process.on("SIGINT", () => { if (httpsServer) httpsServer.close(); server.close(() => process.exit(0)); });
 process.on("SIGTERM", () => { if (httpsServer) httpsServer.close(); server.close(() => process.exit(0)); });
