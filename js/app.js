@@ -101,7 +101,7 @@ function applyMasters(m){
 /* ── 保管場所ガイド（「材料保管場所_住所一覧」PDF 2026-09 版より） ──────────
  * 登録・残り長さ入力のあと「〇-〇 になおしてください」と大きく案内する。
  * 長さ帯(min/max)は現在の在庫の最短〜最長。境界は要確認のため、外れた場合は最も近い棚を提案。 */
-const ANG_HOT=["HOT","未研",""];
+const ANG_HOT=["HOT","未研"]; /* 仕上げ空欄のアングルは判断できないため案内しない */
 const LOC_GUIDE=[
   /* アングル（E=短尺・A=長尺）。HOT系＝HOT・未研・仕上げ空欄。
    * A-3=HL・A-4=#400 はPDFの現場指定どおり（旧データは逆に登録されている分あり） */
@@ -141,6 +141,12 @@ const LOC_GUIDE=[
   {loc:"B-7",cat:"kaku",fin:["#400"],sizes:["150*100"],min:1510,max:1610},
   /* 角パイプ HL（E-12は仕上げ混在） */
   {loc:"E-12",cat:"kaku",fin:["HL"],sizes:["16*16","19*19","30*30","35*35","40*20","40*40","50*15","50*30","50*50","60*40","75*45"],min:1195,max:2580},
+  {loc:"E-12",cat:"kaku",fin:["#400"],sizes:["50*50"],min:1195,max:2580}, /* 混在分（PDF記載） */
+  {loc:"E-12",cat:"kaku",fin:["未研"],sizes:["40*40"],min:1195,max:2580},
+  /* B-1 は角・丸の混在棚（PDF記載の寸法のみ） */
+  {loc:"B-1",cat:"kaku",fin:["#400"],sizes:["25*25","30*15"],min:2300,max:3950},
+  {loc:"B-1",cat:"kaku",fin:["HL"],sizes:["125*75"],min:2300,max:3950},
+  {loc:"B-1",cat:"maru",fin:["未研"],sizes:["48.6"],min:2300,max:3950},
   {loc:"F-11",cat:"kaku",fin:["HL"],sizes:["30*30","35*35","40*40","50*12","50*50","75*75","100*40","100*50","120*60"],min:1130,max:2300},
   {loc:"F-12",cat:"kaku",fin:["HL"],sizes:["35*35","40*40","50*50","60*60","80*40","100*50"],min:1650,max:2290},
   {loc:"H-1",cat:"kaku",fin:["HL"],sizes:["10*10","12*6","16*16","19*19","28*28","32*16","40*18","40*20","40*25","50*12"],min:2210,max:5000},
@@ -168,9 +174,11 @@ const LOC_GUIDE=[
   {loc:"D-7",cat:"kesho",fin:["HL"],sizes:["75.3","76.3","89.1","101.6"],min:2655,max:3800},
   {loc:"C-4",cat:"kesho",fin:["HL"],sizes:["89.1","101.6","114.3","139.8"],min:2260,max:3440},
   {loc:"F-7",cat:"kesho",fin:["HL"],sizes:["21.7","27.2","48.6","50","50.3","60.5","76.3","89.1","101.6"],min:1320,max:2270},
-  /* サニタリー管（チタン管もC-3） */
+  /* サニタリー管（チタン管はC-3のみ） */
   {loc:"F-8",cat:"sani",fin:null,sizes:null,min:790,max:2270},
   {loc:"C-3",cat:"sani",fin:null,sizes:null,min:2190,max:3750},
+  {loc:"C-3",cat:"ti",fin:null,sizes:null,min:1,max:99999},
+  {loc:"C-3",cat:"maru",fin:null,sizes:["16"],min:2190,max:3750}, /* SUS316L TP-S φ16（PDF記載） */
   /* チャンネル */
   {loc:"C-5",cat:"chan",fin:null,sizes:["40*20","60*30","80*40","100*50","130*65","150*75"],min:1610,max:3740},
   {loc:"C-6",cat:"chan",fin:null,sizes:["60*30","80*40","100*50"],min:2300,max:4530},
@@ -181,21 +189,28 @@ const LOC_GUIDE=[
 function locCategory(mat,koshu){
   const m=String(mat||""),k=String(koshu||"");
   if(/アルミ|A5052|A6063/.test(m))return "alumi";
-  if(m.includes("チタン"))return "sani";
+  if(m.includes("チタン"))return "ti";
+  if(!/^SUS/.test(m))return null; /* SS400等の鉄系はPDFに棚の定義がないため案内しない */
   if(k.includes("アングル"))return "angle";
   if(k.includes("角パイプ"))return "kaku";
   if(k.includes("サニタリー"))return "sani";
   if(k.includes("化粧")||k.includes("BA管"))return "kesho";
   if(k.includes("丸パイプ"))return "maru";
   if(k.includes("チャンネル"))return "chan";
-  return null; /* SS400・フラットバー等はPDFに棚の定義がないため案内しない */
+  return null; /* フラットバー等も棚の定義がないため案内しない */
 }
+/* 規格を比較用に正規化（Φ8.0 → "8"、50×50 → "50*50"） */
+function sizeKey(s){
+  return normSpec(s).split("*").map(x=>{const v=x.trim(),n=Number(v);return v!==""&&isFinite(n)?String(n):v;}).join("*");
+}
+/* 置き場所の判定。該当する棚が無い・寸法が棚の表に無いときは null（＝今の場所のまま・案内なし） */
 function suggestLoc(rec){
   const cat=locCategory(rec.mat,rec.koshu);
   if(!cat)return null;
   const fin=String(rec.fin||"").trim();
-  const spec=normSpec(rec.spec);
+  const spec=sizeKey(rec.spec);
   const len=Number(rec.len)||0;
+  if(!spec||!(len>0))return null;
   const finOk=g=>{
     if(!g.fin)return true;
     if(g.fin.includes(fin))return true;
@@ -203,19 +218,24 @@ function suggestLoc(rec){
     if(fin.includes("#400")&&g.fin.some(f=>f.includes("#400")))return true;
     return false;
   };
-  const base=LOC_GUIDE.filter(g=>g.cat===cat&&finOk(g));
-  if(!base.length)return null;
-  const sizeHit=g=>!!g.sizes&&(typeof g.sizes==="function"?g.sizes(spec):g.sizes.includes(spec));
-  const mk=(g,ignoreSize)=>{
-    const sized=sizeHit(g);
-    if(!ignoreSize&&g.sizes&&!sized)return null;
+  const cands=[];
+  LOC_GUIDE.forEach(g=>{
+    if(g.cat!==cat||!finOk(g))return;
+    let specific=false;
+    if(g.sizes){
+      const hit=typeof g.sizes==="function"?g.sizes(spec):g.sizes.some(x=>sizeKey(x)===spec);
+      if(!hit)return;
+      specific=true;
+    }
     const inRange=len>=g.min&&len<=g.max;
-    return{g,inRange,dist:inRange?0:(len<g.min?g.min-len:len-g.max),width:g.max-g.min,sized};
-  };
-  let cands=base.map(g=>mk(g,false)).filter(Boolean);
-  if(!cands.length)cands=base.map(g=>mk(g,true)).filter(Boolean); /* サイズ表に無い寸法は長さと仕上げで判断 */
+    cands.push({g,dist:inRange?0:(len<g.min?g.min-len:len-g.max),width:g.max-g.min,specific});
+  });
   if(!cands.length)return null;
-  cands.sort((a,b)=>(a.inRange===b.inRange?0:(a.inRange?-1:1))||(b.sized-a.sized)||(a.dist-b.dist)||(a.width-b.width));
+  /* 今の棚が条件（仕上げ・寸法・長さ）を満たしていれば動かさない */
+  const cur=String(rec.loc||"").trim();
+  if(cands.some(c=>c.g.loc===cur&&c.dist===0))return cur;
+  /* 長さが近い棚 → 寸法指定のある棚 → 長さの幅が狭い棚 の順 */
+  cands.sort((a,b)=>(a.dist-b.dist)||(b.specific-a.specific)||(a.width-b.width));
   return cands[0].g.loc;
 }
 
@@ -993,11 +1013,12 @@ async function submitCo(){
   /* 残りが出る場合は、残りの長さで置き場所を決めて一緒に登録する（確認なしで決定） */
   const remainPre=usedLen==null?0:Math.round((len-usedLen)*100)/100;
   const prevLoc=String(coTarget.loc||"").trim();
-  const newLoc=remainPre>0?suggestLoc({...coTarget,len:remainPre}):null;
+  const newLoc=(MODE==="server"&&remainPre>0)?suggestLoc({...coTarget,len:remainPre}):null; /* 棚コードは本番倉庫専用 */
   if(MODE==="server"){
     try{
       const j=await apiSend("POST","/api/checkout",{id:coTarget.id,person,usedLen,note,loc:newLoc});
-      await refresh();loadHistory();
+      try{await refresh();}catch(e){} /* 記録は済んでいる。画面更新の失敗は次のポーリングで回復 */
+      loadHistory();
       toast(j.removed?t("持ち出しを記録しました（全部使用・在庫から削除）"):t("持ち出しを記録しました（残り ")+Number(j.remain).toLocaleString()+" mm）");
       closeCo();
       if(!j.removed&&newLoc)showLocGuide(newLoc,prevLoc); /* 残った材料の置き場所を大きく案内 */
@@ -1122,14 +1143,15 @@ async function submitNs(){
   if(!person){toast(t("名前を入力してください"));$("#nsPersonSel").focus();return;}
   try{localStorage.setItem(PERSON_KEY,person);}catch(e){}
   /* 置き場所は棚割りから決定（選ばれた場所と違っても確認なしで決定した方で登録） */
-  const newLoc=suggestLoc({mat:rec.mat,koshu:rec.koshu,fin:rec.fin,spec:rec.spec,len:Number(rec.len)});
-  if(newLoc)rec.loc=newLoc;
   const pickedLoc=$("#ns_loc").value;
+  const newLoc=MODE==="server"?suggestLoc({mat:rec.mat,koshu:rec.koshu,fin:rec.fin,spec:rec.spec,len:Number(rec.len),loc:pickedLoc}):null;
+  if(newLoc)rec.loc=newLoc;
   const body={mat:rec.mat,koshu:rec.koshu,thk:Number(rec.thk),spec:rec.spec,len:Number(rec.len),loc:rec.loc,fin:rec.fin,person};
   if(MODE==="server"){
     try{
       await apiSend("POST","/api/records",body);
-      await refresh();loadHistory();toast(t("残材を登録しました"));closeNs();
+      try{await refresh();}catch(e){} /* 登録は済んでいる。画面更新の失敗は次のポーリングで回復 */
+      loadHistory();toast(t("残材を登録しました"));closeNs();
       if(newLoc)showLocGuide(newLoc,pickedLoc);
     }
     catch(e){toast(t("保存に失敗しました: ")+e.message);}
