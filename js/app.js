@@ -145,6 +145,7 @@ let MODE="local";   // "server" | "local"
 let version=0;      // server: meta.version（差分ポーリング用）
 let pollTimer=null;
 let qrBase="";      // QRラベルに埋めるサーバーURL（/api/health の base。LAN側IPで返る）
+let httpsBase="";   // かざすだけスキャン用のHTTPS URL（/api/health の httpsBase。無効時は空）
 let bootId=0;       // サーバーの起動時刻。変わったら（自動更新で再起動したら）ページを再読み込み
 
 /* サーバーが再起動していたら true を返しつつページを再読み込み（GitHub自動反映の波及）
@@ -166,7 +167,7 @@ async function detectMode(){
   if(location.protocol==="file:")return "local";
   try{
     const r=await fetch("/api/health",{cache:"no-store"});
-    if(r.ok){try{const j=await r.json();if(j&&j.base)qrBase=j.base;}catch(e){}return "server";}
+    if(r.ok){try{const j=await r.json();if(j&&j.base)qrBase=j.base;if(j&&j.httpsBase)httpsBase=j.httpsBase;}catch(e){}return "server";}
   }catch(e){}
   return "local";
 }
@@ -330,6 +331,10 @@ const I18N_VI={
   "持ち出す材料をさがす":"Tìm vật liệu cần lấy",
   "QRを読み取る":"Quét mã QR","ラベルを撮影して、シャッターを押すと読み取ります":"Chụp nhãn QR rồi bấm nút chụp để đọc","読み取り中…":"Đang đọc…",
   "ふつうのカメラアプリをラベルにかざして、出てきたリンクを押してもOK（いちばん確実）":"Cũng có thể dùng camera thường của máy: hướng vào nhãn rồi bấm liên kết hiện ra (cách chắc chắn nhất)",
+  "QRラベルを枠に入れてください":"Đưa nhãn QR vào giữa khung",
+  "カメラを起動できませんでした（許可を確認してください）。かわりに撮影します":"Không mở được camera (hãy kiểm tra quyền truy cập). Sẽ chụp ảnh thay thế",
+  "ライト":"Đèn",
+  "かざすだけで読み取れる新アドレスはこちら（初回だけ警告→「詳細」→閲覧を許可）":"Địa chỉ mới để quét tự động (lần đầu có cảnh báo, hãy chọn cho phép)",
   "残材を登録":"Đăng ký vật liệu thừa","今日納入された材料の残りなど、リストに無い材料はこちら":"Vật liệu chưa có trong danh sách (VD: phần thừa của thanh mới nhập hôm nay)",
   "リストに無い材料（今日納入された定尺の残りなど）を在庫に登録します":"Đăng ký vào kho vật liệu chưa có trong danh sách (VD: phần thừa của thanh mới nhập)",
   "残りの長さ (mm)":"Chiều dài còn lại (mm)","選択してください":"Hãy chọn","先に材質を選択":"Chọn vật liệu trước","選択":"Chọn",
@@ -989,10 +994,21 @@ async function keyAction(){
 let zxingReady=false;
 function prepZxing(){
   if(zxingReady||!window.ZXingWASM)return;
-  try{ZXingWASM.prepareZXingModule({overrides:{locateFile:(f)=>"js/vendor/"+f}});zxingReady=true;}catch(e){}
+  try{
+    const o={locateFile:(f)=>"js/vendor/"+f};
+    if(window.__ZXING_WASM_B64){ /* 単一ファイル版：build.py が埋め込んだ base64 の wasm を直接渡す（file:// では fetch 不可のため） */
+      const s=atob(window.__ZXING_WASM_B64);
+      const b=new Uint8Array(s.length);
+      for(let i=0;i<s.length;i++)b[i]=s.charCodeAt(i);
+      o.wasmBinary=b.buffer;
+      o.locateFile=()=>"data:application/wasm;base64,"+window.__ZXING_WASM_B64;
+    }
+    ZXingWASM.prepareZXingModule({overrides:o});
+    zxingReady=true;
+  }catch(e){}
 }
 /* 読み取り試行の診断情報（失敗時にサーバへ送って原因を調べる） */
-const SCAN_BUILD="2026-09-23.3";
+const SCAN_BUILD="2026-09-23.4";
 function newScanDiag(file){return{build:SCAN_BUILD,name:file&&file.name,type:file&&file.type,size:file&&file.size,bd:"-",zx:"-",zx2:"-",jq:"-"};}
 /* ブラウザの画像デコーダで ImageData 化（HEIC等、zxing内蔵デコーダが開けない形式の救済用） */
 async function fileToImageData(blob,max){
@@ -1043,6 +1059,85 @@ async function decodeQrPhoto(file,d){
     return r;
   }catch(e){d.jq="err:"+((e&&e.message)||e);return null;}
 }
+/* ─── かざすだけスキャナー（カメラ常時起動→自動検出。HTTPSでのみ使える） ─── */
+let scanStream=null,scanRunning=false,torchOn=false;
+function canLiveScan(){return !!(window.isSecureContext&&navigator.mediaDevices&&navigator.mediaDevices.getUserMedia);}
+async function openScanner(){
+  $("#scanOverlay").classList.add("show");
+  $("#scanStatus").textContent=t("QRラベルを枠に入れてください");
+  try{
+    scanStream=await navigator.mediaDevices.getUserMedia({
+      video:{facingMode:{ideal:"environment"},width:{ideal:1920},height:{ideal:1080}},audio:false});
+  }catch(e){
+    closeScanner();
+    toast(t("カメラを起動できませんでした（許可を確認してください）。かわりに撮影します"));
+    $("#scanFile").click();
+    return;
+  }
+  const v=$("#scanVideo");v.srcObject=scanStream;
+  try{await v.play();}catch(e){}
+  torchOn=false;
+  try{ /* ライト（対応端末のみ表示。暗い倉庫向け） */
+    const tr=scanStream.getVideoTracks()[0];
+    const cap=tr.getCapabilities?tr.getCapabilities():{};
+    $("#scanTorch").style.display=cap.torch?"":"none";
+  }catch(e){$("#scanTorch").style.display="none";}
+  scanRunning=true;
+  scanLoop();
+}
+async function scanLoop(){
+  const v=$("#scanVideo");
+  const det=("BarcodeDetector" in window)?new BarcodeDetector({formats:["qr_code"]}):null;
+  prepZxing();
+  const cv=document.createElement("canvas");
+  while(scanRunning){
+    if(v.readyState>=2&&v.videoWidth){
+      try{
+        let text=null;
+        if(det){
+          const rs=await det.detect(v);
+          if(rs&&rs.length&&rs[0].rawValue)text=rs[0].rawValue;
+        }
+        if(!text&&window.ZXingWASM&&zxingReady){
+          const W=v.videoWidth,H=v.videoHeight,sc=Math.min(1,800/Math.max(W,H));
+          cv.width=Math.max(1,Math.round(W*sc));cv.height=Math.max(1,Math.round(H*sc));
+          const cx=cv.getContext("2d");cx.drawImage(v,0,0,cv.width,cv.height);
+          const rs=await ZXingWASM.readBarcodes(cx.getImageData(0,0,cv.width,cv.height),
+            {formats:["QRCode"],tryHarder:true,maxNumberOfSymbols:1});
+          if(rs&&rs.length&&rs[0].text)text=rs[0].text;
+        }
+        if(!text&&!det&&!window.ZXingWASM&&typeof jsQR==="function"){
+          const W=v.videoWidth,H=v.videoHeight,sc=Math.min(1,800/Math.max(W,H));
+          cv.width=Math.max(1,Math.round(W*sc));cv.height=Math.max(1,Math.round(H*sc));
+          const cx=cv.getContext("2d");cx.drawImage(v,0,0,cv.width,cv.height);
+          const dd=cx.getImageData(0,0,cv.width,cv.height);
+          const r=jsQR(dd.data,cv.width,cv.height,{inversionAttempts:"dontInvert"});
+          if(r&&r.data)text=r.data;
+        }
+        if(text){
+          closeScanner();
+          if(!handleScanText(text))toast(t("このシステムのQRではないようです"));
+          return;
+        }
+      }catch(e){}
+    }
+    await new Promise(r=>setTimeout(r,240));
+  }
+}
+function closeScanner(){
+  scanRunning=false;
+  if(scanStream){try{scanStream.getTracks().forEach(tr=>tr.stop());}catch(e){}scanStream=null;}
+  const v=$("#scanVideo");if(v)v.srcObject=null;
+  $("#scanOverlay").classList.remove("show");
+}
+async function toggleTorch(){
+  try{
+    const tr=scanStream&&scanStream.getVideoTracks()[0];if(!tr)return;
+    torchOn=!torchOn;
+    await tr.applyConstraints({advanced:[{torch:torchOn}]});
+  }catch(e){}
+}
+
 /* 読めなかった写真＋端末情報をサーバへ送る（調査用。失敗しても黙って続行） */
 function reportScanFail(blob,diag){
   if(MODE!=="server")return;
@@ -1351,10 +1446,14 @@ async function init(){
       toast(t("QRを読み取れませんでした。ラベルに近づけて撮り直してください"));
     }
   };
-  $("#btnScan").addEventListener("click",()=>$("#scanFile").click());
+  /* HTTPSなら「かざすだけ」ライブスキャナー、HTTPなら従来の撮影方式 */
+  $("#btnScan").addEventListener("click",()=>{if(canLiveScan())openScanner();else $("#scanFile").click();});
   $("#btnScanAlt").addEventListener("click",()=>$("#scanFile2").click());
   $("#scanFile").addEventListener("change",onScanPhoto);
   $("#scanFile2").addEventListener("change",onScanPhoto);
+  $("#scanClose").addEventListener("click",closeScanner);
+  $("#scanTorch").addEventListener("click",toggleTorch);
+  $("#scanOverlay").addEventListener("click",e=>{if(e.target===$("#scanOverlay"))closeScanner();});
   $("#qrClose").addEventListener("click",closeQr);$("#qrCancel").addEventListener("click",closeQr);
   $("#qrPrint").addEventListener("click",()=>{document.body.classList.add("qr-printing");window.print();});
   window.addEventListener("afterprint",()=>{
@@ -1368,12 +1467,16 @@ async function init(){
     openQr(ids);
   });
   $("#qrOverlay").addEventListener("click",e=>{if(e.target===$("#qrOverlay"))closeQr();});
-  if(MODE!=="server"){ /* QRラベル・読み取りはサーバー版のみ（URL必須／単一ファイル版はデコーダ未同梱） */
+  if(MODE!=="server"){ /* QRラベル印刷はサーバー版のみ（ラベルにサーバーURLを埋めるため） */
     $("#btnQrAll").style.display="none";$("#btnQrKey").style.display="none";
-    $("#btnScan").style.display="none";$("#btnScanAlt").style.display="none";
+    /* 読み取りはデコーダ（jsQR / zxing-wasm）が同梱されていれば単一ファイル版でも使える。
+     * どのデコーダも無い環境（想定外）だけボタンを隠す */
+    if(typeof jsQR!=="function"&&!window.ZXingWASM&&!("BarcodeDetector" in window)){
+      $("#btnScan").style.display="none";$("#btnScanAlt").style.display="none";
+    }
   }
   document.addEventListener("keydown",e=>{
-    if(e.key==="Escape"){closeModal();closePin();closeHelp();closeCo();closeQr();closeKey();closeNs();}
+    if(e.key==="Escape"){closeModal();closePin();closeHelp();closeCo();closeQr();closeKey();closeNs();closeScanner();}
     else if(e.key==="?"||e.key==="F1"){const t=(document.activeElement||{}).tagName;if(t!=="INPUT"&&t!=="SELECT"&&t!=="TEXTAREA"){e.preventDefault();openHelp();}}
   });
   $("#btnExportSearch").addEventListener("click",()=>{if(!lastSearch.length){toast("出力対象がありません");return;}exportCSV(lastSearch,"検索結果.csv");});
@@ -1409,6 +1512,15 @@ async function init(){
   $("#helpBtn").addEventListener("click",openHelp);$("#helpClose").addEventListener("click",closeHelp);$("#helpOk").addEventListener("click",closeHelp);
   $("#helpOverlay").addEventListener("click",e=>{if(e.target===$("#helpOverlay"))closeHelp();});
   applyAdmin();
+  /* スキャン方式の案内：HTTPS＝「かざすだけ」なのでヒント不要。HTTPのスマホにはHTTPSへの誘導リンクを出す */
+  const _sh=document.querySelector(".scan-hint");
+  if(_sh){
+    if(canLiveScan())_sh.style.display="none";
+    else if(MODE==="server"&&httpsBase){
+      _sh.removeAttribute("data-i18n");
+      _sh.innerHTML='<a href="'+httpsBase+'">'+t("かざすだけで読み取れる新アドレスはこちら（初回だけ警告→「詳細」→閲覧を許可）")+"</a>";
+    }
+  }
   renderInventory();renderMasters();runSearch();updateFoot();renderCheckout();
   await loadHistory(); /* 名前の選択肢に履歴の名前を使うため、QR直開きの前に読み込みを終える */
   const _n=new Date(),_w=["日","月","火","水","木","金","土"][_n.getDay()];

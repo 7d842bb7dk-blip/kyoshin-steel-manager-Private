@@ -8,6 +8,7 @@
 const path = require("node:path");
 const os = require("node:os");
 const fs = require("node:fs");
+const https = require("node:https");
 const { execFile } = require("node:child_process");
 const express = require("express");
 const dbm = require("./db");
@@ -217,7 +218,8 @@ function lanIP() {
   return "localhost";
 }
 app.get("/api/health", (req, res) =>
-  res.json({ ok: true, version: dbm.getVersion(), base: `http://${lanIP()}:${PORT}/` }));
+  res.json({ ok: true, version: dbm.getVersion(), base: `http://${lanIP()}:${PORT}/`,
+    httpsBase: httpsOn ? `https://${lanIP()}:${HTTPS_PORT}/` : null }));
 
 // 未定義の /api/* は JSON で 404
 app.use("/api", (req, res) => res.status(404).json({ error: "Not Found" }));
@@ -244,7 +246,26 @@ const server = app.listen(PORT, HOST, () => {
   } catch (e) { console.error("[seed] 失敗:", e && e.message); }
 });
 
-process.on("SIGINT", () => server.close(() => process.exit(0)));
-process.on("SIGTERM", () => server.close(() => process.exit(0)));
+// ── HTTPS（スマホの「かざすだけスキャン」用。カメラAPIはHTTPSでしか使えない） ──
+//    証明書は server/data/tls/（自己署名・Git対象外）。無ければ tools/TLS証明書を作る.bat で生成
+const HTTPS_PORT = parseInt(process.env.HTTPS_PORT || "3443", 10);
+let httpsOn = false;
+let httpsServer = null;
+try {
+  const tlsDir = path.join(__dirname, "data", "tls");
+  const tls = {
+    key: fs.readFileSync(path.join(tlsDir, "key.pem")),
+    cert: fs.readFileSync(path.join(tlsDir, "cert.pem")),
+  };
+  httpsServer = https.createServer(tls, app).listen(HTTPS_PORT, HOST, () => {
+    httpsOn = true;
+    console.log(`[steel-manager] HTTPS（かざすだけスキャン用）: https://localhost:${HTTPS_PORT}`);
+  });
+} catch (e) {
+  console.log("[steel-manager] HTTPSは無効（server/data/tls/ に cert.pem / key.pem が無い）");
+}
+
+process.on("SIGINT", () => { if (httpsServer) httpsServer.close(); server.close(() => process.exit(0)); });
+process.on("SIGTERM", () => { if (httpsServer) httpsServer.close(); server.close(() => process.exit(0)); });
 
 module.exports = app;

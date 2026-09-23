@@ -450,6 +450,17 @@ select.m-in{width:auto;max-width:100%;cursor:pointer}
 .ns-hint{font-size:12px;color:var(--ink-soft);background:var(--bg);border-radius:8px;padding:8px 12px;line-height:1.6;margin-bottom:4px}
 .ns-row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 
+/* ─── かざすだけQRスキャナー ─── */
+.scan-modal{width:480px;max-width:96vw}
+.scan-videowrap{position:relative;background:#000;overflow:hidden}
+.scan-videowrap video{display:block;width:100%;height:min(62vh,520px);object-fit:cover;background:#000}
+.scan-frame{position:absolute;left:50%;top:50%;width:min(58vw,240px);height:min(58vw,240px);transform:translate(-50%,-50%);
+  border-radius:14px;box-shadow:0 0 0 200vmax rgba(0,0,0,.32);pointer-events:none}
+.scan-frame::before{content:"";position:absolute;inset:-2px;border-radius:14px;border:2.5px solid #fff;opacity:.9}
+.scan-tools{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 16px}
+.scan-status{font-size:12.5px;color:var(--ink-soft)}
+#scanTorch svg{width:15px;height:15px}
+
 .scan-btn,.scan-alt,.scan-hint{display:none} /* QR読み取りボタンはスマホのみ */
 @media(max-width:760px){
   /* スマホ＝持ち出し画面だけのシンプル表示。タブ・見出し・管理系ボタンは出さない */
@@ -466,6 +477,7 @@ select.m-in{width:auto;max-width:100%;cursor:pointer}
     font-family:var(--jp);font-size:12.5px;font-weight:700;cursor:pointer}
   .scan-alt:active{transform:scale(.98)}
   .scan-hint{display:block;margin:0 4px 12px;font-size:11px;line-height:1.55;color:var(--ink-faint);text-align:center}
+  .scan-hint a{color:var(--accent);font-weight:700}
   .newstock-btn{padding:13px 16px}
   .newstock-btn .nsb-t{font-size:16px}
   .newstock-btn:active{transform:scale(.98)}
