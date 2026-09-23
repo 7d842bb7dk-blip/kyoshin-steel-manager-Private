@@ -11528,6 +11528,7 @@ const I18N_VI={
   "QRを読み取る":"Quét mã QR","ラベルを撮影して、シャッターを押すと読み取ります":"Chụp nhãn QR rồi bấm nút chụp để đọc","読み取り中…":"Đang đọc…",
   "ふつうのカメラアプリをラベルにかざして、出てきたリンクを押してもOK":"Cũng có thể dùng camera thường của máy: hướng vào nhãn rồi bấm liên kết hiện ra",
   "QRラベルを枠に入れてください":"Đưa nhãn QR vào giữa khung",
+  "ラベルにかざすだけで自動で読み取ります":"Chỉ cần hướng vào nhãn, máy sẽ tự đọc",
   "カメラを起動できませんでした（許可を確認してください）。かわりに撮影します":"Không mở được camera (hãy kiểm tra quyền truy cập). Sẽ chụp ảnh thay thế",
   "ライト":"Đèn",
   "かざすだけで読み取れる新アドレスはこちら（初回だけ警告→「詳細」→閲覧を許可）":"Địa chỉ mới để quét tự động (lần đầu có cảnh báo, hãy chọn cho phép)",
@@ -12720,7 +12721,9 @@ async function init(){
   $("#helpBtn").addEventListener("click",openHelp);$("#helpClose").addEventListener("click",closeHelp);$("#helpOk").addEventListener("click",closeHelp);
   $("#helpOverlay").addEventListener("click",e=>{if(e.target===$("#helpOverlay"))closeHelp();});
   applyAdmin();
-  /* スキャン方式の案内：HTTPS＝「かざすだけ」なのでヒント不要。HTTPのスマホにはHTTPSへの誘導リンクを出す */
+  /* スキャン方式の案内：HTTPS＝「かざすだけ」なので説明も切り替える。HTTPのスマホにはHTTPSへの誘導リンクを出す */
+  const _ss=document.querySelector(".scan-s");
+  if(_ss&&canLiveScan()){_ss.removeAttribute("data-i18n");_ss.textContent=t("ラベルにかざすだけで自動で読み取ります");}
   const _sh=document.querySelector(".scan-hint");
   if(_sh){
     if(canLiveScan())_sh.style.display="none";
