@@ -142,6 +142,30 @@ app.get("/api/history", (req, res) => {
   res.json({ items: dbm.getHistory(req.query.limit), version: dbm.getVersion() });
 });
 
+// ── QR読み取り失敗の診断（失敗した写真＋端末情報を保存。原因調査用・最新20件のみ） ──
+const SCANFAIL_DIR = path.join(__dirname, "data", "scanfail");
+app.post("/api/scanfail", express.raw({ type: "application/octet-stream", limit: "25mb" }), (req, res) => {
+  try {
+    fs.mkdirSync(SCANFAIL_DIR, { recursive: true });
+    let meta = {};
+    try { meta = JSON.parse(decodeURIComponent(String(req.headers["x-scan-meta"] || ""))); } catch (e) {}
+    if (!meta || typeof meta !== "object" || Array.isArray(meta)) meta = {};
+    const ts = new Date().toISOString().replace(/[:.]/g, "-") + "-" + Math.random().toString(36).slice(2, 6);
+    const ext = /png/i.test(String(meta.type || "")) ? "png" : "jpg";
+    if (req.body && req.body.length) fs.writeFileSync(path.join(SCANFAIL_DIR, `${ts}.${ext}`), req.body);
+    fs.writeFileSync(path.join(SCANFAIL_DIR, `${ts}.json`),
+      JSON.stringify({ ...meta, ip: req.ip, bytes: req.body ? req.body.length : 0 }, null, 2));
+    const files = fs.readdirSync(SCANFAIL_DIR).sort(); // ISO名なので辞書順=時刻順
+    while (files.length > 40) { // 写真+JSONで2ファイル/件 → 20件まで
+      const f = files.shift();
+      try { fs.unlinkSync(path.join(SCANFAIL_DIR, f)); } catch (e) {}
+    }
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: `診断の保存に失敗: ${e.message}` });
+  }
+});
+
 // ── GitHub 自動反映：定期的に origin を確認し、新しいコミットがあれば取り込んで再起動 ──
 //    無効化したい場合は環境変数 AUTO_UPDATE_SEC=0 で起動する
 const AUTO_UPDATE_SEC = parseInt(process.env.AUTO_UPDATE_SEC || "180", 10);
@@ -188,12 +212,17 @@ app.get("/api/health", (req, res) =>
 app.use("/api", (req, res) => res.status(404).json({ error: "Not Found" }));
 
 // ── 静的配信（既存フロントのみ。server/ や data/ は配信しない） ──
-const sendFile = (rel) => (req, res) => res.sendFile(path.join(ROOT, rel));
+//    no-cache = 毎回サーバへ確認（304なら転送なし）。スマホに古いJSが残る事故を防ぐ
+const noCache = { setHeaders: (res) => res.set("Cache-Control", "no-cache") };
+const sendFile = (rel) => (req, res) => {
+  res.set("Cache-Control", "no-cache");
+  res.sendFile(path.join(ROOT, rel));
+};
 app.get("/", sendFile("index.html"));
 app.get("/index.html", sendFile("index.html"));
 app.get("/styles.css", sendFile("styles.css"));
-app.use("/js", express.static(path.join(ROOT, "js")));
-app.use("/assets", express.static(path.join(ROOT, "assets")));
+app.use("/js", express.static(path.join(ROOT, "js"), noCache));
+app.use("/assets", express.static(path.join(ROOT, "assets"), noCache));
 
 const server = app.listen(PORT, HOST, () => {
   console.log(`[steel-manager] listening on http://localhost:${PORT}  (host=${HOST})`);

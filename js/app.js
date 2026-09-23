@@ -336,6 +336,9 @@ const I18N_VI={
   "登録する":"Đăng ký","残材を登録しました":"Đã đăng ký vật liệu vào kho","保存に失敗しました: ":"Lưu thất bại: ",
   "例: 2500":"VD: 2500",
   "QRを読み取れませんでした。ラベルに近づけて撮り直してください":"Không đọc được QR. Hãy chụp lại gần hơn",
+  "読み取れませんでした（写真は調査用に送信済み）。スマホのカメラアプリで大きく撮ってから「写真から選ぶ」も試してください":"Không đọc được (ảnh đã được gửi để kiểm tra). Hãy chụp to và rõ bằng camera của máy, rồi bấm 「Chọn từ ảnh đã chụp」",
+  "このシステムのQRではないようです":"Có vẻ không phải mã QR của hệ thống này",
+  "うまく読めないとき：写真から選ぶ":"Khi khó đọc: chọn từ ảnh đã chụp",
   "この在庫は見つかりません（すでに使い切った可能性があります）":"Không tìm thấy tồn kho này (có thể đã dùng hết)",
   "使う材料の「持ち出す」ボタンを押してください。空欄はすべて対象です。":"Nhấn nút 「Lấy ra」 của vật liệu cần dùng. Để trống = tất cả.",
   "持ち出す":"Lấy ra","条件に一致する在庫がありません":"Không có tồn kho phù hợp",
@@ -987,31 +990,75 @@ function prepZxing(){
   if(zxingReady||!window.ZXingWASM)return;
   try{ZXingWASM.prepareZXingModule({overrides:{locateFile:(f)=>"js/vendor/"+f}});zxingReady=true;}catch(e){}
 }
-async function decodeQrPhoto(file){
+/* 読み取り試行の診断情報（失敗時にサーバへ送って原因を調べる） */
+const SCAN_BUILD="2026-09-23.3";
+function newScanDiag(file){return{build:SCAN_BUILD,name:file&&file.name,type:file&&file.type,size:file&&file.size,bd:"-",zx:"-",zx2:"-",jq:"-"};}
+/* ブラウザの画像デコーダで ImageData 化（HEIC等、zxing内蔵デコーダが開けない形式の救済用） */
+async function fileToImageData(blob,max){
+  const url=URL.createObjectURL(blob);
+  try{
+    const img=await new Promise((ok,ng)=>{const i=new Image();i.onload=()=>ok(i);i.onerror=ng;i.src=url;});
+    const W=img.naturalWidth||img.width,H=img.naturalHeight||img.height;
+    const sc=Math.min(1,(max||2200)/Math.max(W,H));
+    const w=Math.max(1,Math.round(W*sc)),h=Math.max(1,Math.round(H*sc));
+    const cv=document.createElement("canvas");cv.width=w;cv.height=h;
+    const cx=cv.getContext("2d");cx.drawImage(img,0,0,w,h);
+    return{data:cx.getImageData(0,0,w,h),W,H};
+  }finally{URL.revokeObjectURL(url);}
+}
+async function decodeQrPhoto(file,d){
+  d=d||newScanDiag(file);
   try{
     if("BarcodeDetector" in window){
       const bmp=await createImageBitmap(file);
+      d.w=bmp.width;d.h=bmp.height;
       const det=new BarcodeDetector({formats:["qr_code"]});
       const rs=await det.detect(bmp);
       if(bmp.close)bmp.close();
-      if(rs&&rs.length&&rs[0].rawValue)return rs[0].rawValue;
-    }
-  }catch(e){}
+      if(rs&&rs.length&&rs[0].rawValue){d.bd="hit";return rs[0].rawValue;}
+      d.bd="miss";
+    }else d.bd="none";
+  }catch(e){d.bd="err:"+((e&&e.message)||e);}
   try{
     if(window.ZXingWASM){
       prepZxing();
       const rs=await ZXingWASM.readBarcodes(file,{formats:["QRCode"],tryHarder:true,maxNumberOfSymbols:1});
-      if(rs&&rs.length&&rs[0].text)return rs[0].text;
+      if(rs&&rs.length&&rs[0].text){d.zx="hit";return rs[0].text;}
+      d.zx="miss";
+    }else d.zx="none";
+  }catch(e){d.zx="err:"+((e&&e.message)||e);}
+  try{ /* ②b: HEIC等はzxing内蔵デコーダで開けないので、ブラウザで描画してから再挑戦 */
+    if(window.ZXingWASM&&zxingReady&&d.zx!=="hit"){
+      const im=await fileToImageData(file,2200);
+      if(!d.w){d.w=im.W;d.h=im.H;}
+      const rs=await ZXingWASM.readBarcodes(im.data,{formats:["QRCode"],tryHarder:true,maxNumberOfSymbols:1});
+      if(rs&&rs.length&&rs[0].text){d.zx2="hit";return rs[0].text;}
+      d.zx2="miss";
     }
-  }catch(e){}
-  return await scanImageFile(file);
+  }catch(e){d.zx2="err:"+((e&&e.message)||e);}
+  try{
+    const r=await scanImageFile(file,d);
+    d.jq=r?"hit":(typeof jsQR==="function"?"miss":"none");
+    return r;
+  }catch(e){d.jq="err:"+((e&&e.message)||e);return null;}
 }
-async function scanImageFile(file){
+/* 読めなかった写真＋端末情報をサーバへ送る（調査用。失敗しても黙って続行） */
+function reportScanFail(blob,diag){
+  if(MODE!=="server")return;
+  try{
+    const meta=Object.assign({},diag||{},{ua:navigator.userAgent,at:new Date().toISOString()});
+    fetch("/api/scanfail",{method:"POST",
+      headers:{"Content-Type":"application/octet-stream","X-Scan-Meta":encodeURIComponent(JSON.stringify(meta))},
+      body:blob}).catch(()=>{});
+  }catch(e){}
+}
+async function scanImageFile(file,d){
   if(typeof jsQR!=="function")return null;
   const url=URL.createObjectURL(file);
   try{
     const img=await new Promise((ok,ng)=>{const i=new Image();i.onload=()=>ok(i);i.onerror=ng;i.src=url;});
     const W=img.naturalWidth||img.width,H=img.naturalHeight||img.height;
+    if(d&&!d.w){d.w=W;d.h=H;}
     /* スマホ写真は大きく、QRが小さく写ることも多い。
      * 解像度を変えた全体→中央部分の切り抜き、の順で粘り強く試す */
     const tries=[
@@ -1282,16 +1329,31 @@ async function init(){
     fillDatalist($("#dl_nsspec"),k?specOptions(k):[]);
     fillSelect($("#ns_fin"),finOptions($("#ns_mat").value,k),"指定なし");
   });
-  /* QR読み取り（スマホ：カメラで撮影→解析） */
-  $("#btnScan").addEventListener("click",()=>$("#scanFile").click());
-  $("#scanFile").addEventListener("change",async e=>{
+  /* QR読み取り（スマホ：カメラで撮影→解析。#scanFile2 はカメラ強制なしの「写真から選ぶ」） */
+  const onScanPhoto=async e=>{
     const f=e.target.files[0];e.target.value="";if(!f)return;
     toast(t("読み取り中…"));
-    try{
-      const text=await decodeQrPhoto(f);
-      if(!text||!handleScanText(text))toast(t("QRを読み取れませんでした。ラベルに近づけて撮り直してください"));
-    }catch(err){toast(t("QRを読み取れませんでした。ラベルに近づけて撮り直してください"));}
-  });
+    /* iOSでは input 由来の File が数秒後に読めなくなることがあるため、先に中身を確保しておく */
+    let blob=f;
+    try{blob=new Blob([await f.arrayBuffer()],{type:f.type||"image/jpeg"});}catch(err){}
+    const d=newScanDiag(f);
+    let text=null;
+    try{text=await decodeQrPhoto(blob,d);}catch(err){}
+    if(text){
+      if(!handleScanText(text))toast(t("このシステムのQRではないようです"));
+      return;
+    }
+    if(MODE==="server"){
+      reportScanFail(blob,d); /* 写真を調査用に自動送信 */
+      toast(t("読み取れませんでした（写真は調査用に送信済み）。スマホのカメラアプリで大きく撮ってから「写真から選ぶ」も試してください"));
+    }else{
+      toast(t("QRを読み取れませんでした。ラベルに近づけて撮り直してください"));
+    }
+  };
+  $("#btnScan").addEventListener("click",()=>$("#scanFile").click());
+  $("#btnScanAlt").addEventListener("click",()=>$("#scanFile2").click());
+  $("#scanFile").addEventListener("change",onScanPhoto);
+  $("#scanFile2").addEventListener("change",onScanPhoto);
   $("#qrClose").addEventListener("click",closeQr);$("#qrCancel").addEventListener("click",closeQr);
   $("#qrPrint").addEventListener("click",()=>{document.body.classList.add("qr-printing");window.print();});
   window.addEventListener("afterprint",()=>{
@@ -1305,7 +1367,10 @@ async function init(){
     openQr(ids);
   });
   $("#qrOverlay").addEventListener("click",e=>{if(e.target===$("#qrOverlay"))closeQr();});
-  if(MODE!=="server"){$("#btnQrAll").style.display="none";$("#btnQrKey").style.display="none";} /* QRラベルはサーバー版のみ（URLが必要） */
+  if(MODE!=="server"){ /* QRラベル・読み取りはサーバー版のみ（URL必須／単一ファイル版はデコーダ未同梱） */
+    $("#btnQrAll").style.display="none";$("#btnQrKey").style.display="none";
+    $("#btnScan").style.display="none";$("#btnScanAlt").style.display="none";
+  }
   document.addEventListener("keydown",e=>{
     if(e.key==="Escape"){closeModal();closePin();closeHelp();closeCo();closeQr();closeKey();closeNs();}
     else if(e.key==="?"||e.key==="F1"){const t=(document.activeElement||{}).tagName;if(t!=="INPUT"&&t!=="SELECT"&&t!=="TEXTAREA"){e.preventDefault();openHelp();}}

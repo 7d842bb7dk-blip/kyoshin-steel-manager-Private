@@ -122,6 +122,9 @@
         <span class="scan-s" data-i18n="材料のラベルを撮影してください">材料のラベルを撮影してください</span>
       </button>
       <input type="file" id="scanFile" accept="image/*" capture="environment" style="display:none">
+      <!-- カメラのピントが合わない端末向けの逃げ道：純正カメラで撮ってからアルバムの写真を選ぶ -->
+      <button class="scan-alt" id="btnScanAlt" data-i18n="うまく読めないとき：写真から選ぶ">うまく読めないとき：写真から選ぶ</button>
+      <input type="file" id="scanFile2" accept="image/*" style="display:none">
       <button class="newstock-btn" id="btnNewStock">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 7v10l9 4 4.5-2"/><path d="M18 15v6M15 18h6"/></svg>
         <span class="nsb-txt"><span class="nsb-t" data-i18n="残材を登録">残材を登録</span><span class="nsb-s" data-i18n="今日納入された材料の残りなど、リストに無い材料はこちら">今日納入された材料の残りなど、リストに無い材料はこちら</span></span>
