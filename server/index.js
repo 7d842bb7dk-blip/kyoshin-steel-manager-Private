@@ -171,8 +171,19 @@ app.post("/api/scanfail", express.raw({ type: "application/octet-stream", limit:
 const AUTO_UPDATE_SEC = parseInt(process.env.AUTO_UPDATE_SEC || "180", 10);
 const gitExec = (args, cb) => execFile("git", args, { cwd: ROOT, timeout: 60000 }, cb);
 let updating = false;
+let startedHead = ""; // 起動時のコミット。変わっていたら（このPCで直接コミットした場合も）再起動する
+gitExec(["rev-parse", "HEAD"], (e, out) => { if (!e) startedHead = String(out).trim(); });
 function checkForUpdate() {
   if (updating) return;
+  // ① このPC上で直接コミットされた場合（リモートより遅れ0でも HEAD は変わる）
+  gitExec(["rev-parse", "HEAD"], (eh, oh) => {
+    if (!eh && startedHead && String(oh).trim() !== startedHead && !updating) {
+      updating = true;
+      console.log("[auto-update] このPCでの新しいコミットを検出。再起動します。");
+      setTimeout(() => process.exit(0), 500);
+    }
+  });
+  // ② GitHub 側の新しいコミット
   gitExec(["fetch", "--quiet"], (err) => {
     if (err) return; // オフライン・認証切れ等は無視（次回に再試行）
     gitExec(["rev-list", "--count", "HEAD..@{u}"], (err2, stdout) => {

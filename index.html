@@ -119,12 +119,13 @@
       <button class="scan-btn" id="btnScan">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2"/><rect x="8" y="8" width="8" height="8" rx="1"/></svg>
         <span class="scan-t" data-i18n="QRを読み取る">QRを読み取る</span>
-        <span class="scan-s" data-i18n="材料のラベルを撮影してください">材料のラベルを撮影してください</span>
+        <span class="scan-s" data-i18n="ラベルを撮影して、シャッターを押すと読み取ります">ラベルを撮影して、シャッターを押すと読み取ります</span>
       </button>
       <input type="file" id="scanFile" accept="image/*" capture="environment" style="display:none">
       <!-- カメラのピントが合わない端末向けの逃げ道：純正カメラで撮ってからアルバムの写真を選ぶ -->
       <button class="scan-alt" id="btnScanAlt" data-i18n="うまく読めないとき：写真から選ぶ">うまく読めないとき：写真から選ぶ</button>
       <input type="file" id="scanFile2" accept="image/*" style="display:none">
+      <div class="scan-hint" data-i18n="ふつうのカメラアプリをラベルにかざして、出てきたリンクを押してもOK（いちばん確実）">ふつうのカメラアプリをラベルにかざして、出てきたリンクを押してもOK（いちばん確実）</div>
       <button class="newstock-btn" id="btnNewStock">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 7v10l9 4 4.5-2"/><path d="M18 15v6M15 18h6"/></svg>
         <span class="nsb-txt"><span class="nsb-t" data-i18n="残材を登録">残材を登録</span><span class="nsb-s" data-i18n="今日納入された材料の残りなど、リストに無い材料はこちら">今日納入された材料の残りなど、リストに無い材料はこちら</span></span>

@@ -450,7 +450,7 @@ select.m-in{width:auto;max-width:100%;cursor:pointer}
 .ns-hint{font-size:12px;color:var(--ink-soft);background:var(--bg);border-radius:8px;padding:8px 12px;line-height:1.6;margin-bottom:4px}
 .ns-row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 
-.scan-btn,.scan-alt{display:none} /* QR読み取りボタンはスマホのみ */
+.scan-btn,.scan-alt,.scan-hint{display:none} /* QR読み取りボタンはスマホのみ */
 @media(max-width:760px){
   /* スマホ＝持ち出し画面だけのシンプル表示。タブ・見出し・管理系ボタンは出さない */
   .scan-btn{display:flex;flex-direction:column;align-items:center;gap:3px;width:100%;padding:17px 14px;margin-bottom:8px;
@@ -461,10 +461,11 @@ select.m-in{width:auto;max-width:100%;cursor:pointer}
   .scan-btn .scan-s{font-size:11.5px;opacity:.88}
   .scan-btn:active{transform:scale(.98)}
   /* ピントが合わない端末向け：純正カメラで撮った写真をアルバムから選ぶ小さめボタン */
-  .scan-alt{display:block;width:100%;margin:0 0 12px;padding:9px 12px;border-radius:12px;
+  .scan-alt{display:block;width:100%;margin:0 0 6px;padding:9px 12px;border-radius:12px;
     border:1.5px dashed var(--line);background:var(--panel);color:var(--ink-soft);
     font-family:var(--jp);font-size:12.5px;font-weight:700;cursor:pointer}
   .scan-alt:active{transform:scale(.98)}
+  .scan-hint{display:block;margin:0 4px 12px;font-size:11px;line-height:1.55;color:var(--ink-faint);text-align:center}
   .newstock-btn{padding:13px 16px}
   .newstock-btn .nsb-t{font-size:16px}
   .newstock-btn:active{transform:scale(.98)}
