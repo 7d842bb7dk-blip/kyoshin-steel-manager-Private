@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>stage</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="strip"></div>
+<header class="header">
+  <div class="brandwrap"><img class="brandlogo" src="logo.png" alt="Kyo-shin"></div>
+</header>
+<nav class="tabs"></nav>
+<main class="content"><section class="view active"><div class="panel" style="height:600px"></div></section></main>
+
+<div class="overlay show" id="coOverlay">
+  <div class="modal co-modal">
+    <div class="modal-h">
+      <h3><svg class="sec-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 7v10l7 3.1"/><path d="M14 17h8M18.5 13.5 22 17l-3.5 3.5"/></svg>持ち出し登録</h3>
+      <button class="x"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </div>
+    <div class="co-body">
+      <div class="co-item"><span class="co-ic sm"><svg viewBox="0 0 24 24"><path fill="#3a6fb0" fill-rule="evenodd" d="M3.5 4.5h17v15h-17zM7 8v8h10V8z"/></svg></span><span class="pill mat m-sus304">SUS304</span><b>角パイプ</b><span class="co-spec">50*50 × t2</span><span class="co-len">長さ 3,000 mm</span></div>
+      <div class="co-q">どれだけ使いますか？</div>
+      <div class="co-modes">
+        <button class="co-mode"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 13l4 4L19 7"/></svg>全部 持ち出す</button>
+        <button class="co-mode active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M7 21 21 7M4 8l4 4M8 4l4 4M3 3l4 4"/></svg>一部使った（残りを登録）</button>
+      </div>
+      <div class="co-part" style="display:block">
+        <label class="co-lab">残りの長さ (mm) — 使用後に残った長さを測って入力
+          <input type="number" class="num co-input" value="1500">
+        </label>
+        <div class="co-remain">→ 1,500 mm 使用・残り 1,500 mm で登録します</div>
+      </div>
+      <label class="co-lab"><span>あなたの名前</span><span class="req">*</span>
+        <select class="co-input"><option selected>山田　太郎</option></select>
+      </label>
+      <label class="co-lab">メモ（任意）
+        <input type="text" class="co-input" placeholder="例: ◯◯案件で使用">
+      </label>
+    </div>
+    <div class="modal-foot">
+      <div style="display:flex;gap:9px;margin-left:auto">
+        <button class="btn ghost">キャンセル</button>
+        <button class="btn primary"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 13l4 4L19 7"/></svg>持ち出しを記録</button>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

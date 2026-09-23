@@ -64,13 +64,13 @@
         <rect x="24" y="24" width="8" height="8" fill="#15171c"/><rect x="38" y="30" width="6" height="6" fill="#15171c"/><rect x="26" y="40" width="6" height="6" fill="#15171c"/><rect x="46" y="42" width="8" height="8" fill="#15171c"/>
       </g>
       <text x="158" y="163" text-anchor="middle" font-size="9" fill="#5d6675">鍵置き場のQR</text>
-      <!-- スマホ -->
-      <g transform="translate(150,180)">
-        <rect x="0" y="0" width="34" height="60" rx="7" fill="#15171c"/><rect x="3" y="5" width="28" height="50" rx="3" fill="#fff"/>
-        <rect x="7" y="10" width="20" height="20" fill="none" stroke="#df1f26" stroke-width="2"/>
-        <rect x="11" y="14" width="12" height="12" fill="#15171c" opacity=".7"/>
+      <!-- スマホ（実画面） -->
+      <g transform="translate(146,172)">
+        <rect x="-3" y="-3" width="42" height="90" rx="9" fill="#15171c"/>
+        <clipPath id="c1p"><rect x="0" y="0" width="36" height="78" rx="5"/></clipPath>
+        <image href="shots/shot-key.png" x="0" y="0" width="36" height="78" clip-path="url(#c1p)" preserveAspectRatio="xMidYMin slice"/>
       </g>
-      <path d="M144 205 L128 175" stroke="#df1f26" stroke-width="2.5" fill="none" marker-end="url(#ar)"/>
+      <path d="M140 205 L126 175" stroke="#df1f26" stroke-width="2.5" fill="none" marker-end="url(#ar)"/>
       <text x="117" y="272" text-anchor="middle" font-size="12" font-weight="700" fill="#15171c">QRをスマホで読んで「借りる」</text>
     </g>
     <!-- 矢印 -->
@@ -97,11 +97,10 @@
         <path d="M10 0v6M22 0v6M34 0v6M46 0v6M58 0v6M70 0v6" stroke="#8a6d1a" stroke-width="1.6"/>
         <text x="43" y="30" text-anchor="middle" font-size="10" fill="#5d6675">残りを測る</text>
       </g>
-      <g transform="translate(150,130)">
-        <rect x="0" y="0" width="40" height="72" rx="8" fill="#15171c"/><rect x="3.5" y="6" width="33" height="60" rx="3" fill="#fff"/>
-        <rect x="7" y="12" width="26" height="14" rx="3" fill="#df1f26"/><text x="20" y="22" text-anchor="middle" font-size="7.5" fill="#fff" font-weight="700">QR読取</text>
-        <rect x="7" y="32" width="26" height="12" rx="2" fill="#f5f7f9" stroke="#d7dce3"/><text x="20" y="41" text-anchor="middle" font-size="7.5" fill="#15171c">1500</text>
-        <rect x="7" y="50" width="26" height="11" rx="5.5" fill="#df1f26"/><text x="20" y="58" text-anchor="middle" font-size="6.5" fill="#fff">記録</text>
+      <g transform="translate(148,128)">
+        <rect x="-3" y="-3" width="48" height="102" rx="10" fill="#15171c"/>
+        <clipPath id="c2p"><rect x="0" y="0" width="42" height="90" rx="6"/></clipPath>
+        <image href="shots/shot-co.png" x="0" y="-8" width="42" height="91" clip-path="url(#c2p)" preserveAspectRatio="xMidYMin slice"/>
       </g>
       <text x="117" y="230" text-anchor="middle" font-size="12" font-weight="700">材料のQRを読んで</text>
       <text x="117" y="246" text-anchor="middle" font-size="12" font-weight="700" fill="#df1f26">残った長さ(mm)を入力</text>
@@ -162,7 +161,7 @@
     </div>
   </div>
 
-  <svg viewBox="0 0 760 430" style="width:100%;height:auto">
+  <svg viewBox="0 0 760 455" style="width:100%;height:auto">
     <!-- 左：現場イラスト -->
     <g>
       <text x="130" y="24" text-anchor="middle" font-size="15" font-weight="800" fill="#15171c">プログラム室の鍵置き場</text>
@@ -190,29 +189,11 @@
       <text x="130" y="310" text-anchor="middle" font-size="12.5" font-weight="700">自動で右の画面が開きます</text>
     </g>
 
-    <!-- 中央：スマホ画面（鍵） -->
-    <g transform="translate(300,10)">
-      <rect x="0" y="0" width="215" height="405" rx="20" fill="#15171c"/>
-      <rect x="7" y="7" width="201" height="391" rx="12" fill="#fff"/>
-      <text x="20" y="32" font-size="13" font-weight="800" fill="#df1f26">Kyo-shin</text>
-      <rect x="150" y="18" width="48" height="18" rx="9" fill="#fff" stroke="#d7dce3"/><text x="174" y="31" text-anchor="middle" font-size="8" fill="#5d6675">Tiếng Việt</text>
-      <line x1="7" y1="44" x2="208" y2="44" stroke="#d7dce3"/>
-      <!-- モーダル -->
-      <rect x="16" y="56" width="183" height="330" rx="12" fill="#fff" stroke="#c9ced6" stroke-width="1.5"/>
-      <text x="28" y="80" font-size="12.5" font-weight="800">🔑 鋼材倉庫の鍵</text>
-      <rect x="26" y="92" width="163" height="34" rx="8" fill="#f5f7f9" stroke="#e6eaef"/>
-      <text x="107" y="113" text-anchor="middle" font-size="9" font-weight="700">これから倉庫へ行くことを記録します</text>
-      <text x="28" y="150" font-size="9.5" fill="#5d6675" font-weight="700">あなたの名前 <tspan fill="#df1f26">*</tspan></text>
-      <rect x="26" y="156" width="163" height="36" rx="8" fill="#fff" stroke="#c9ced6" stroke-width="1.5"/>
-      <text x="36" y="179" font-size="11" font-weight="700">山田　太郎</text><text x="180" y="179" text-anchor="end" font-size="9" fill="#5d6675">▼</text>
-      <!-- 記録ボタン（強調） -->
-      <rect x="26" y="212" width="163" height="52" rx="10" fill="#fff" stroke="#df1f26" stroke-width="3"/>
-      <text x="107" y="244" text-anchor="middle" font-size="11.5" font-weight="800" fill="#df1f26">🚪 記録して倉庫へ行く</text>
-      <rect x="26" y="286" width="163" height="86" rx="8" fill="#fdfaef" stroke="#efe6c6"/>
-      <text x="34" y="305" font-size="8.5" fill="#5d6675">倉庫で材料を使ったら、材料のQRを</text>
-      <text x="34" y="318" font-size="8.5" fill="#5d6675">読んで残りの長さの登録を。</text>
-      <text x="34" y="336" font-size="8.5" fill="#5d6675">鍵は使い終わったらフックに戻すだけ</text>
-      <text x="34" y="349" font-size="8.5" fill="#5d6675">でOK（返却の操作はありません）。</text>
+    <!-- 中央：スマホ画面（実際の画面） -->
+    <g transform="translate(300,0)">
+      <rect x="-7" y="-7" width="214" height="447" rx="22" fill="#15171c"/>
+      <clipPath id="scrKey"><rect x="0" y="0" width="200" height="433" rx="13"/></clipPath>
+      <image href="shots/shot-key.png" x="0" y="0" width="200" height="433" clip-path="url(#scrKey)"/>
     </g>
 
     <!-- 右：手順と拡大 -->
@@ -229,14 +210,14 @@
         <text x="32" y="44" font-size="10" fill="#5d6675">これで「誰が倉庫に行ったか」が</text>
         <text x="32" y="58" font-size="10" fill="#5d6675">記録されます</text>
       </g>
-      <!-- 拡大吹き出し -->
+      <!-- 拡大（実画面の切り抜き） -->
       <g transform="translate(0,160)">
-        <rect x="0" y="0" width="210" height="70" rx="12" fill="#fff" stroke="#df1f26" stroke-width="3" stroke-dasharray="7 5"/>
-        <rect x="12" y="12" width="186" height="46" rx="10" fill="#fff" stroke="#df1f26" stroke-width="3"/>
-        <text x="105" y="41" text-anchor="middle" font-size="14" font-weight="800" fill="#df1f26">🚪 記録して倉庫へ行く</text>
-        <text x="105" y="88" text-anchor="middle" font-size="10.5" fill="#5d6675">押すと「行ってらっしゃい！」と表示されて完了</text>
+        <text x="0" y="-4" font-size="10" font-weight="800" fill="#bb1820">【拡大】この赤いボタンを押す</text>
+        <rect x="-2" y="4" width="214" height="66" rx="10" fill="#fff" stroke="#df1f26" stroke-width="3" stroke-dasharray="7 5"/>
+        <svg x="6" y="10" width="198" height="54" viewBox="100 860 550 150" preserveAspectRatio="xMidYMid meet"><image href="shots/shot-key.png" width="750" height="1624"/></svg>
+        <text x="105" y="92" text-anchor="middle" font-size="10.5" fill="#5d6675">押すと「行ってらっしゃい！」と表示されて完了</text>
       </g>
-      <path d="M-20 233 q-45 10 -110 -6" stroke="#df1f26" stroke-width="2.5" fill="none" stroke-dasharray="6 4" marker-end="url(#a2)"/>
+      <path d="M-16 200 q-45 20 -80 30" stroke="#df1f26" stroke-width="2.5" fill="none" stroke-dasharray="6 4" marker-end="url(#a2)"/>
     </g>
     <defs><marker id="a2" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#df1f26"/></marker></defs>
   </svg>
@@ -281,78 +262,48 @@
     <defs><marker id="a3" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 z" fill="#df1f26"/></marker></defs>
   </svg>
 
-  <svg viewBox="0 0 760 330" style="width:100%;height:auto;margin-top:3mm">
-    <!-- 左スマホ：QR読み取り -->
+  <svg viewBox="0 0 760 475" style="width:100%;height:auto;margin-top:3mm">
+    <!-- 左スマホ：QR読み取り（実画面） -->
     <g transform="translate(8,6)">
-      <text x="102" y="14" text-anchor="middle" font-size="12" font-weight="800">① 材料のQRを読む</text>
-      <rect x="0" y="22" width="205" height="290" rx="18" fill="#15171c"/>
-      <rect x="6" y="28" width="193" height="278" rx="11" fill="#fff"/>
-      <text x="18" y="50" font-size="12" font-weight="800" fill="#df1f26">Kyo-shin</text>
-      <line x1="6" y1="60" x2="199" y2="60" stroke="#d7dce3"/>
-      <!-- QR読み取るボタン -->
-      <rect x="16" y="70" width="173" height="54" rx="12" fill="#df1f26"/>
-      <rect x="88" y="78" width="28" height="20" fill="none" stroke="#fff" stroke-width="2.5"/>
-      <text x="102" y="112" text-anchor="middle" font-size="12" font-weight="800" fill="#fff">QRを読み取る</text>
-      <!-- 材料カード -->
-      <rect x="16" y="136" width="173" height="52" rx="10" fill="#fff" stroke="#d7dce3" stroke-width="1.5"/>
-      <circle cx="38" cy="162" r="13" fill="#e9f0f8"/><rect x="31" y="155" width="14" height="14" fill="none" stroke="#3a6fb0" stroke-width="3"/>
-      <text x="58" y="158" font-size="9.5" font-weight="700">SUS304 角パイプ 50*50 × t2</text>
-      <text x="58" y="172" font-size="8.5" fill="#5d6675">長さ 3,000 mm ・ B-2</text>
-      <rect x="16" y="196" width="173" height="52" rx="10" fill="#fff" stroke="#d7dce3" stroke-width="1.5"/>
-      <circle cx="38" cy="222" r="13" fill="#e2f3e9"/><circle cx="38" cy="222" r="7" fill="none" stroke="#1f8a6d" stroke-width="3"/>
-      <text x="58" y="218" font-size="9.5" font-weight="700">SUS304 化粧管 Φ38 × t1.5</text>
-      <text x="58" y="232" font-size="8.5" fill="#5d6675">長さ 2,000 mm ・ C-4</text>
-      <text x="102" y="278" text-anchor="middle" font-size="9" fill="#5d6675">材料に貼ってあるQRを撮影すると</text>
-      <text x="102" y="292" text-anchor="middle" font-size="9" fill="#5d6675">その材料の画面が直接開きます</text>
+      <text x="100" y="14" text-anchor="middle" font-size="12" font-weight="800">① 材料のQRを読む</text>
+      <g transform="translate(0,28)">
+        <rect x="-7" y="-7" width="214" height="447" rx="22" fill="#15171c"/>
+        <clipPath id="scrList"><rect x="0" y="0" width="200" height="433" rx="13"/></clipPath>
+        <image href="shots/shot-checkout.png" x="0" y="0" width="200" height="433" clip-path="url(#scrList)"/>
+      </g>
     </g>
-    <path d="M228 170 L253 170" stroke="#df1f26" stroke-width="5" marker-end="url(#a4)"/>
+    <path d="M228 200 L253 200" stroke="#df1f26" stroke-width="5" marker-end="url(#a4)"/>
 
-    <!-- 右スマホ：残り長さ入力 -->
+    <!-- 右スマホ：残り長さ入力（実画面） -->
     <g transform="translate(262,6)">
-      <text x="102" y="14" text-anchor="middle" font-size="12" font-weight="800">② 残りの長さを入力して記録</text>
-      <rect x="0" y="22" width="205" height="290" rx="18" fill="#15171c"/>
-      <rect x="6" y="28" width="193" height="278" rx="11" fill="#fff"/>
-      <text x="16" y="48" font-size="11" font-weight="800">持ち出し登録</text>
-      <rect x="14" y="56" width="177" height="30" rx="7" fill="#f5f7f9" stroke="#e6eaef"/>
-      <text x="22" y="75" font-size="8.8" font-weight="700">SUS304 角パイプ 50*50×t2　長さ3,000mm</text>
-      <text x="16" y="102" font-size="9" font-weight="800">どれだけ使いますか？</text>
-      <rect x="14" y="108" width="85" height="32" rx="8" fill="#fff" stroke="#c9ced6" stroke-width="1.5"/>
-      <text x="56" y="128" text-anchor="middle" font-size="8.6" fill="#5d6675">全部 持ち出す</text>
-      <rect x="106" y="108" width="85" height="32" rx="8" fill="#df1f26"/>
-      <text x="148" y="123" text-anchor="middle" font-size="7.6" fill="#fff" font-weight="700">一部使った</text>
-      <text x="148" y="134" text-anchor="middle" font-size="7.6" fill="#fff" font-weight="700">（残りを登録）</text>
-      <text x="16" y="158" font-size="8.6" fill="#5d6675" font-weight="700">残りの長さ (mm) — 測った値を入力</text>
-      <rect x="14" y="164" width="177" height="34" rx="8" fill="#fff" stroke="#df1f26" stroke-width="2.5"/>
-      <text x="24" y="186" font-size="14" font-weight="800" font-family="Consolas">1500</text>
-      <text x="16" y="214" font-size="8.2" fill="#1e6b43" font-weight="700">→ 1,500 mm 使用・残り 1,500 mm で登録します</text>
-      <text x="16" y="234" font-size="8.6" fill="#5d6675" font-weight="700">あなたの名前 <tspan fill="#df1f26">*</tspan></text>
-      <rect x="14" y="240" width="177" height="26" rx="7" fill="#fff" stroke="#c9ced6" stroke-width="1.5"/>
-      <text x="22" y="257" font-size="9.5" font-weight="700">山田　太郎</text><text x="184" y="257" text-anchor="end" font-size="8" fill="#5d6675">▼</text>
-      <rect x="14" y="272" width="177" height="28" rx="14" fill="#df1f26"/>
-      <text x="102" y="290" text-anchor="middle" font-size="10.5" font-weight="800" fill="#fff">✓ 持ち出しを記録</text>
+      <text x="100" y="14" text-anchor="middle" font-size="12" font-weight="800">② 残りの長さを入力して記録</text>
+      <g transform="translate(0,28)">
+        <rect x="-7" y="-7" width="214" height="447" rx="22" fill="#15171c"/>
+        <clipPath id="scrCo"><rect x="0" y="0" width="200" height="433" rx="13"/></clipPath>
+        <image href="shots/shot-co.png" x="0" y="0" width="200" height="433" clip-path="url(#scrCo)"/>
+      </g>
     </g>
 
-    <!-- 右端：拡大＋説明 -->
+    <!-- 右端：拡大（実画面の切り抜き）＋説明 -->
     <g transform="translate(496,6)">
-      <rect x="0" y="20" width="256" height="96" rx="12" fill="#fff" stroke="#df1f26" stroke-width="3" stroke-dasharray="7 5"/>
-      <text x="14" y="42" font-size="11" font-weight="800" fill="#bb1820">【拡大】残りの長さ (mm)</text>
-      <rect x="14" y="52" width="228" height="40" rx="8" fill="#fff" stroke="#df1f26" stroke-width="3"/>
-      <text x="28" y="79" font-size="18" font-weight="800" font-family="Consolas">1500</text>
-      <text x="120" y="79" font-size="10" fill="#5d6675">← 例：残り1.5mなら「1500」</text>
-      <path d="M-8 90 q-25 30 -80 92" stroke="#df1f26" stroke-width="2.5" fill="none" stroke-dasharray="6 4" marker-end="url(#a4)"/>
+      <text x="0" y="30" font-size="11" font-weight="800" fill="#bb1820">【拡大】残りの長さ (mm)</text>
+      <rect x="-2" y="38" width="260" height="118" rx="12" fill="#fff" stroke="#df1f26" stroke-width="3" stroke-dasharray="7 5"/>
+      <svg x="8" y="46" width="240" height="102" viewBox="100 760 560 245" preserveAspectRatio="xMidYMid meet"><image href="shots/shot-co.png" width="750" height="1624"/></svg>
+      <text x="126" y="174" text-anchor="middle" font-size="10" fill="#5d6675">例：残りが1.5mなら「1500」と入力</text>
+      <path d="M-8 100 q-25 30 -60 60" stroke="#df1f26" stroke-width="2.5" fill="none" stroke-dasharray="6 4" marker-end="url(#a4)"/>
 
-      <g transform="translate(0,140)">
+      <g transform="translate(0,196)">
         <circle cx="12" cy="12" r="11" fill="#df1f26"/><text x="12" y="17" text-anchor="middle" font-size="12" font-weight="800" fill="#fff">！</text>
         <text x="32" y="10" font-size="10.5" font-weight="700">入力するのは「使った長さ」ではなく</text>
         <text x="32" y="26" font-size="12" font-weight="800" fill="#bb1820">「残った長さ」です</text>
         <text x="32" y="44" font-size="9.5" fill="#5d6675">使用量はシステムが自動で計算します</text>
       </g>
-      <g transform="translate(0,200)">
+      <g transform="translate(0,254)">
         <circle cx="12" cy="12" r="11" fill="#df1f26"/><text x="12" y="16" text-anchor="middle" font-size="11" font-weight="800" fill="#fff">✓</text>
         <text x="32" y="10" font-size="10.5" font-weight="700">全部使い切ったときは</text>
         <text x="32" y="27" font-size="10.5" font-weight="700">「<tspan fill="#bb1820" font-weight="800">全部 持ち出す</tspan>」を押すだけ</text>
       </g>
-      <g transform="translate(0,258)">
+      <g transform="translate(0,312)">
         <circle cx="12" cy="12" r="11" fill="#1e6b43"/><text x="12" y="16" text-anchor="middle" font-size="11" font-weight="800" fill="#fff">✓</text>
         <text x="32" y="10" font-size="10.5" font-weight="700">名前を確認して</text>
         <text x="32" y="27" font-size="10.5" font-weight="700">赤い「持ち出しを記録」で完了！</text>

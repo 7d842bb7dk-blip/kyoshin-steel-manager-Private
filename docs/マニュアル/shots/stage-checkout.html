@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>stage</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="strip"><div class="s-l"><span class="s-dot"></span><b>鋼材管理システム</b></div></div>
+<header class="header">
+  <div class="brandwrap"><img class="brandlogo" src="logo.png" alt="Kyo-shin"></div>
+  <div class="hdr-div"></div>
+  <div class="hdr-title"><span class="t">鋼材管理システム</span></div>
+  <div class="hdr-right">
+    <button class="admin-btn" id="langBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18"/></svg><span>Tiếng Việt</span></button>
+  </div>
+</header>
+<nav class="tabs"></nav>
+<main class="content">
+  <section class="view active" id="view-checkout">
+    <button class="scan-btn" id="btnScan">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2"/><rect x="8" y="8" width="8" height="8" rx="1"/></svg>
+      <span class="scan-t">QRを読み取る</span>
+      <span class="scan-s">材料のラベルを撮影してください</span>
+    </button>
+    <div class="panel">
+      <div class="panel-h">
+        <h2><svg class="sec-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>持ち出す材料をさがす</h2>
+        <span class="tag">PICK</span>
+      </div>
+      <div class="filter-grid co-filter">
+        <label class="fld"><span class="fld-lab">材質</span><select><option>すべての材質</option></select></label>
+        <label class="fld"><span class="fld-lab">鋼種</span><select><option>すべての鋼種</option></select></label>
+      </div>
+    </div>
+    <div class="co-list">
+      <div class="co-card">
+        <div class="co-ic"><svg viewBox="0 0 24 24"><path fill="#3a6fb0" fill-rule="evenodd" d="M3.5 4.5h17v15h-17zM7 8v8h10V8z"/></svg></div>
+        <div class="co-info">
+          <div class="co-line1"><span class="pill mat m-sus304">SUS304</span><b>角パイプ</b><span class="co-spec">50*50 × t2</span></div>
+          <div class="co-line2">長さ <b>3,000 mm</b>　<span class="pill loc">B-2</span>　<span class="pill fin">#400</span></div>
+        </div>
+        <button class="btn primary co-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 17h8M18.5 13.5 22 17l-3.5 3.5"/><path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 7v10l7 3.1"/></svg>持ち出す</button>
+      </div>
+      <div class="co-card">
+        <div class="co-ic"><svg viewBox="0 0 24 24"><path fill="#b0568f" fill-rule="evenodd" d="M12 3a9 9 0 100 18 9 9 0 000-18zm0 3.4a5.6 5.6 0 110 11.2 5.6 5.6 0 010-11.2z"/></svg></div>
+        <div class="co-info">
+          <div class="co-line1"><span class="pill mat m-sus304">SUS304</span><b>化粧管</b><span class="co-spec">Φ38 × t1.5</span></div>
+          <div class="co-line2">長さ <b>2,000 mm</b>　<span class="pill loc">C-4</span>　<span class="pill fin">HL</span></div>
+        </div>
+        <button class="btn primary co-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 17h8M18.5 13.5 22 17l-3.5 3.5"/><path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 7v10l7 3.1"/></svg>持ち出す</button>
+      </div>
+    </div>
+  </section>
+</main>
+</body>
+</html>
