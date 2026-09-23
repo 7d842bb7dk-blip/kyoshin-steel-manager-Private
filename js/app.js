@@ -329,6 +329,12 @@ const I18N_VI={
   "重量(kg)":"Trọng lượng (kg)","キロ単価":"Đơn giá/kg","材料費":"Chi phí","操作":"Thao tác","板厚":"Độ dày",
   "持ち出す材料をさがす":"Tìm vật liệu cần lấy",
   "QRを読み取る":"Quét mã QR","材料のラベルを撮影してください":"Chụp nhãn QR trên vật liệu","読み取り中…":"Đang đọc…",
+  "残材を登録":"Đăng ký vật liệu thừa","今日納入された材料の残りなど、リストに無い材料はこちら":"Vật liệu chưa có trong danh sách (VD: phần thừa của thanh mới nhập hôm nay)",
+  "リストに無い材料（今日納入された定尺の残りなど）を在庫に登録します":"Đăng ký vào kho vật liệu chưa có trong danh sách (VD: phần thừa của thanh mới nhập)",
+  "残りの長さ (mm)":"Chiều dài còn lại (mm)","選択してください":"Hãy chọn","先に材質を選択":"Chọn vật liệu trước","選択":"Chọn",
+  "材質・鋼種・板厚・規格・長さは必須です":"Hãy nhập đủ: vật liệu, loại thép, độ dày, quy cách, chiều dài",
+  "登録する":"Đăng ký","残材を登録しました":"Đã đăng ký vật liệu vào kho","保存に失敗しました: ":"Lưu thất bại: ",
+  "例: 2500":"VD: 2500",
   "QRを読み取れませんでした。ラベルに近づけて撮り直してください":"Không đọc được QR. Hãy chụp lại gần hơn",
   "この在庫は見つかりません（すでに使い切った可能性があります）":"Không tìm thấy tồn kho này (có thể đã dùng hết)",
   "使う材料の「持ち出す」ボタンを押してください。空欄はすべて対象です。":"Nhấn nút 「Lấy ra」 của vật liệu cần dùng. Để trống = tất cả.",
@@ -373,7 +379,7 @@ function applyLang(){
     "#view-search .fld-lab,#view-checkout .fld-lab,#view-search .panel-h h2,#view-checkout .panel-h h2,#view-history .panel-h h2,"+
     "#btnClear,#coClear,#btnExportSearch,"+
     "#coOverlay .co-lab,#coOverlay .co-q,#coOverlay .co-mode,#coOverlay .modal-h h3,#coCancel,#coSubmit,"+
-    "#keyOverlay .co-lab,#keyOverlay .key-btn,#keyOverlay .modal-h h3"
+    "#keyOverlay .co-lab,#keyOverlay .key-btn,#keyOverlay .modal-h h3,#nsOverlay .co-lab"
   ).forEach(el=>{
     [...el.childNodes].forEach(n=>{
       if(n.nodeType===3&&n.textContent.trim())n.textContent=n.textContent.replace(n.textContent.trim(),t(n.textContent.trim()));
@@ -383,7 +389,7 @@ function applyLang(){
   document.querySelectorAll("#view-search .filter-hint,#view-checkout .filter-hint,#view-search .kpi-lab,#keyOverlay .key-note").forEach(el=>{el.textContent=t(el.textContent.trim());});
   document.querySelectorAll("#view-search .kpi-sub").forEach(el=>{if(el.id!=="kpiTotal")el.textContent=t(el.textContent.trim());});
   /* プレースホルダー */
-  [["#f_spec","部分一致 例: 50"],["#f_len","完全一致"],["#co_spec","部分一致 例: 50"],["#coUsed","例: 1500"],["#coNote","例: ◯◯案件で使用"],["#coPerson","例: 山田"],["#keyPerson","例: 山田"]]
+  [["#f_spec","部分一致 例: 50"],["#f_len","完全一致"],["#co_spec","部分一致 例: 50"],["#coUsed","例: 1500"],["#coNote","例: ◯◯案件で使用"],["#coPerson","例: 山田"],["#keyPerson","例: 山田"],["#ns_len","例: 2500"],["#nsPerson","例: 山田"]]
     .forEach(([s,k])=>{const el=$(s);if(el)el.placeholder=t(k);});
 }
 function toggleLang(){LANG=LANG==="ja"?"vi":"ja";try{localStorage.setItem(LANG_KEY,LANG);}catch(e){}location.reload();}
@@ -907,6 +913,40 @@ function exportWorklogCSV(){
   const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="作業ログ.csv";a.click();URL.revokeObjectURL(a.href);toast("作業ログ.csv を出力しました");
 }
 
+/* ===================== 残材の新規登録（現場向け・スマホ対応） =====================
+ * 納入されたばかりの定尺など、まだシステムに無い材料の残りをその場で在庫登録する */
+function openNs(){
+  fillSelect($("#ns_mat"),matOptions(),"選択してください");
+  fillSelect($("#ns_koshu"),[],"先に材質を選択");$("#ns_koshu").disabled=true;
+  fillSelect($("#ns_thk"),thkOptions(),"選択");
+  fillDatalist($("#dl_nsspec"),[]);
+  $("#ns_spec").value="";$("#ns_len").value="";
+  fillSelect($("#ns_loc"),locOptions(),"指定なし");
+  fillSelect($("#ns_fin"),finOptions("",""),"指定なし");
+  setupPersonPicker("#nsPersonSel","#nsPerson");
+  $("#nsOverlay").classList.add("show");
+  setTimeout(()=>$("#ns_mat").focus(),60);
+}
+function closeNs(){$("#nsOverlay").classList.remove("show");}
+async function submitNs(){
+  const rec={mat:$("#ns_mat").value,koshu:$("#ns_koshu").value,thk:$("#ns_thk").value,spec:$("#ns_spec").value.trim(),len:$("#ns_len").value.trim(),loc:$("#ns_loc").value,fin:$("#ns_fin").value};
+  const person=pickerValue("#nsPersonSel","#nsPerson");
+  if(!rec.mat||!rec.koshu||rec.thk===""||!rec.spec||rec.len===""){toast(t("材質・鋼種・板厚・規格・長さは必須です"));return;}
+  if(!(Number(rec.len)>0)){toast(t("残りの長さを入力してください"));$("#ns_len").focus();return;}
+  if(!person){toast(t("名前を入力してください"));$("#nsPersonSel").focus();return;}
+  try{localStorage.setItem(PERSON_KEY,person);}catch(e){}
+  const body={mat:rec.mat,koshu:rec.koshu,thk:Number(rec.thk),spec:rec.spec,len:Number(rec.len),loc:rec.loc,fin:rec.fin,person};
+  if(MODE==="server"){
+    try{await apiSend("POST","/api/records",body);await refresh();loadHistory();toast(t("残材を登録しました"));closeNs();}
+    catch(e){toast(t("保存に失敗しました: ")+e.message);}
+    return;
+  }
+  records.push({id:nextId(),mat:rec.mat,koshu:rec.koshu,thk:Number(rec.thk),spec:rec.spec,len:Number(rec.len),loc:rec.loc,fin:rec.fin});
+  localHist("add",rec,{person,len_after:Number(rec.len)});
+  saveRecords();renderInventory();runSearch();updateFoot();renderCheckout();renderWorklog();
+  toast(t("残材を登録しました"));closeNs();
+}
+
 /* ===================== 鋼材倉庫の鍵（QRから開く） ===================== */
 /* 鍵置き場のQRから開く。「これから倉庫へ行く」ことを記録するだけ（返却の操作は無し。
  * 鍵はフックに戻すだけでよい。2026-09-23 仕様変更） */
@@ -1173,6 +1213,23 @@ async function init(){
   $("#keyPerson").addEventListener("keydown",e=>{if(e.key==="Enter")keyAction();});
   $("#btnWorklogRefresh").addEventListener("click",()=>{loadHistory();toast("作業ログを更新しました");});
   $("#btnExportWorklog").addEventListener("click",exportWorklogCSV);
+  /* 残材の新規登録（現場向け） */
+  $("#btnNewStock").addEventListener("click",openNs);
+  $("#nsClose").addEventListener("click",closeNs);$("#nsCancel").addEventListener("click",closeNs);
+  $("#nsSubmit").addEventListener("click",submitNs);
+  $("#nsOverlay").addEventListener("click",e=>{if(e.target===$("#nsOverlay"))closeNs();});
+  $("#ns_mat").addEventListener("change",()=>{
+    const m=$("#ns_mat").value;
+    if(m){fillSelect($("#ns_koshu"),koshuOptions(m),"選択してください");$("#ns_koshu").disabled=false;}
+    else{fillSelect($("#ns_koshu"),[],"先に材質を選択");$("#ns_koshu").disabled=true;}
+    fillDatalist($("#dl_nsspec"),[]);
+    fillSelect($("#ns_fin"),finOptions(m,$("#ns_koshu").value),"指定なし");
+  });
+  $("#ns_koshu").addEventListener("change",()=>{
+    const k=$("#ns_koshu").value;
+    fillDatalist($("#dl_nsspec"),k?specOptions(k):[]);
+    fillSelect($("#ns_fin"),finOptions($("#ns_mat").value,k),"指定なし");
+  });
   /* QR読み取り（スマホ：カメラで撮影→解析） */
   $("#btnScan").addEventListener("click",()=>$("#scanFile").click());
   $("#scanFile").addEventListener("change",async e=>{
@@ -1189,7 +1246,7 @@ async function init(){
   $("#qrOverlay").addEventListener("click",e=>{if(e.target===$("#qrOverlay"))closeQr();});
   if(MODE!=="server"){$("#btnQrAll").style.display="none";$("#btnQrKey").style.display="none";} /* QRラベルはサーバー版のみ（URLが必要） */
   document.addEventListener("keydown",e=>{
-    if(e.key==="Escape"){closeModal();closePin();closeHelp();closeCo();closeQr();closeKey();}
+    if(e.key==="Escape"){closeModal();closePin();closeHelp();closeCo();closeQr();closeKey();closeNs();}
     else if(e.key==="?"||e.key==="F1"){const t=(document.activeElement||{}).tagName;if(t!=="INPUT"&&t!=="SELECT"&&t!=="TEXTAREA"){e.preventDefault();openHelp();}}
   });
   $("#btnExportSearch").addEventListener("click",()=>{if(!lastSearch.length){toast("出力対象がありません");return;}exportCSV(lastSearch,"検索結果.csv");});

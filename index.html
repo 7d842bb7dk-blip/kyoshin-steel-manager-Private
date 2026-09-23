@@ -122,6 +122,10 @@
         <span class="scan-s" data-i18n="材料のラベルを撮影してください">材料のラベルを撮影してください</span>
       </button>
       <input type="file" id="scanFile" accept="image/*" capture="environment" style="display:none">
+      <button class="newstock-btn" id="btnNewStock">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 7v10l9 4 4.5-2"/><path d="M18 15v6M15 18h6"/></svg>
+        <span class="nsb-txt"><span class="nsb-t" data-i18n="残材を登録">残材を登録</span><span class="nsb-s" data-i18n="今日納入された材料の残りなど、リストに無い材料はこちら">今日納入された材料の残りなど、リストに無い材料はこちら</span></span>
+      </button>
       <div class="panel">
         <div class="panel-h">
           <h2><svg class="sec-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>持ち出す材料をさがす</h2>
@@ -299,6 +303,49 @@
       <div style="margin-left:auto;display:flex;gap:9px">
         <button class="btn ghost" id="qrCancel">閉じる</button>
         <button class="btn primary" id="qrPrint"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9V3h12v6M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v7H6z"/></svg>印刷</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================== 残材の新規登録（現場向け） ============================== -->
+<div class="overlay" id="nsOverlay">
+  <div class="modal co-modal">
+    <div class="modal-h">
+      <h3><svg class="sec-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 7v10l9 4 4.5-2"/><path d="M18 15v6M15 18h6"/></svg><span data-i18n="残材を登録">残材を登録</span></h3>
+      <button class="x" id="nsClose"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </div>
+    <div class="co-body">
+      <div class="ns-hint" data-i18n="リストに無い材料（今日納入された定尺の残りなど）を在庫に登録します">リストに無い材料（今日納入された定尺の残りなど）を在庫に登録します</div>
+      <div class="ns-row2">
+        <label class="co-lab"><span data-i18n="材質">材質</span><span class="req">*</span>
+          <select id="ns_mat" class="co-input"></select></label>
+        <label class="co-lab"><span data-i18n="鋼種">鋼種</span><span class="req">*</span>
+          <select id="ns_koshu" class="co-input"></select></label>
+      </div>
+      <div class="ns-row2">
+        <label class="co-lab"><span data-i18n="板厚 (mm)">板厚 (mm)</span><span class="req">*</span>
+          <select id="ns_thk" class="co-input num"></select></label>
+        <label class="co-lab"><span data-i18n="材料規格">材料規格</span><span class="req">*</span>
+          <input id="ns_spec" class="co-input num" list="dl_nsspec" placeholder="例: 50*50 / Φ34" autocomplete="off"><datalist id="dl_nsspec"></datalist></label>
+      </div>
+      <label class="co-lab"><span data-i18n="残りの長さ (mm)">残りの長さ (mm)</span><span class="req">*</span>
+        <input type="number" id="ns_len" class="co-input num" inputmode="numeric" min="1" placeholder="例: 2500"></label>
+      <div class="ns-row2">
+        <label class="co-lab"><span data-i18n="保管場所">保管場所</span>
+          <select id="ns_loc" class="co-input"></select></label>
+        <label class="co-lab"><span data-i18n="表面仕上げ">表面仕上げ</span>
+          <select id="ns_fin" class="co-input"></select></label>
+      </div>
+      <label class="co-lab"><span data-i18n="あなたの名前">あなたの名前</span><span class="req">*</span>
+        <select id="nsPersonSel" class="co-input"></select>
+        <input type="text" id="nsPerson" class="co-input" style="display:none;margin-top:7px" placeholder="例: 山田" autocomplete="off">
+      </label>
+    </div>
+    <div class="modal-foot">
+      <div style="display:flex;gap:9px;margin-left:auto">
+        <button class="btn ghost" id="nsCancel" data-i18n="キャンセル">キャンセル</button>
+        <button class="btn primary" id="nsSubmit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 13l4 4L19 7"/></svg><span data-i18n="登録する">登録する</span></button>
       </div>
     </div>
   </div>
