@@ -930,20 +930,28 @@ async function keyAction(){
 
 /* ===================== QR読み取り（スマホ：撮影→解析。HTTP環境でも動く方式） ===================== */
 async function scanImageFile(file){
+  if(typeof jsQR!=="function")return null;
   const url=URL.createObjectURL(file);
   try{
     const img=await new Promise((ok,ng)=>{const i=new Image();i.onload=()=>ok(i);i.onerror=ng;i.src=url;});
-    for(const max of[1000,640,1400]){
-      const sc=Math.min(1,max/Math.max(img.naturalWidth||img.width,img.naturalHeight||img.height));
-      const w=Math.max(1,Math.round((img.naturalWidth||img.width)*sc));
-      const h=Math.max(1,Math.round((img.naturalHeight||img.height)*sc));
+    const W=img.naturalWidth||img.width,H=img.naturalHeight||img.height;
+    /* スマホ写真は大きく、QRが小さく写ることも多い。
+     * 解像度を変えた全体→中央部分の切り抜き、の順で粘り強く試す */
+    const tries=[
+      {max:1600,crop:0},{max:2400,crop:0},{max:1100,crop:0},
+      {max:1600,crop:.6},{max:2400,crop:.6},{max:1600,crop:.4}
+    ];
+    for(const tr of tries){
+      let sx=0,sy=0,sw=W,sh=H;
+      if(tr.crop){sw=Math.round(W*tr.crop);sh=Math.round(H*tr.crop);sx=Math.round((W-sw)/2);sy=Math.round((H-sh)/2);}
+      const sc=Math.min(1,tr.max/Math.max(sw,sh));
+      const w=Math.max(1,Math.round(sw*sc)),h=Math.max(1,Math.round(sh*sc));
       const cv=document.createElement("canvas");cv.width=w;cv.height=h;
-      const cx=cv.getContext("2d");cx.drawImage(img,0,0,w,h);
+      const cx=cv.getContext("2d");cx.drawImage(img,sx,sy,sw,sh,0,0,w,h);
       const d=cx.getImageData(0,0,w,h);
-      if(typeof jsQR==="function"){
-        const r=jsQR(d.data,w,h,{inversionAttempts:"attemptBoth"});
-        if(r&&r.data)return r.data;
-      }
+      const r=jsQR(d.data,w,h,{inversionAttempts:"attemptBoth"});
+      if(r&&r.data)return r.data;
+      await new Promise(res=>setTimeout(res,0)); /* 固まらないように一息入れる */
     }
     return null;
   }finally{URL.revokeObjectURL(url);}
