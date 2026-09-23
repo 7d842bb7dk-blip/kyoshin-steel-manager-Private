@@ -346,9 +346,9 @@ main.content{flex:1;overflow:auto;padding:20px 22px 48px;background:var(--bg)}
 .co-item .co-len{margin-left:auto;font-family:var(--mono);font-weight:700;color:var(--ink)}
 .co-q{font-size:13px;font-weight:800;color:var(--ink);margin:16px 0 8px}
 .co-modes{display:grid;grid-template-columns:1fr 1fr;gap:9px}
-.co-mode{display:flex;align-items:center;justify-content:center;gap:8px;padding:14px 10px;border-radius:var(--r-sm);
+.co-mode{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:11px 8px;border-radius:var(--r-sm);
   border:1.5px solid var(--line);background:var(--panel);color:var(--ink-soft);font-family:var(--jp);
-  font-size:14px;font-weight:800;cursor:pointer;transition:.13s}
+  font-size:13.5px;font-weight:800;line-height:1.35;text-align:center;word-break:keep-all;cursor:pointer;transition:.13s}
 .co-mode svg{width:17px;height:17px}
 .co-mode:hover{border-color:var(--accent);color:var(--accent)}
 .co-mode.active{background:var(--accent);border-color:var(--accent-d);color:#fff;box-shadow:0 3px 11px -4px var(--accent)}

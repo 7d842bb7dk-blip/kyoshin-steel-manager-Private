@@ -353,9 +353,9 @@ main.content{flex:1;overflow:auto;padding:20px 22px 48px;background:var(--bg)}
 .co-item .co-len{margin-left:auto;font-family:var(--mono);font-weight:700;color:var(--ink)}
 .co-q{font-size:13px;font-weight:800;color:var(--ink);margin:16px 0 8px}
 .co-modes{display:grid;grid-template-columns:1fr 1fr;gap:9px}
-.co-mode{display:flex;align-items:center;justify-content:center;gap:8px;padding:14px 10px;border-radius:var(--r-sm);
+.co-mode{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:11px 8px;border-radius:var(--r-sm);
   border:1.5px solid var(--line);background:var(--panel);color:var(--ink-soft);font-family:var(--jp);
-  font-size:14px;font-weight:800;cursor:pointer;transition:.13s}
+  font-size:13.5px;font-weight:800;line-height:1.35;text-align:center;word-break:keep-all;cursor:pointer;transition:.13s}
 .co-mode svg{width:17px;height:17px}
 .co-mode:hover{border-color:var(--accent);color:var(--accent)}
 .co-mode.active{background:var(--accent);border-color:var(--accent-d);color:#fff;box-shadow:0 3px 11px -4px var(--accent)}
@@ -958,7 +958,7 @@ select.m-in{width:auto;max-width:100%;cursor:pointer}
       <div class="co-q">どれだけ使いますか？</div>
       <div class="co-modes">
         <button class="co-mode active" id="coModeAll"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 13l4 4L19 7"/></svg>全部 持ち出す</button>
-        <button class="co-mode" id="coModePart"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M7 21 21 7M4 8l4 4M8 4l4 4M3 3l4 4"/></svg>一部使った（残りを登録）</button>
+        <button class="co-mode" id="coModePart"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M7 21 21 7M4 8l4 4M8 4l4 4M3 3l4 4"/></svg>一部使った<wbr>（残りを登録）</button>
       </div>
       <div class="co-part" id="coPart" style="display:none">
         <label class="co-lab">残りの長さ (mm) — 使用後に残った長さを測って入力
@@ -11546,6 +11546,7 @@ const I18N_VI={
   "持ち出す":"Lấy ra","条件に一致する在庫がありません":"Không có tồn kho phù hợp",
   "持ち出し登録":"Đăng ký lấy vật liệu","どれだけ使いますか？":"Bạn dùng bao nhiêu?",
   "全部 持ち出す":"Dùng hết (toàn bộ)","一部使った（残りを登録）":"Dùng một phần (nhập phần còn lại)",
+  "一部使った":"Dùng một phần","（残りを登録）":"(nhập phần còn lại)",
   "残りの長さ (mm) — 使用後に残った長さを測って入力":"Chiều dài còn lại (mm) — đo phần còn lại sau khi dùng",
   "あなたの名前":"Tên của bạn","メモ（任意）":"Ghi chú (không bắt buộc)","キャンセル":"Hủy","持ち出しを記録":"Ghi nhận",
   "例: 1500":"VD: 1500","例: ◯◯案件で使用":"VD: dùng cho dự án ◯◯","例: 山田":"VD: Nguyen Van A",

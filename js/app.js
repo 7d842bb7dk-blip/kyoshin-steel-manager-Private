@@ -375,6 +375,7 @@ const I18N_VI={
   "持ち出す":"Lấy ra","条件に一致する在庫がありません":"Không có tồn kho phù hợp",
   "持ち出し登録":"Đăng ký lấy vật liệu","どれだけ使いますか？":"Bạn dùng bao nhiêu?",
   "全部 持ち出す":"Dùng hết (toàn bộ)","一部使った（残りを登録）":"Dùng một phần (nhập phần còn lại)",
+  "一部使った":"Dùng một phần","（残りを登録）":"(nhập phần còn lại)",
   "残りの長さ (mm) — 使用後に残った長さを測って入力":"Chiều dài còn lại (mm) — đo phần còn lại sau khi dùng",
   "あなたの名前":"Tên của bạn","メモ（任意）":"Ghi chú (không bắt buộc)","キャンセル":"Hủy","持ち出しを記録":"Ghi nhận",
   "例: 1500":"VD: 1500","例: ◯◯案件で使用":"VD: dùng cho dự án ◯◯","例: 山田":"VD: Nguyen Van A",
