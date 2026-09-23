@@ -56,10 +56,6 @@
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 7v10l7 3.1"/><path d="M14 17h8M18.5 13.5 22 17l-3.5 3.5"/></svg>
     <span data-i18n="持ち出し">持ち出し</span>
   </div>
-  <div class="tab admin-only" data-view="history">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>
-    <span data-i18n="入出庫履歴">入出庫履歴</span>
-  </div>
   <div class="tab admin-only" data-view="inventory">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 7v10l9 4 9-4V7"/><path d="M12 11v10"/></svg>
     <span data-i18n="在庫管理">在庫管理</span>
@@ -143,20 +139,6 @@
         </div>
       </div>
       <div class="co-list" id="coList"></div>
-    </section>
-
-    <!-- ====== HISTORY VIEW（入出庫履歴） ====== -->
-    <section class="view" id="view-history">
-      <div class="panel">
-        <div class="panel-h">
-          <h2><svg class="sec-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>入出庫履歴 <span class="tag" id="histCount"></span></h2>
-          <div style="display:flex;gap:8px">
-            <button class="btn sm" id="btnHistRefresh"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-2.6-6.4M21 3v6h-6"/></svg>更新</button>
-            <button class="btn sm" id="btnExportHist"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>CSV出力</button>
-          </div>
-        </div>
-        <div class="tbl-wrap" id="histTable"></div>
-      </div>
     </section>
 
     <!-- ====== WORKLOG VIEW（作業ログ・管理者のみ） ====== -->
@@ -422,8 +404,8 @@
       </div>
 
       <div class="help-sec">
-        <div class="help-h"><span class="help-ic blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></span>入出庫履歴</div>
-        <p class="help-p"><b>誰が・いつ・何を・どれだけ</b>使ったかの記録が一覧で見られます。持ち出しのほか、在庫の登録・編集・削除・CSV取込も自動で記録されます。<b>CSV出力</b>で書き出して、棚卸のときの突き合わせにも使えます。</p>
+        <div class="help-h"><span class="help-ic blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg></span>作業ログ（管理者のみ）</div>
+        <p class="help-p"><b>誰が・いつ・何を・どれだけ</b>使ったかの記録を<b>日付ごと</b>に一覧できます。持ち出しのほか、在庫の登録・編集・削除・CSV取込・鍵の倉庫入りも自動で記録されます。倉庫入り後に在庫の記録が無い人は<b>「記録なし⚠」</b>で表示。<b>CSV出力</b>で棚卸の突き合わせにも使えます。</p>
       </div>
 
       <div class="help-sec">
@@ -443,7 +425,7 @@
 
       <div class="help-sec">
         <div class="help-h"><span class="help-ic red"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="11" width="16" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></span>管理者モード</div>
-        <p class="help-p">「入出庫履歴」「在庫管理」「作業ログ」「重量・単価計算」「マスタ参照」は<b>管理者モードのときだけ</b>表示されます。ヘッダー右の<b>「管理者モード」</b>を押してパスコードを入力すると表示され、もう一度押すと<b>解除</b>されます。通常時に見えるのは「在庫検索」と「持ち出し」だけです。</p>
+        <p class="help-p">「作業ログ」「在庫管理」「重量・単価計算」「マスタ参照」は<b>管理者モードのときだけ</b>表示されます。ヘッダー右の<b>「管理者モード」</b>を押してパスコードを入力すると表示され、もう一度押すと<b>解除</b>されます。通常時に見えるのは「在庫検索」と「持ち出し」だけです。</p>
       </div>
 
       <div class="help-tip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.5.4.9 1 .9 1.6h5.2c0-.6.4-1.2.9-1.6A6 6 0 0 0 12 3z"/></svg><span>ヘッダーの保存表示が「サーバー保存（共有）」なら全PC共通のデータです。「ローカル保存」のとき（単体ファイル版）はこのブラウザだけに保存されます。バックアップは「CSV出力」をご利用ください。</span></div>

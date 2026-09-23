@@ -371,7 +371,7 @@ function applyLang(){
   /* 現場向け画面のテキストノードを辞書で置換（svg等の構造は保持） */
   document.querySelectorAll(
     "#view-search .fld-lab,#view-checkout .fld-lab,#view-search .panel-h h2,#view-checkout .panel-h h2,#view-history .panel-h h2,"+
-    "#btnClear,#coClear,#btnExportSearch,#btnHistRefresh,#btnExportHist,"+
+    "#btnClear,#coClear,#btnExportSearch,"+
     "#coOverlay .co-lab,#coOverlay .co-q,#coOverlay .co-mode,#coOverlay .modal-h h3,#coCancel,#coSubmit,"+
     "#keyOverlay .co-lab,#keyOverlay .key-btn,#keyOverlay .modal-h h3"
   ).forEach(el=>{
@@ -389,13 +389,13 @@ function applyLang(){
 function toggleLang(){LANG=LANG==="ja"?"vi":"ja";try{localStorage.setItem(LANG_KEY,LANG);}catch(e){}location.reload();}
 
 /* ===================== ナビ ===================== */
-const PG={search:["在庫検索","SEARCH / INVENTORY LOOKUP"],checkout:["持ち出し","CHECKOUT / TAKE OUT"],history:["入出庫履歴","HISTORY / IN-OUT LOG"],worklog:["作業ログ","WORK LOG / DAILY MONITOR"],inventory:["在庫管理","INVENTORY / DATA MANAGEMENT"],calc:["重量・単価計算","CALCULATOR / WEIGHT & COST"],master:["マスタ参照","MASTER / REFERENCE DATA"]};
+const PG={search:["在庫検索","SEARCH / INVENTORY LOOKUP"],checkout:["持ち出し","CHECKOUT / TAKE OUT"],worklog:["作業ログ","WORK LOG / DAILY MONITOR"],inventory:["在庫管理","INVENTORY / DATA MANAGEMENT"],calc:["重量・単価計算","CALCULATOR / WEIGHT & COST"],master:["マスタ参照","MASTER / REFERENCE DATA"]};
 document.querySelectorAll(".tab").forEach(it=>it.addEventListener("click",()=>{
   document.querySelectorAll(".tab").forEach(n=>n.classList.remove("active"));it.classList.add("active");
   const v=it.dataset.view;document.querySelectorAll(".view").forEach(s=>s.classList.remove("active"));$("#view-"+v).classList.add("active");
   $("#pgTitle").textContent=PG[v][0];$("#pgCrumb").textContent=PG[v][1];
   if(v==="checkout")renderCheckout();
-  if(v==="history"||v==="worklog")loadHistory();
+  if(v==="worklog")loadHistory();
 }));
 
 /* ===================== 管理者モード ===================== */
@@ -491,7 +491,7 @@ async function delRecord(id){
     return;
   }
   records=records.filter(x=>x.id!==id);localHist("delete",r,{len_before:r.len,len_after:null});
-  saveRecords();renderInventory();runSearch();updateFoot();renderCheckout();renderHistory();toast("在庫を削除しました");
+  saveRecords();renderInventory();runSearch();updateFoot();renderCheckout();renderWorklog();toast("在庫を削除しました");
 }
 
 /* ===================== モーダル（登録/編集） ===================== */
@@ -537,7 +537,7 @@ async function saveModal(){
   }
   if(editId){const i=records.findIndex(x=>x.id===editId);const old=records[i];records[i]={id:editId,...rec};localHist("edit",rec,{len_before:old?old.len:null,len_after:rec.len});toast("在庫を更新しました");}
   else{records.push({id:nextId(),...rec});localHist("add",rec,{len_after:rec.len});toast("在庫を登録しました");}
-  saveRecords();renderInventory();runSearch();updateFoot();renderCheckout();renderHistory();closeModal();
+  saveRecords();renderInventory();runSearch();updateFoot();renderCheckout();renderWorklog();closeModal();
 }
 
 /* ===================== QRコード生成（自前実装・外部ライブラリ不使用） =====================
@@ -725,7 +725,7 @@ async function loadHistory(){
   }else{
     try{history=JSON.parse(localStorage.getItem(HIST_KEY)||"[]");}catch(e){history=[];}
   }
-  renderHistory();renderWorklog();
+  renderWorklog();
 }
 
 function initCheckoutControls(){
@@ -832,12 +832,12 @@ async function submitCo(){
   if(remain<=0){records=records.filter(x=>x.id!==coTarget.id);}
   else{const i=records.findIndex(x=>x.id===coTarget.id);records[i]={...coTarget,len:remain};}
   localHist("checkout",coTarget,{person,note,len_before:len,len_after:remain>0?remain:0});
-  saveRecords();renderInventory();runSearch();updateFoot();renderCheckout();renderHistory();
+  saveRecords();renderInventory();runSearch();updateFoot();renderCheckout();renderWorklog();
   toast(remain<=0?t("持ち出しを記録しました（全部使用・在庫から削除）"):t("持ち出しを記録しました（残り ")+remain.toLocaleString()+" mm）");
   closeCo();
 }
 
-/* ===================== 入出庫履歴ビュー ===================== */
+/* ===================== 履歴の共通部品（作業ログで使用） ===================== */
 const HTYPE={checkout:["持ち出し","h-out"],add:["登録","h-in"],edit:["編集","h-edit"],delete:["削除","h-del"],bulk:["CSV取込","h-in"],keyout:["鍵 持出","h-out"],keyin:["鍵 返却","h-in"]};
 function fmtTs(t){const d=new Date(t);const p=n=>String(n).padStart(2,"0");return d.getFullYear()+"/"+p(d.getMonth()+1)+"/"+p(d.getDate())+" "+p(d.getHours())+":"+p(d.getMinutes());}
 function fmtDateJ(t){const d=new Date(t);const w=["日","月","火","水","木","金","土"][d.getDay()];const p=n=>String(n).padStart(2,"0");return d.getFullYear()+"/"+p(d.getMonth()+1)+"/"+p(d.getDate())+"（"+w+"）";}
@@ -854,28 +854,6 @@ function histAmount(x){
   if(x.type==="edit"){if(b!=null&&a!=null&&b!==a)return b.toLocaleString()+" → "+a.toLocaleString()+" mm";return t("内容変更");}
   if(x.type==="bulk")return (x.qty||0)+t(" 件 取込");
   return "—";
-}
-function renderHistory(){
-  const wrap=$("#histTable");if(!wrap)return;
-  const items=history.filter(x=>x.type!=="keyout"&&x.type!=="keyin"); /* 鍵の記録は管理者用の作業ログで表示 */
-  $("#histCount").textContent=items.length+" "+t("件");
-  if(!items.length){wrap.innerHTML=emptyState(t("履歴はまだありません。「持ち出し」画面から記録すると、ここに残ります"));return;}
-  let h='<table class="dt"><thead><tr><th>'+t("日時")+'</th><th>'+t("種別")+'</th><th>'+t("名前")+'</th><th>'+t("品目")+'</th><th class="r">'+t("数量・変化")+'</th><th>'+t("メモ")+'</th></tr></thead><tbody>';
-  items.forEach(x=>{
-    const ty=HTYPE[x.type]||[x.type,"h-edit"];
-    const item=x.type==="bulk"?'<span class="muted">'+t("CSV取込")+'</span>':
-      (x.mat?`<span class="pill mat ${matCls(x.mat)}">${IC.mat}${x.mat}</span>`:"")+(x.koshu?shapeIco(x.koshu)+x.koshu:"")+(x.spec?` <span class="tnum">${x.spec}</span>`:"")+(x.thk!=null?` <span class="tnum muted">t${x.thk}</span>`:"");
-    h+=`<tr><td class="tnum" style="white-space:nowrap">${fmtTs(x.ts)}</td><td><span class="pill ${ty[1]}">${t(ty[0])}</span></td><td>${x.person?"<b>"+x.person+"</b>":'<span class="muted">—</span>'}</td><td>${item||'<span class="muted">—</span>'}</td><td class="r tnum" style="white-space:nowrap">${histAmount(x)}</td><td class="muted" style="font-size:12px">${x.note||""}</td></tr>`;
-  });
-  h+="</tbody></table>";wrap.innerHTML=h;
-}
-function exportHistCSV(){
-  if(!history.length){toast("出力対象がありません");return;}
-  const head=["日時","種別","名前","材質","鋼種","板厚(mm)","材料規格","表面仕上げ","保管場所","変更前長さ(mm)","変更後長さ(mm)","件数","メモ"];
-  const lines=[head.join(",")];
-  history.forEach(x=>{const t=HTYPE[x.type]||[x.type];lines.push([fmtTs(x.ts),t[0],x.person||"",x.mat||"",x.koshu||"",x.thk==null?"":x.thk,x.spec||"",x.fin||"",x.loc||"",x.len_before==null?"":x.len_before,x.len_after==null?"":x.len_after,x.qty==null?"":x.qty,x.note||""].map(csvCell).join(","));});
-  const blob=new Blob(["﻿"+lines.join("\r\n")],{type:"text/csv;charset=utf-8"});
-  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="入出庫履歴.csv";a.click();URL.revokeObjectURL(a.href);toast("入出庫履歴.csv を出力しました");
 }
 
 /* ===================== 作業ログ（管理者・日付別の監視ページ） ===================== */
@@ -1146,7 +1124,7 @@ async function importCSV(text){
   let added=0;
   for(const rec of rows){records.push({id:nextId(),...rec});added++;}
   if(added>0)localHist("bulk",{},{qty:added});
-  saveRecords();renderInventory();runSearch();updateFoot();renderCheckout();renderHistory();toast(added+" 件を取り込みました");
+  saveRecords();renderInventory();runSearch();updateFoot();renderCheckout();renderWorklog();toast(added+" 件を取り込みました");
 }
 function parseCSVLine(line){const out=[];let cur="",q=false;for(let i=0;i<line.length;i++){const ch=line[i];if(q){if(ch==='"'){if(line[i+1]==='"'){cur+='"';i++;}else q=false;}else cur+=ch;}else{if(ch===','){out.push(cur);cur="";}else if(ch==='"')q=true;else cur+=ch;}}out.push(cur);return out;}
 
@@ -1179,8 +1157,6 @@ async function init(){
   $("#coUsed").addEventListener("input",coUpdateRemain);
   $("#coPerson").addEventListener("keydown",e=>{if(e.key==="Enter")submitCo();});
   $("#coOverlay").addEventListener("click",e=>{if(e.target===$("#coOverlay"))closeCo();});
-  $("#btnHistRefresh").addEventListener("click",()=>{loadHistory();toast("履歴を更新しました");});
-  $("#btnExportHist").addEventListener("click",exportHistCSV);
   $("#btnQrAll").addEventListener("click",()=>openQr(records.map(r=>r.id)));
   $("#btnQrKey").addEventListener("click",openKeyQr);
   $("#keyClose").addEventListener("click",closeKey);
