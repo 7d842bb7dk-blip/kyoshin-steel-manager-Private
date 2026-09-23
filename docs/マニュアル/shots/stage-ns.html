@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>stage</title>
+<link rel="stylesheet" href="styles.css">
+<style>*{animation:none!important;transition:none!important}::-webkit-scrollbar{display:none}html{scrollbar-width:none}</style>
+</head>
+<body>
+<div class="strip"></div>
+<header class="header">
+  <div class="brandwrap"><img class="brandlogo" src="logo.png" alt="Kyo-shin"></div>
+</header>
+<nav class="tabs"></nav>
+<main class="content"><section class="view active"><div class="panel" style="height:640px"></div></section></main>
+
+<div class="overlay show" id="nsOverlay">
+  <div class="modal co-modal">
+    <div class="modal-h">
+      <h3><svg class="sec-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 7v10l9 4 4.5-2"/><path d="M18 15v6M15 18h6"/></svg><span>残材を登録</span></h3>
+      <button class="x"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </div>
+    <div class="co-body">
+      <div class="ns-hint">リストに無い材料（今日納入された定尺の残りなど）を在庫に登録します</div>
+      <div class="ns-row2">
+        <label class="co-lab">材質<span class="req">*</span>
+          <select class="co-input"><option selected>A6063</option></select></label>
+        <label class="co-lab">鋼種<span class="req">*</span>
+          <select class="co-input"><option selected>角パイプ</option></select></label>
+      </div>
+      <div class="ns-row2">
+        <label class="co-lab">板厚 (mm)<span class="req">*</span>
+          <select class="co-input num"><option selected>2</option></select></label>
+        <label class="co-lab">材料規格<span class="req">*</span>
+          <input class="co-input num" value="50*50"></label>
+      </div>
+      <label class="co-lab">残りの長さ (mm)<span class="req">*</span>
+        <input type="number" class="co-input num" value="2500"></label>
+      <div class="ns-row2">
+        <label class="co-lab">保管場所
+          <select class="co-input"><option selected>C-2</option></select></label>
+        <label class="co-lab">表面仕上げ
+          <select class="co-input"><option selected>指定なし</option></select></label>
+      </div>
+      <label class="co-lab"><span>あなたの名前</span><span class="req">*</span>
+        <select class="co-input"><option selected>山田　太郎</option></select>
+      </label>
+    </div>
+    <div class="modal-foot">
+      <div style="display:flex;gap:9px;margin-left:auto">
+        <button class="btn ghost">キャンセル</button>
+        <button class="btn primary"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 13l4 4L19 7"/></svg>登録する</button>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

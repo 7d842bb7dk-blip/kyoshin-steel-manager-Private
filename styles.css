@@ -16,6 +16,10 @@
   --mono:ui-monospace,"SF Mono","SFMono-Regular","Cascadia Mono","Roboto Mono",Consolas,"Courier New",monospace;
 }
 *{box-sizing:border-box;margin:0;padding:0}
+/* ベトナム語の声調付き文字（ầ ề ồ ẫ ế 等）は Yu Gothic 系で崩れるため、
+   VI表示時は Segoe UI（ベトナム語完全対応）を先頭に差し替える */
+html[lang="vi"]{--jp:"Segoe UI",Arial,"Hiragino Maru Gothic ProN","M PLUS Rounded 1c","Yu Gothic","Meiryo","Noto Sans JP",sans-serif}
+#langLabel{font-family:"Segoe UI",Arial,var(--jp)}
 html,body{height:100%}
 body{
   font-family:var(--jp); color:var(--ink); background:var(--bg);

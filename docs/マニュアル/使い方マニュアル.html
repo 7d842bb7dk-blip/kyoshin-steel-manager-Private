@@ -5,140 +5,103 @@
 <title>鋼材在庫システム 使い方マニュアル</title>
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
-  :root{--red:#df1f26;--redD:#bb1820;--ink:#15171c;--soft:#5d6675;--line:#d7dce3;--bg:#f5f7f9;--green:#1e6b43;--gold:#8a6d1a}
-  body{font-family:"Yu Gothic UI","Meiryo","Segoe UI","Hiragino Kaku Gothic ProN",sans-serif;color:var(--ink);-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  :root{--red:#df1f26;--redD:#bb1820;--ink:#15171c;--soft:#5d6675;--line:#d7dce3;--bg:#f5f7f9;--green:#1e6b43;--steel:#2f6f8f}
+  body{font-family:"Yu Gothic UI","Meiryo","Segoe UI",sans-serif;color:var(--ink);-webkit-print-color-adjust:exact;print-color-adjust:exact}
   @page{size:A4;margin:0}
-  .page{width:210mm;height:296mm;overflow:hidden;page-break-after:always;padding:12mm 13mm;position:relative;background:#fff}
+  .page{width:210mm;height:296mm;overflow:hidden;page-break-after:always;padding:11mm 13mm;position:relative;background:#fff}
   .page:last-child{page-break-after:auto}
 
-  /* 共通パーツ */
-  .band{background:var(--ink);border-top:4mm solid var(--red);color:#fff;margin:-12mm -13mm 8mm;padding:7mm 13mm 6mm}
-  .band .t{font-size:22pt;font-weight:800;letter-spacing:.02em}
-  .band .s{font-size:10.5pt;color:#c4cbd6;margin-top:2mm}
-  .step-h{display:flex;align-items:center;gap:5mm;margin:-12mm -13mm 6mm;padding:6mm 13mm;background:var(--ink);border-top:4mm solid var(--red);color:#fff}
-  .step-no{width:16mm;height:16mm;border-radius:50%;background:var(--red);color:#fff;display:flex;align-items:center;justify-content:center;
-    font-size:16pt;font-weight:800;flex:0 0 auto}
-  .step-t{font-size:17pt;font-weight:800}
-  .step-vi{font-size:9pt;color:#c4cbd6;margin-top:1mm}
-  .note{background:#fdfaef;border:1px solid #efe6c6;border-radius:3mm;padding:4mm 5mm;font-size:10pt;line-height:1.7}
+  .band{background:var(--ink);border-top:4mm solid var(--red);color:#fff;margin:-11mm -13mm 7mm;padding:7mm 13mm 6mm}
+  .band .t{font-size:21pt;font-weight:800}
+  .band .s{font-size:10pt;color:#c4cbd6;margin-top:2mm}
+  .step-h{display:flex;align-items:center;gap:5mm;margin:-11mm -13mm 6mm;padding:5.5mm 13mm;background:var(--ink);border-top:4mm solid var(--red);color:#fff}
+  .step-no{width:15mm;height:15mm;border-radius:50%;background:var(--red);color:#fff;display:flex;align-items:center;justify-content:center;font-size:15pt;font-weight:800;flex:0 0 auto}
+  .step-t{font-size:16pt;font-weight:800}
+  .step-vi{font-size:8.5pt;color:#c4cbd6;margin-top:1mm;font-family:"Segoe UI",Arial,"Yu Gothic UI",Meiryo,sans-serif}
+  .vi{font-family:"Segoe UI",Arial,"Yu Gothic UI",Meiryo,sans-serif}
+
+  .phoneframe{background:var(--ink);border-radius:6mm;padding:2.2mm;box-shadow:0 1.5mm 4mm rgba(0,0,0,.25);flex:0 0 auto}
+  .phoneframe img{display:block;width:100%;border-radius:4.2mm}
+  .zbox{border:0.8mm dashed var(--red);border-radius:3mm;background:#fff;padding:2.5mm;overflow:hidden}
+  .zbox svg{display:block;width:100%}
+  .zttl{font-size:10pt;font-weight:800;color:var(--redD);margin-bottom:2mm}
+  .note{background:#fdfaef;border:1px solid #efe6c6;border-radius:3mm;padding:3.5mm 5mm;font-size:9.5pt;line-height:1.7}
   .note b{color:var(--redD)}
-  .pt{display:flex;gap:3mm;align-items:flex-start;font-size:10.5pt;line-height:1.65;margin-bottom:2.5mm}
-  .pt .n{width:6.5mm;height:6.5mm;border-radius:50%;background:var(--red);color:#fff;font-size:9pt;font-weight:800;
-    display:flex;align-items:center;justify-content:center;flex:0 0 auto;margin-top:1mm}
-  .foot{position:absolute;left:13mm;right:13mm;bottom:7mm;display:flex;justify-content:space-between;color:#929aa8;font-size:8.5pt;border-top:1px solid var(--line);padding-top:2mm}
-  svg text{font-family:"Yu Gothic UI","Meiryo","Segoe UI",sans-serif}
-  .step-vi,.band .s{font-family:"Segoe UI","Yu Gothic UI","Meiryo",sans-serif}
-  .qrbox{display:flex;gap:5mm;align-items:center;background:var(--bg);border:1px solid var(--line);border-radius:3mm;padding:4mm 5mm}
-  .qrbox svg{width:24mm;height:24mm}
-  .qrbox .u{font-family:Consolas,monospace;font-size:11pt;font-weight:700}
-  .qrbox .d{font-size:9pt;color:var(--soft);margin-top:1mm}
+  .gnote{background:#eef7f1;border:1px solid #bfe0cc;border-radius:3mm;padding:3.5mm 5mm;font-size:9.5pt;line-height:1.7}
+  .gnote b{color:var(--green)}
+  .pt{display:flex;gap:3mm;align-items:flex-start;font-size:10pt;line-height:1.6;margin-bottom:2.5mm}
+  .pt .n{width:6.5mm;height:6.5mm;border-radius:50%;background:var(--red);color:#fff;font-size:9pt;font-weight:800;display:flex;align-items:center;justify-content:center;flex:0 0 auto;margin-top:0.8mm}
+  .pt b{color:var(--redD)}
+  .foot{position:absolute;left:13mm;right:13mm;bottom:6mm;display:flex;justify-content:space-between;color:#929aa8;font-size:8.5pt;border-top:1px solid var(--line);padding-top:2mm}
+  .qrbox{display:flex;flex-direction:column;gap:2.5mm;align-items:center;text-align:center;background:var(--bg);border:1px solid var(--line);border-radius:3mm;padding:4mm 5mm}
+  .qrbox svg{width:26mm;height:26mm;flex:0 0 auto}
+  .qrbox .u{font-family:Consolas,monospace;font-size:9.5pt;font-weight:700}
+  .qrbox .d{font-size:8.5pt;color:var(--soft);margin-top:0.5mm}
+
+  /* 表紙の3部カード */
+  .toc{display:flex;flex-direction:column;gap:5mm;margin:5mm 0 6mm}
+  .toc-card{display:flex;align-items:center;gap:6mm;border:0.6mm solid var(--line);border-radius:5mm;padding:5mm 7mm;background:#fff}
+  .toc-no{width:13mm;height:13mm;border-radius:50%;background:var(--red);color:#fff;font-size:13pt;font-weight:800;display:flex;align-items:center;justify-content:center;flex:0 0 auto}
+  .toc-body{flex:1}
+  .toc-t{font-size:14pt;font-weight:800}
+  .toc-s{font-size:9.5pt;color:var(--soft);margin-top:1mm;line-height:1.6}
+  .toc-pg{font-size:10pt;font-weight:800;color:var(--redD);flex:0 0 auto}
+  .toc-thumb{width:14.5mm;flex:0 0 auto;background:var(--ink);border-radius:2.5mm;padding:0.9mm}
+  .toc-thumb svg{display:block;width:100%;border-radius:1.8mm}
 </style>
 </head>
 <body>
 
-<!-- ============ PAGE 1 : 表紙・全体の流れ ============ -->
+<!-- ============ 表紙 ============ -->
 <div class="page">
   <div class="band">
     <div class="t">鋼材在庫システム　使い方マニュアル</div>
-    <div class="s">材料倉庫の持ち出しをスマホで記録しよう ／ Hướng dẫn sử dụng（アプリはベトナム語表示に切替できます）</div>
+    <div class="s">スマホでかんたん在庫管理 ／ <span class="vi">Hướng dẫn sử dụng</span>（アプリはベトナム語表示に切替できます）</div>
   </div>
 
-  <div style="font-size:13pt;font-weight:800;margin:2mm 0 4mm">やることは、この3つだけ！</div>
+  <div style="font-size:12.5pt;font-weight:800">このマニュアルは、やりたいこと別の3部構成です</div>
 
-  <svg viewBox="0 0 760 300" style="width:100%;height:auto">
-    <!-- コマ1 鍵を借りる -->
-    <g>
-      <rect x="5" y="10" width="225" height="240" rx="16" fill="#fff" stroke="#d7dce3" stroke-width="2"/>
-      <rect x="5" y="10" width="225" height="46" rx="16" fill="#df1f26"/>
-      <rect x="5" y="40" width="225" height="16" fill="#df1f26"/>
-      <text x="117" y="40" text-anchor="middle" font-size="19" font-weight="800" fill="#fff">1. 鍵を借りる</text>
-      <!-- 鍵フックとQR -->
-      <rect x="35" y="80" width="70" height="90" rx="6" fill="#f5f7f9" stroke="#d7dce3"/>
-      <circle cx="70" cy="100" r="5" fill="#5d6675"/>
-      <g transform="translate(70,104)"><circle cx="0" cy="14" r="10" fill="none" stroke="#8a6d1a" stroke-width="5"/><rect x="-2.5" y="22" width="5" height="26" fill="#8a6d1a"/><rect x="-2.5" y="40" width="10" height="5" fill="#8a6d1a"/></g>
-      <!-- QR貼り紙 -->
-      <rect x="120" y="80" width="76" height="90" rx="5" fill="#fff" stroke="#15171c" stroke-width="2"/>
-      <g transform="translate(130,90)">
-        <rect width="18" height="18" fill="#15171c"/><rect x="38" width="18" height="18" fill="#15171c"/><rect y="38" width="18" height="18" fill="#15171c"/>
-        <rect x="4" y="4" width="10" height="10" fill="#fff"/><rect x="42" y="4" width="10" height="10" fill="#fff"/><rect x="4" y="42" width="10" height="10" fill="#fff"/>
-        <rect x="24" y="24" width="8" height="8" fill="#15171c"/><rect x="38" y="30" width="6" height="6" fill="#15171c"/><rect x="26" y="40" width="6" height="6" fill="#15171c"/><rect x="46" y="42" width="8" height="8" fill="#15171c"/>
-      </g>
-      <text x="158" y="163" text-anchor="middle" font-size="9" fill="#5d6675">鍵置き場のQR</text>
-      <!-- スマホ（実画面） -->
-      <g transform="translate(154,180)">
-        <rect x="-3" y="-3" width="36" height="70" rx="8" fill="#15171c"/>
-        <clipPath id="c1p"><rect x="0" y="0" width="30" height="64" rx="4"/></clipPath>
-        <image href="shots/shot-key.png" x="0" y="0" width="30" height="65" clip-path="url(#c1p)" preserveAspectRatio="xMidYMin slice"/>
-      </g>
-      <path d="M148 200 L132 176" stroke="#df1f26" stroke-width="2.5" fill="none" marker-end="url(#ar)"/>
-      <text x="117" y="272" text-anchor="middle" font-size="12" font-weight="700" fill="#15171c">QRをスマホで読んで「借りる」</text>
-    </g>
-    <!-- 矢印 -->
-    <path d="M243 130 L262 130" stroke="#df1f26" stroke-width="5" marker-end="url(#arBig)"/>
-    <!-- コマ2 材料を使って残りを登録 -->
-    <g transform="translate(265,0)">
-      <rect x="5" y="10" width="225" height="240" rx="16" fill="#fff" stroke="#d7dce3" stroke-width="2"/>
-      <rect x="5" y="10" width="225" height="46" rx="16" fill="#df1f26"/>
-      <rect x="5" y="40" width="225" height="16" fill="#df1f26"/>
-      <text x="117" y="40" text-anchor="middle" font-size="19" font-weight="800" fill="#fff">2. 材料を使う</text>
-      <!-- 材料棚 -->
-      <rect x="25" y="85" width="90" height="8" rx="3" fill="#5d6675"/>
-      <rect x="25" y="115" width="90" height="8" rx="3" fill="#5d6675"/>
-      <rect x="30" y="70" width="60" height="9" rx="4.5" fill="#3a6fb0"/>
-      <rect x="30" y="100" width="74" height="9" rx="4.5" fill="#1f8a6d"/>
-      <!-- ノコギリ（加工） -->
-      <g transform="translate(130,72)">
-        <rect x="0" y="18" width="40" height="9" rx="4.5" fill="#3a6fb0"/>
-        <path d="M18 6 L30 18 M18 6 l4 -4 l14 14" stroke="#5d6675" stroke-width="4" fill="none"/>
-      </g>
-      <!-- 定規と入力 -->
-      <g transform="translate(35,140)">
-        <rect x="0" y="0" width="86" height="14" rx="3" fill="#f7d774" stroke="#c9a227"/>
-        <path d="M10 0v6M22 0v6M34 0v6M46 0v6M58 0v6M70 0v6" stroke="#8a6d1a" stroke-width="1.6"/>
-        <text x="43" y="30" text-anchor="middle" font-size="10" fill="#5d6675">残りを測る</text>
-      </g>
-      <g transform="translate(150,126)">
-        <rect x="-3" y="-3" width="45" height="93" rx="9" fill="#15171c"/>
-        <clipPath id="c2p"><rect x="0" y="0" width="39" height="81" rx="5"/></clipPath>
-        <image href="shots/shot-co.png" x="0" y="-7" width="39" height="84" clip-path="url(#c2p)" preserveAspectRatio="xMidYMin slice"/>
-      </g>
-      <text x="117" y="230" text-anchor="middle" font-size="12" font-weight="700">材料のQRを読んで</text>
-      <text x="117" y="246" text-anchor="middle" font-size="12" font-weight="700" fill="#df1f26">残った長さ(mm)を入力</text>
-    </g>
-    <path d="M508 130 L527 130" stroke="#df1f26" stroke-width="5" marker-end="url(#arBig)"/>
-    <!-- コマ3 鍵を返す -->
-    <g transform="translate(530,0)">
-      <rect x="5" y="10" width="225" height="240" rx="16" fill="#fff" stroke="#d7dce3" stroke-width="2"/>
-      <rect x="5" y="10" width="225" height="46" rx="16" fill="#df1f26"/>
-      <rect x="5" y="40" width="225" height="16" fill="#df1f26"/>
-      <text x="117" y="40" text-anchor="middle" font-size="19" font-weight="800" fill="#fff">3. 鍵を戻す</text>
-      <rect x="55" y="75" width="120" height="115" rx="8" fill="#f5f7f9" stroke="#d7dce3"/>
-      <circle cx="115" cy="102" r="6" fill="#5d6675"/>
-      <g transform="translate(115,108)"><circle cx="0" cy="16" r="12" fill="none" stroke="#8a6d1a" stroke-width="6"/><rect x="-3" y="26" width="6" height="34" fill="#8a6d1a"/><rect x="-3" y="49" width="12" height="6" fill="#8a6d1a"/></g>
-      <circle cx="185" cy="120" r="26" fill="#1e6b43"/>
-      <path d="M172 120 l9 10 l17 -20" stroke="#fff" stroke-width="6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-      <text x="117" y="225" text-anchor="middle" font-size="13" font-weight="800" fill="#1e6b43">フックに戻すだけ！</text>
-      <text x="117" y="248" text-anchor="middle" font-size="11" font-weight="700">スマホの操作はありません</text>
-      <text x="117" y="272" text-anchor="middle" font-size="9.5" fill="#5d6675">（QRを読む必要もなし）</text>
-    </g>
-    <defs>
-      <marker id="ar" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#df1f26"/></marker>
-      <marker id="arBig" markerWidth="6" markerHeight="6" refX="4" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 z" fill="#df1f26"/></marker>
-      <marker id="arG" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#1e6b43"/></marker>
-    </defs>
-  </svg>
+  <div class="toc">
+    <div class="toc-card">
+      <div class="toc-no">1</div>
+      <div class="toc-thumb"><svg viewBox="0 0 750 1624"><image href="shots/shot-checkout.png" width="750" height="1624"/></svg></div>
+      <div class="toc-body">
+        <div class="toc-t">在庫があるか確認する</div>
+        <div class="toc-s">欲しい材料が倉庫にあるか、長さ・置き場所をスマホで調べる／<span class="vi">Kiểm tra tồn kho</span></div>
+      </div>
+      <div class="toc-pg">→ 2ページ</div>
+    </div>
+    <div class="toc-card">
+      <div class="toc-no">2</div>
+      <div class="toc-thumb"><svg viewBox="0 0 750 1624"><image href="shots/shot-co.png" width="750" height="1624"/></svg></div>
+      <div class="toc-body">
+        <div class="toc-t">在庫を使う</div>
+        <div class="toc-s">倉庫の鍵QR → 材料のQRを読んで、使った後の<b>残りの長さ</b>を登録する／<span class="vi">Dùng vật liệu</span></div>
+      </div>
+      <div class="toc-pg">→ 3ページ</div>
+    </div>
+    <div class="toc-card">
+      <div class="toc-no">3</div>
+      <div class="toc-thumb"><svg viewBox="0 0 750 1624"><image href="shots/shot-ns.png" width="750" height="1624"/></svg></div>
+      <div class="toc-body">
+        <div class="toc-t">新しい在庫を登録する</div>
+        <div class="toc-s">今日納入された定尺の残りなど、リストに無い材料を登録する／<span class="vi">Đăng ký vật liệu mới</span></div>
+      </div>
+      <div class="toc-pg">→ 4ページ</div>
+    </div>
+  </div>
 
-  <div style="display:flex;gap:6mm;margin-top:5mm">
-    <div style="flex:1">
+  <div style="display:flex;gap:6mm;align-items:flex-start">
+    <div style="flex:1.2">
       <div style="font-size:12pt;font-weight:800;margin-bottom:3mm">はじめる前に（最初の1回だけ）</div>
       <div class="pt"><div class="n">1</div><div>スマホを<b>社内Wi-Fi</b>につなぐ</div></div>
-      <div class="pt"><div class="n">2</div><div>下のQRを読んでページを開き、<b>ブックマーク（ホーム画面に追加）</b>しておくと便利</div></div>
+      <div class="pt"><div class="n">2</div><div>右のQRを読んでページを開き、<b>ホーム画面に追加</b>（ブックマーク）しておくと便利</div></div>
       <div class="pt"><div class="n">3</div><div>名前は<b>最初に1回選ぶだけ</b>。次からは自動で入っています</div></div>
-      <div class="pt"><div class="n">4</div><div>ベトナム語にしたい人は、画面右上の<b>「Tiếng Việt」</b>ボタンを押す</div></div>
+      <div class="pt"><div class="n">4</div><div>ベトナム語にする人は右上の<b class="vi">「Tiếng Việt」</b>ボタンを押す（1回でOK）</div></div>
     </div>
-    <div style="width:72mm">
+    <div style="width:70mm">
       <div class="qrbox">
-        {{QRURL}}
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 33 33" shape-rendering="crispEdges"><rect width="33" height="33" fill="#fff"/><path d="M4 4h1v1h-1zM5 4h1v1h-1zM6 4h1v1h-1zM7 4h1v1h-1zM8 4h1v1h-1zM9 4h1v1h-1zM10 4h1v1h-1zM12 4h1v1h-1zM13 4h1v1h-1zM17 4h1v1h-1zM19 4h1v1h-1zM22 4h1v1h-1zM23 4h1v1h-1zM24 4h1v1h-1zM25 4h1v1h-1zM26 4h1v1h-1zM27 4h1v1h-1zM28 4h1v1h-1zM4 5h1v1h-1zM10 5h1v1h-1zM14 5h1v1h-1zM15 5h1v1h-1zM16 5h1v1h-1zM17 5h1v1h-1zM18 5h1v1h-1zM22 5h1v1h-1zM28 5h1v1h-1zM4 6h1v1h-1zM6 6h1v1h-1zM7 6h1v1h-1zM8 6h1v1h-1zM10 6h1v1h-1zM13 6h1v1h-1zM15 6h1v1h-1zM18 6h1v1h-1zM22 6h1v1h-1zM24 6h1v1h-1zM25 6h1v1h-1zM26 6h1v1h-1zM28 6h1v1h-1zM4 7h1v1h-1zM6 7h1v1h-1zM7 7h1v1h-1zM8 7h1v1h-1zM10 7h1v1h-1zM12 7h1v1h-1zM13 7h1v1h-1zM17 7h1v1h-1zM20 7h1v1h-1zM22 7h1v1h-1zM24 7h1v1h-1zM25 7h1v1h-1zM26 7h1v1h-1zM28 7h1v1h-1zM4 8h1v1h-1zM6 8h1v1h-1zM7 8h1v1h-1zM8 8h1v1h-1zM10 8h1v1h-1zM12 8h1v1h-1zM13 8h1v1h-1zM17 8h1v1h-1zM19 8h1v1h-1zM22 8h1v1h-1zM24 8h1v1h-1zM25 8h1v1h-1zM26 8h1v1h-1zM28 8h1v1h-1zM4 9h1v1h-1zM10 9h1v1h-1zM12 9h1v1h-1zM13 9h1v1h-1zM14 9h1v1h-1zM17 9h1v1h-1zM18 9h1v1h-1zM20 9h1v1h-1zM22 9h1v1h-1zM28 9h1v1h-1zM4 10h1v1h-1zM5 10h1v1h-1zM6 10h1v1h-1zM7 10h1v1h-1zM8 10h1v1h-1zM9 10h1v1h-1zM10 10h1v1h-1zM12 10h1v1h-1zM14 10h1v1h-1zM16 10h1v1h-1zM18 10h1v1h-1zM20 10h1v1h-1zM22 10h1v1h-1zM23 10h1v1h-1zM24 10h1v1h-1zM25 10h1v1h-1zM26 10h1v1h-1zM27 10h1v1h-1zM28 10h1v1h-1zM12 11h1v1h-1zM13 11h1v1h-1zM15 11h1v1h-1zM16 11h1v1h-1zM19 11h1v1h-1zM20 11h1v1h-1zM4 12h1v1h-1zM8 12h1v1h-1zM10 12h1v1h-1zM11 12h1v1h-1zM12 12h1v1h-1zM14 12h1v1h-1zM16 12h1v1h-1zM18 12h1v1h-1zM20 12h1v1h-1zM21 12h1v1h-1zM22 12h1v1h-1zM23 12h1v1h-1zM24 12h1v1h-1zM25 12h1v1h-1zM28 12h1v1h-1zM4 13h1v1h-1zM6 13h1v1h-1zM7 13h1v1h-1zM9 13h1v1h-1zM11 13h1v1h-1zM14 13h1v1h-1zM15 13h1v1h-1zM17 13h1v1h-1zM19 13h1v1h-1zM21 13h1v1h-1zM23 13h1v1h-1zM24 13h1v1h-1zM25 13h1v1h-1zM27 13h1v1h-1zM7 14h1v1h-1zM8 14h1v1h-1zM10 14h1v1h-1zM11 14h1v1h-1zM12 14h1v1h-1zM13 14h1v1h-1zM15 14h1v1h-1zM16 14h1v1h-1zM17 14h1v1h-1zM18 14h1v1h-1zM19 14h1v1h-1zM20 14h1v1h-1zM21 14h1v1h-1zM23 14h1v1h-1zM25 14h1v1h-1zM26 14h1v1h-1zM6 15h1v1h-1zM7 15h1v1h-1zM9 15h1v1h-1zM11 15h1v1h-1zM13 15h1v1h-1zM14 15h1v1h-1zM15 15h1v1h-1zM16 15h1v1h-1zM18 15h1v1h-1zM21 15h1v1h-1zM22 15h1v1h-1zM24 15h1v1h-1zM26 15h1v1h-1zM27 15h1v1h-1zM4 16h1v1h-1zM6 16h1v1h-1zM7 16h1v1h-1zM10 16h1v1h-1zM13 16h1v1h-1zM15 16h1v1h-1zM16 16h1v1h-1zM18 16h1v1h-1zM19 16h1v1h-1zM22 16h1v1h-1zM25 16h1v1h-1zM26 16h1v1h-1zM27 16h1v1h-1zM28 16h1v1h-1zM4 17h1v1h-1zM5 17h1v1h-1zM7 17h1v1h-1zM8 17h1v1h-1zM9 17h1v1h-1zM13 17h1v1h-1zM14 17h1v1h-1zM16 17h1v1h-1zM19 17h1v1h-1zM23 17h1v1h-1zM24 17h1v1h-1zM27 17h1v1h-1zM6 18h1v1h-1zM10 18h1v1h-1zM15 18h1v1h-1zM16 18h1v1h-1zM17 18h1v1h-1zM19 18h1v1h-1zM20 18h1v1h-1zM22 18h1v1h-1zM23 18h1v1h-1zM25 18h1v1h-1zM26 18h1v1h-1zM6 19h1v1h-1zM7 19h1v1h-1zM9 19h1v1h-1zM12 19h1v1h-1zM13 19h1v1h-1zM14 19h1v1h-1zM16 19h1v1h-1zM19 19h1v1h-1zM20 19h1v1h-1zM21 19h1v1h-1zM22 19h1v1h-1zM25 19h1v1h-1zM26 19h1v1h-1zM27 19h1v1h-1zM4 20h1v1h-1zM5 20h1v1h-1zM6 20h1v1h-1zM10 20h1v1h-1zM12 20h1v1h-1zM14 20h1v1h-1zM15 20h1v1h-1zM16 20h1v1h-1zM18 20h1v1h-1zM19 20h1v1h-1zM20 20h1v1h-1zM21 20h1v1h-1zM22 20h1v1h-1zM23 20h1v1h-1zM24 20h1v1h-1zM25 20h1v1h-1zM26 20h1v1h-1zM12 21h1v1h-1zM13 21h1v1h-1zM14 21h1v1h-1zM15 21h1v1h-1zM16 21h1v1h-1zM17 21h1v1h-1zM19 21h1v1h-1zM20 21h1v1h-1zM24 21h1v1h-1zM26 21h1v1h-1zM4 22h1v1h-1zM5 22h1v1h-1zM6 22h1v1h-1zM7 22h1v1h-1zM8 22h1v1h-1zM9 22h1v1h-1zM10 22h1v1h-1zM12 22h1v1h-1zM13 22h1v1h-1zM14 22h1v1h-1zM15 22h1v1h-1zM16 22h1v1h-1zM17 22h1v1h-1zM20 22h1v1h-1zM22 22h1v1h-1zM24 22h1v1h-1zM25 22h1v1h-1zM4 23h1v1h-1zM10 23h1v1h-1zM13 23h1v1h-1zM15 23h1v1h-1zM18 23h1v1h-1zM19 23h1v1h-1zM20 23h1v1h-1zM24 23h1v1h-1zM25 23h1v1h-1zM26 23h1v1h-1zM27 23h1v1h-1zM28 23h1v1h-1zM4 24h1v1h-1zM6 24h1v1h-1zM7 24h1v1h-1zM8 24h1v1h-1zM10 24h1v1h-1zM12 24h1v1h-1zM14 24h1v1h-1zM18 24h1v1h-1zM20 24h1v1h-1zM21 24h1v1h-1zM22 24h1v1h-1zM23 24h1v1h-1zM24 24h1v1h-1zM26 24h1v1h-1zM4 25h1v1h-1zM6 25h1v1h-1zM7 25h1v1h-1zM8 25h1v1h-1zM10 25h1v1h-1zM13 25h1v1h-1zM15 25h1v1h-1zM16 25h1v1h-1zM17 25h1v1h-1zM20 25h1v1h-1zM22 25h1v1h-1zM25 25h1v1h-1zM26 25h1v1h-1zM27 25h1v1h-1zM28 25h1v1h-1zM4 26h1v1h-1zM6 26h1v1h-1zM7 26h1v1h-1zM8 26h1v1h-1zM10 26h1v1h-1zM14 26h1v1h-1zM15 26h1v1h-1zM20 26h1v1h-1zM22 26h1v1h-1zM27 26h1v1h-1zM4 27h1v1h-1zM10 27h1v1h-1zM14 27h1v1h-1zM15 27h1v1h-1zM21 27h1v1h-1zM23 27h1v1h-1zM24 27h1v1h-1zM25 27h1v1h-1zM26 27h1v1h-1zM27 27h1v1h-1zM4 28h1v1h-1zM5 28h1v1h-1zM6 28h1v1h-1zM7 28h1v1h-1zM8 28h1v1h-1zM9 28h1v1h-1zM10 28h1v1h-1zM12 28h1v1h-1zM18 28h1v1h-1zM21 28h1v1h-1zM22 28h1v1h-1zM26 28h1v1h-1zM27 28h1v1h-1zM28 28h1v1h-1z" fill="#000"/></svg>
         <div>
           <div class="u">http://192.168.1.107:3001/</div>
           <div class="d">鋼材在庫システム（社内のみ）<br>スマホのカメラで読み取り</div>
@@ -150,250 +113,134 @@
   <div class="foot"><span>鋼材在庫システム 使い方マニュアル</span><span>2026-09-23 ／ 1</span></div>
 </div>
 
-<!-- ============ PAGE 2 : STEP1 鍵を借りる ============ -->
+<!-- ============ ① 在庫があるか確認する ============ -->
 <div class="page">
   <div class="step-h">
     <div class="step-no">1</div>
     <div>
-      <div class="step-t">鍵を借りる 〜 倉庫へ行くとき</div>
-      <div class="step-vi">Bước 1: Mượn chìa khóa（QRを読むだけ）</div>
+      <div class="step-t">在庫があるか確認する</div>
+      <div class="step-vi">Phần 1: Kiểm tra xem có tồn kho hay không</div>
     </div>
   </div>
 
-  <svg viewBox="0 0 760 455" style="width:100%;height:auto">
-    <!-- 左：現場イラスト -->
-    <g>
-      <text x="130" y="24" text-anchor="middle" font-size="15" font-weight="800" fill="#15171c">プログラム室の鍵置き場</text>
-      <rect x="20" y="40" width="220" height="220" rx="12" fill="#f5f7f9" stroke="#d7dce3" stroke-width="2"/>
-      <!-- フック＋鍵 -->
-      <circle cx="80" cy="90" r="7" fill="#5d6675"/>
-      <g transform="translate(80,98)"><circle cx="0" cy="20" r="15" fill="none" stroke="#8a6d1a" stroke-width="7"/><rect x="-3.5" y="32" width="7" height="40" fill="#8a6d1a"/><rect x="-3.5" y="58" width="15" height="7" fill="#8a6d1a"/><rect x="-3.5" y="46" width="11" height="6" fill="#8a6d1a"/></g>
-      <!-- QR貼り紙 -->
-      <rect x="135" y="70" width="90" height="110" rx="6" fill="#fff" stroke="#15171c" stroke-width="2.5"/>
-      <g transform="translate(147,82)">
-        <rect width="20" height="20" fill="#15171c"/><rect x="46" width="20" height="20" fill="#15171c"/><rect y="46" width="20" height="20" fill="#15171c"/>
-        <rect x="5" y="5" width="10" height="10" fill="#fff"/><rect x="51" y="5" width="10" height="10" fill="#fff"/><rect x="5" y="51" width="10" height="10" fill="#fff"/>
-        <rect x="28" y="28" width="10" height="10" fill="#15171c"/><rect x="46" y="34" width="8" height="8" fill="#15171c"/><rect x="30" y="48" width="8" height="8" fill="#15171c"/><rect x="56" y="52" width="10" height="10" fill="#15171c"/><rect x="28" y="8" width="8" height="8" fill="#15171c"/>
-      </g>
-      <text x="180" y="172" text-anchor="middle" font-size="10" fill="#5d6675">鋼材倉庫の鍵 QR</text>
-      <!-- 手＋スマホ -->
-      <g transform="translate(162,192)">
-        <rect x="0" y="0" width="48" height="84" rx="9" fill="#15171c"/><rect x="4" y="6" width="40" height="72" rx="4" fill="#fff"/>
-        <rect x="9" y="14" width="30" height="30" fill="none" stroke="#df1f26" stroke-width="3"/>
-        <rect x="15" y="20" width="18" height="18" fill="#15171c" opacity=".75"/>
-        <text x="24" y="60" text-anchor="middle" font-size="8" fill="#5d6675">カメラで読む</text>
-      </g>
-      <path d="M174 198 L188 178" stroke="#df1f26" stroke-width="3" fill="none" marker-end="url(#a2)"/>
-      <text x="130" y="296" text-anchor="middle" font-size="12.5" font-weight="700">スマホの<tspan fill="#df1f26">カメラ</tspan>でQRを読むと</text>
-      <text x="130" y="314" text-anchor="middle" font-size="12.5" font-weight="700">自動で右の画面が開きます</text>
-    </g>
-
-    <!-- 中央：スマホ画面（実際の画面） -->
-    <g transform="translate(300,0)">
-      <rect x="-7" y="-7" width="214" height="447" rx="22" fill="#15171c"/>
-      <clipPath id="scrKey"><rect x="0" y="0" width="200" height="433" rx="13"/></clipPath>
-      <image href="shots/shot-key.png" x="0" y="0" width="200" height="433" clip-path="url(#scrKey)"/>
-    </g>
-
-    <!-- 右：手順と拡大 -->
-    <g transform="translate(540,10)">
-      <g>
-        <circle cx="12" cy="30" r="11" fill="#df1f26"/><text x="12" y="35" text-anchor="middle" font-size="12" font-weight="800" fill="#fff">1</text>
-        <text x="32" y="27" font-size="12.5" font-weight="700">名前を選ぶ</text>
-        <text x="32" y="44" font-size="10" fill="#5d6675">最初の1回だけ。次からは</text>
-        <text x="32" y="58" font-size="10" fill="#5d6675">自動で選ばれています</text>
-      </g>
-      <g transform="translate(0,80)">
-        <circle cx="12" cy="30" r="11" fill="#df1f26"/><text x="12" y="35" text-anchor="middle" font-size="12" font-weight="800" fill="#fff">2</text>
-        <text x="32" y="27" font-size="12.5" font-weight="700">赤いボタンを押す</text>
-        <text x="32" y="44" font-size="10" fill="#5d6675">これで「誰が倉庫に行ったか」が</text>
-        <text x="32" y="58" font-size="10" fill="#5d6675">記録されます</text>
-      </g>
-      <!-- 拡大（実画面の切り抜き） -->
-      <g transform="translate(0,178)">
-        <text x="0" y="-4" font-size="10" font-weight="800" fill="#bb1820">【拡大】この赤いボタンを押す</text>
-        <rect x="-2" y="4" width="214" height="66" rx="10" fill="#fff" stroke="#df1f26" stroke-width="3" stroke-dasharray="7 5"/>
-        <svg x="6" y="10" width="198" height="54" viewBox="100 860 550 150" preserveAspectRatio="xMidYMid meet"><image href="shots/shot-key.png" width="750" height="1624"/></svg>
-        <text x="105" y="92" text-anchor="middle" font-size="10.5" fill="#5d6675">押すと「行ってらっしゃい！」と表示されて完了</text>
-      </g>
-    </g>
-    <defs><marker id="a2" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#df1f26"/></marker></defs>
-  </svg>
-
-  <div class="note" style="margin-top:4mm">
-    <b>ポイント：</b>カメラでQRが読みにくいときは、アプリを開いて赤い<b>「QRを読み取る」</b>ボタンからでも読めます（STEP2参照）。
-    <b>返却の操作はありません</b>。使い終わった鍵はフックに戻すだけでOKです（STEP3参照）。
+  <div style="display:flex;gap:8mm;align-items:flex-start">
+    <div class="phoneframe" style="width:60mm">
+      <img src="shots/shot-checkout.png" alt="持ち出し画面">
+    </div>
+    <div style="flex:1;min-width:0">
+      <div class="pt"><div class="n">1</div><div><b>アプリを開く</b>（スマホは最初からこの画面）。ここが在庫の一覧です</div></div>
+      <div class="pt"><div class="n">2</div><div><b>材質・鋼種で絞り込む</b>。上の検索欄に規格の一部（例：50）を入れて探すこともできます</div></div>
+      <div class="zbox" style="margin:2mm 0 4mm">
+        <div class="zttl">【拡大】絞り込み欄</div>
+        <svg viewBox="20 800 710 160"><image href="shots/shot-checkout.png" width="750" height="1624"/></svg>
+      </div>
+      <div class="pt"><div class="n">3</div><div><b>カードを見る</b>。1枚 ＝ 材料1本。<b>長さ・置き場所（棚番号）・仕上げ</b>が分かります</div></div>
+      <div class="zbox" style="margin:2mm 0 4mm">
+        <div class="zttl">【拡大】在庫カードの見方</div>
+        <svg viewBox="20 1020 710 260"><image href="shots/shot-checkout.png" width="750" height="1624"/></svg>
+        <div style="font-size:9pt;color:var(--soft);margin-top:2mm">この材料は「SUS304の角パイプ 50×50 板厚2mm、残り3,000mm、置き場所B-2」</div>
+      </div>
+      <div class="gnote"><b>PCの場合：</b>同じアドレスを開いて「在庫検索」タブへ。もっと細かい絞り込みと、合計重量・合計金額の集計ができます。</div>
+    </div>
   </div>
 
-  <div class="foot"><span>STEP 1｜鍵を借りる</span><span>2</span></div>
+  <div class="note" style="margin-top:5mm">
+    <b>カードに出てこない＝在庫なし</b>です。よく使う材料が無くなりそうなときは、早めに発注担当へ連絡を。
+    材料そのものに貼ってある<b>QRラベルを読むと、その材料のカードが直接開く</b>ので探す手間もありません。
+  </div>
+
+  <div class="foot"><span>① 在庫があるか確認する</span><span>2</span></div>
 </div>
 
-<!-- ============ PAGE 3 : STEP2 材料を使って残りを登録 ============ -->
+<!-- ============ ② 在庫を使う ============ -->
 <div class="page">
   <div class="step-h">
     <div class="step-no">2</div>
     <div>
-      <div class="step-t">材料を使ったら、残りの長さを登録</div>
-      <div class="step-vi">Bước 2: Dùng vật liệu xong, nhập chiều dài còn lại</div>
+      <div class="step-t">在庫を使う 〜 使ったら残りの長さを登録</div>
+      <div class="step-vi">Phần 2: Dùng vật liệu — nhập chiều dài còn lại sau khi dùng</div>
     </div>
   </div>
 
-  <!-- 現場の流れ 3コマ -->
-  <svg viewBox="0 0 760 96" style="width:100%;height:auto">
-    <g><rect x="0" y="6" width="235" height="84" rx="10" fill="#f5f7f9" stroke="#d7dce3"/>
-      <rect x="18" y="30" width="80" height="10" rx="5" fill="#3a6fb0"/><rect x="18" y="52" width="80" height="8" rx="4" fill="#5d6675"/>
-      <path d="M110 35 h30" stroke="#df1f26" stroke-width="3" marker-end="url(#a3)"/>
-      <text x="175" y="40" font-size="11" font-weight="700">棚から取る</text>
-    </g>
-    <g transform="translate(262,0)"><rect x="0" y="6" width="235" height="84" rx="10" fill="#f5f7f9" stroke="#d7dce3"/>
-      <rect x="20" y="42" width="70" height="10" rx="5" fill="#3a6fb0"/>
-      <path d="M50 22 L64 42 M50 22 l6 -6 l18 20" stroke="#5d6675" stroke-width="5" fill="none"/>
-      <text x="120" y="40" font-size="11" font-weight="700">使う分だけ加工</text>
-      <text x="120" y="58" font-size="9.5" fill="#5d6675">残りは元の棚へ戻す</text>
-    </g>
-    <g transform="translate(524,0)"><rect x="0" y="6" width="235" height="84" rx="10" fill="#fde3e4" stroke="#df1f26" stroke-width="2"/>
-      <rect x="16" y="36" width="86" height="12" rx="4" fill="#f7d774" stroke="#c9a227"/>
-      <path d="M26 36v6M40 36v6M54 36v6M68 36v6M82 36v6" stroke="#8a6d1a" stroke-width="1.6"/>
-      <text x="122" y="36" font-size="11.5" font-weight="800" fill="#bb1820">残りをメジャーで測る</text>
-      <text x="122" y="54" font-size="10" fill="#bb1820">→ スマホで登録（下へ）</text>
-    </g>
-    <defs><marker id="a3" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 z" fill="#df1f26"/></marker></defs>
-  </svg>
-
-  <svg viewBox="0 0 760 475" style="width:100%;height:auto;margin-top:3mm">
-    <!-- 左スマホ：QR読み取り（実画面） -->
-    <g transform="translate(8,6)">
-      <text x="100" y="14" text-anchor="middle" font-size="12" font-weight="800">① 材料のQRを読む</text>
-      <g transform="translate(0,28)">
-        <rect x="-7" y="-7" width="214" height="447" rx="22" fill="#15171c"/>
-        <clipPath id="scrList"><rect x="0" y="0" width="200" height="433" rx="13"/></clipPath>
-        <image href="shots/shot-checkout.png" x="0" y="0" width="200" height="433" clip-path="url(#scrList)"/>
-      </g>
-    </g>
-    <path d="M228 200 L253 200" stroke="#df1f26" stroke-width="5" marker-end="url(#a4)"/>
-
-    <!-- 右スマホ：残り長さ入力（実画面） -->
-    <g transform="translate(262,6)">
-      <text x="100" y="14" text-anchor="middle" font-size="12" font-weight="800">② 残りの長さを入力して記録</text>
-      <g transform="translate(0,28)">
-        <rect x="-7" y="-7" width="214" height="447" rx="22" fill="#15171c"/>
-        <clipPath id="scrCo"><rect x="0" y="0" width="200" height="433" rx="13"/></clipPath>
-        <image href="shots/shot-co.png" x="0" y="0" width="200" height="433" clip-path="url(#scrCo)"/>
-      </g>
-    </g>
-
-    <!-- 右端：拡大（実画面の切り抜き）＋説明 -->
-    <g transform="translate(496,6)">
-      <text x="0" y="30" font-size="11" font-weight="800" fill="#bb1820">【拡大】残りの長さ (mm)</text>
-      <rect x="-2" y="38" width="260" height="134" rx="12" fill="#fff" stroke="#df1f26" stroke-width="3" stroke-dasharray="7 5"/>
-      <svg x="8" y="46" width="240" height="118" viewBox="95 758 565 288" preserveAspectRatio="xMidYMid meet"><image href="shots/shot-co.png" width="750" height="1624"/></svg>
-      <text x="126" y="190" text-anchor="middle" font-size="10" fill="#5d6675">例：残りが1.5mなら「1500」と入力</text>
-
-      <g transform="translate(0,212)">
-        <circle cx="12" cy="12" r="11" fill="#df1f26"/><text x="12" y="17" text-anchor="middle" font-size="12" font-weight="800" fill="#fff">！</text>
-        <text x="32" y="10" font-size="10.5" font-weight="700">入力するのは「使った長さ」ではなく</text>
-        <text x="32" y="26" font-size="12" font-weight="800" fill="#bb1820">「残った長さ」です</text>
-        <text x="32" y="44" font-size="9.5" fill="#5d6675">使用量はシステムが自動で計算します</text>
-      </g>
-      <g transform="translate(0,268)">
-        <circle cx="12" cy="12" r="11" fill="#df1f26"/><text x="12" y="16" text-anchor="middle" font-size="11" font-weight="800" fill="#fff">✓</text>
-        <text x="32" y="10" font-size="10.5" font-weight="700">全部使い切ったときは</text>
-        <text x="32" y="27" font-size="10.5" font-weight="700">「<tspan fill="#bb1820" font-weight="800">全部 持ち出す</tspan>」を押すだけ</text>
-      </g>
-      <g transform="translate(0,326)">
-        <circle cx="12" cy="12" r="11" fill="#1e6b43"/><text x="12" y="16" text-anchor="middle" font-size="11" font-weight="800" fill="#fff">✓</text>
-        <text x="32" y="10" font-size="10.5" font-weight="700">名前を確認して</text>
-        <text x="32" y="27" font-size="10.5" font-weight="700">赤い「持ち出しを記録」で完了！</text>
-      </g>
-    </g>
-    <defs><marker id="a4" markerWidth="6" markerHeight="6" refX="4" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 z" fill="#df1f26"/></marker></defs>
-  </svg>
-
-  <div class="note" style="margin-top:3mm">
-    <b>なぜ登録が必要？</b>　登録しないと、システム上は材料が残っているのに実際は無い…というズレが起きて、
-    次に使う人が困ります。<b>使ったその場で、必ず登録</b>をお願いします（1回10秒で終わります）。<br>
-    <b>今日納入されたばかりの材料（QRが無い）の残りが出たら</b>：持ち出し画面の
-    <b>「＋ 残材を登録」ボタン</b>から、材質・寸法・残りの長さを入れて新規登録してください。
+  <div style="display:flex;gap:7mm;align-items:flex-start">
+    <div style="flex:1.15;min-width:0">
+      <div class="pt"><div class="n">1</div><div><b>倉庫へ行くとき</b>：プログラム室の鍵置き場のQRを読み、名前を確認して<b>「記録して倉庫へ行く」</b>を押す（鍵を返すときの操作はありません。フックに戻すだけ）</div></div>
+      <div class="pt" style="margin-top:3mm"><div class="n">2</div><div><b>材料のQRを読む</b>：赤い<b>「QRを読み取る」</b>ボタン → カメラでラベルを撮影。その材料の画面が直接開きます</div></div>
+      <div class="zbox" style="margin:2mm 0 4mm">
+        <div class="zttl">【拡大】このボタンで読み取り</div>
+        <svg viewBox="15 208 720 255"><image href="shots/shot-checkout.png" width="750" height="1624"/></svg>
+      </div>
+      <div class="pt"><div class="n">3</div><div><b>使い方を選ぶ</b>：全部使ったら「<b>全部 持ち出す</b>」、一部だけなら「<b>一部使った（残りを登録）</b>」</div></div>
+      <div class="pt"><div class="n">4</div><div><b>残った長さを測って入力</b>：使用量は自動計算。名前を確認して<b>「持ち出しを記録」</b>で完了！</div></div>
+      <div class="zbox" style="margin:2mm 0 4mm">
+        <div class="zttl">【拡大】残りの長さ（mm）— 例：残り1.5mなら「1500」</div>
+        <svg viewBox="95 758 565 288"><image href="shots/shot-co.png" width="750" height="1624"/></svg>
+      </div>
+      <div class="note"><b>入力するのは「使った長さ」ではなく「残った長さ」です。</b>登録しないと在庫と実物がズレて、次に使う人が困ります。使ったその場で必ず登録を（1回10秒）。</div>
+    </div>
+    <div style="width:56mm;flex:0 0 auto;display:flex;flex-direction:column;gap:5mm">
+      <div class="zbox">
+        <div class="zttl">【手順1】鍵QRを読むとこの画面</div>
+        <svg viewBox="78 368 594 640"><image href="shots/shot-key.png" width="750" height="1624"/></svg>
+      </div>
+      <div class="phoneframe">
+        <img src="shots/shot-co.png" alt="持ち出し登録画面">
+      </div>
+    </div>
   </div>
 
-  <div class="foot"><span>STEP 2｜材料を使ったら残りを登録</span><span>3</span></div>
+  <div class="foot"><span>② 在庫を使う</span><span>3</span></div>
 </div>
 
-<!-- ============ PAGE 4 : STEP3 返却 + Q&A ============ -->
+<!-- ============ ③ 新しい在庫を登録する ============ -->
 <div class="page">
   <div class="step-h">
     <div class="step-no">3</div>
     <div>
-      <div class="step-t">鍵を戻す 〜 スマホの操作はありません</div>
-      <div class="step-vi">Bước 3: Trả chìa khóa về móc (không cần thao tác điện thoại)</div>
+      <div class="step-t">新しい在庫を登録する 〜 納入材の残りなど</div>
+      <div class="step-vi">Phần 3: Đăng ký vật liệu mới (phần thừa của thanh mới nhập)</div>
     </div>
   </div>
 
-  <svg viewBox="0 0 760 175" style="width:100%;height:auto">
-    <!-- 左イラスト：フックに戻すだけ -->
-    <g>
-      <rect x="15" y="12" width="250" height="150" rx="12" fill="#f5f7f9" stroke="#d7dce3" stroke-width="2"/>
-      <circle cx="85" cy="48" r="6" fill="#5d6675"/>
-      <g transform="translate(85,54)"><circle cx="0" cy="16" r="12" fill="none" stroke="#8a6d1a" stroke-width="6"/><rect x="-3" y="26" width="6" height="32" fill="#8a6d1a"/><rect x="-3" y="47" width="12" height="6" fill="#8a6d1a"/></g>
-      <circle cx="185" cy="70" r="30" fill="#1e6b43"/>
-      <path d="M170 70 l10 11 l20 -23" stroke="#fff" stroke-width="7" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-      <text x="140" y="135" text-anchor="middle" font-size="13" font-weight="800" fill="#1e6b43">プログラム室のフックに戻すだけ！</text>
-    </g>
-    <!-- 右：メッセージ -->
-    <g transform="translate(290,12)">
-      <rect x="0" y="0" width="455" height="150" rx="12" fill="#fff" stroke="#1e6b43" stroke-width="3"/>
-      <text x="24" y="40" font-size="17" font-weight="800">スマホの操作は<tspan fill="#1e6b43">ありません</tspan>。QRも読みません。</text>
-      <text x="24" y="72" font-size="11.5" fill="#5d6675">「誰がいつ倉庫へ行ったか」は STEP1 のQRで記録済み。</text>
-      <text x="24" y="92" font-size="11.5" fill="#5d6675">「何をどれだけ使ったか」は STEP2 の残り長さ登録で記録済み。</text>
-      <text x="24" y="112" font-size="11.5" fill="#5d6675">だから返すときは、鍵を元の場所に戻すだけでOKです。</text>
-      <text x="24" y="138" font-size="11" font-weight="800" fill="#bb1820">※STEP2の登録だけは忘れずに！（管理者の作業ログでチェックされます）</text>
-    </g>
-    <defs><marker id="a5g" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#1e6b43"/></marker></defs>
-  </svg>
+  <div style="display:flex;gap:7mm;align-items:flex-start">
+    <div class="phoneframe" style="width:54mm">
+      <img src="shots/shot-ns.png" alt="残材を登録画面">
+    </div>
+    <div style="flex:1;min-width:0">
+      <div style="font-size:10.5pt;line-height:1.7;margin-bottom:3mm">今日納入されたばかりの定尺を使って残りが出たときなど、<b>まだQRラベルが無い材料</b>はここから在庫に登録します。</div>
+      <div class="pt"><div class="n">1</div><div>持ち出し画面の<b>「＋ 残材を登録」</b>を押す</div></div>
+      <div class="zbox" style="margin:2mm 0 4mm">
+        <div class="zttl">【拡大】このボタン</div>
+        <svg viewBox="15 478 720 190"><image href="shots/shot-checkout.png" width="750" height="1624"/></svg>
+      </div>
+      <div class="pt"><div class="n">2</div><div><b>材料の情報を選ぶ</b>：材質 → 鋼種 → 板厚 → 材料規格（例：50*50）</div></div>
+      <div class="pt"><div class="n">3</div><div><b>残りの長さ(mm)</b>を測って入力し、<b>置き場所（棚番号）</b>を選ぶ</div></div>
+      <div class="pt"><div class="n">4</div><div>名前を確認して<b>「登録する」</b>で完了。すぐ在庫一覧に出ます</div></div>
+      <div class="gnote" style="margin-top:2mm"><b>QRラベルは後日、事務所が印刷して貼ります</b>（登録した本人が貼る必要はありません）。</div>
+    </div>
+  </div>
 
-  <div style="font-size:13pt;font-weight:800;margin:4mm 0 3mm;border-left:4px solid var(--red);padding-left:3mm">こまったときは（Q&amp;A）</div>
-  <table style="width:100%;border-collapse:collapse;font-size:9.5pt;line-height:1.6">
+  <div style="font-size:11.5pt;font-weight:800;margin:4mm 0 2.5mm;border-left:1.2mm solid var(--red);padding-left:3mm">こまったときは（Q&amp;A）</div>
+  <table style="width:100%;border-collapse:collapse;font-size:9pt;line-height:1.55">
     <tr>
-      <td style="border:1px solid var(--line);background:var(--bg);padding:2.5mm 3mm;width:42%;font-weight:700">QRがカメラで読み取れない</td>
-      <td style="border:1px solid var(--line);padding:2.5mm 3mm">アプリを開いて赤い<b>「QRを読み取る」</b>ボタンから撮影する。明るい場所で、ラベルに近づけて。</td>
+      <td style="border:1px solid var(--line);background:var(--bg);padding:2mm 3mm;width:40%;font-weight:700">QRが読み取れない</td>
+      <td style="border:1px solid var(--line);padding:2mm 3mm">明るい場所でラベルに近づけて撮り直す。それでもダメなら絞り込みで材料を探して「持ち出す」からでもOK。</td>
     </tr>
     <tr>
-      <td style="border:1px solid var(--line);background:var(--bg);padding:2.5mm 3mm;font-weight:700">「この在庫は見つかりません」と出る</td>
-      <td style="border:1px solid var(--line);padding:2.5mm 3mm">その材料は使い切り済みの記録になっています。ラベルを剥がして捨て、事務所に一声かけてください。</td>
+      <td style="border:1px solid var(--line);background:var(--bg);padding:2mm 3mm;font-weight:700">「この在庫は見つかりません」と出る</td>
+      <td style="border:1px solid var(--line);padding:2mm 3mm">その材料は使い切り済みとして記録されています。ラベルを剥がして捨て、事務所に一声かけてください。</td>
     </tr>
     <tr>
-      <td style="border:1px solid var(--line);background:var(--bg);padding:2.5mm 3mm;font-weight:700">名前の選択肢に自分がいない</td>
-      <td style="border:1px solid var(--line);padding:2.5mm 3mm">「（名前を直接入力）」を選んで入力。あわせて管理者（辻本）まで連絡してください。</td>
+      <td style="border:1px solid var(--line);background:var(--bg);padding:2mm 3mm;font-weight:700">名前の選択肢に自分がいない</td>
+      <td style="border:1px solid var(--line);padding:2mm 3mm">「（名前を直接入力）」を選んで入力し、管理者（辻本）まで連絡してください。</td>
     </tr>
     <tr>
-      <td style="border:1px solid var(--line);background:var(--bg);padding:2.5mm 3mm;font-weight:700">登録するのを忘れて帰ってきた</td>
-      <td style="border:1px solid var(--line);padding:2.5mm 3mm">気づいた時点でOK。アプリの「持ち出し」から材料を探して登録してください（PCからでも可能）。</td>
-    </tr>
-    <tr>
-      <td style="border:1px solid var(--line);background:var(--bg);padding:2.5mm 3mm;font-weight:700">納入されたばかりの材料（QRなし）が余った</td>
-      <td style="border:1px solid var(--line);padding:2.5mm 3mm">持ち出し画面の<b>「＋ 残材を登録」</b>から新規登録（材質・寸法・残りの長さ・名前を入れるだけ）。QRラベルは後で事務所が印刷します。</td>
-    </tr>
-    <tr>
-      <td style="border:1px solid var(--line);background:var(--bg);padding:2.5mm 3mm;font-weight:700">ベトナム語で使いたい / Tiếng Việt</td>
-      <td style="border:1px solid var(--line);padding:2.5mm 3mm">画面右上の「Tiếng Việt」ボタンを押す（1回設定すれば次回からもベトナム語）。</td>
+      <td style="border:1px solid var(--line);background:var(--bg);padding:2mm 3mm;font-weight:700">登録を忘れて帰ってきた</td>
+      <td style="border:1px solid var(--line);padding:2mm 3mm">気づいた時点でOK。①の方法で材料を探し、「持ち出す」から残りの長さを登録してください（PCからでも可能）。</td>
     </tr>
   </table>
 
-  <div style="display:flex;gap:5mm;margin-top:4mm;align-items:center">
-    <div class="qrbox" style="flex:1">
-      {{QRURL}}
-      <div>
-        <div class="u">http://192.168.1.107:3001/</div>
-        <div class="d">PCでも同じアドレスで使えます（社内のみ）</div>
-      </div>
-    </div>
-    <div class="note" style="flex:1.3">
-      <b>お願い：</b>この記録があると、在庫のズレ・材料の探し回り・二重発注がなくなります。
-      最初は面倒でも、<b>「使ったらその場で登録」</b>にご協力ください！
-    </div>
-  </div>
-
-  <div class="foot"><span>STEP 3｜鍵を戻す ・ Q&amp;A</span><span>4</span></div>
+  <div class="foot"><span>③ 新しい在庫を登録する ・ Q&amp;A</span><span>4</span></div>
 </div>
 
 </body>
