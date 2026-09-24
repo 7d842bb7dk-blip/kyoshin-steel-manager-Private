@@ -156,7 +156,7 @@
             <button class="btn sm" id="btnExportWorklog"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>CSV出力（全記録）</button>
           </div>
         </div>
-        <div class="wl-hint">鍵QRで<b>倉庫入り</b>した後、その日のうちに本人の在庫記録（持ち出し・編集など）が1件も無い場合、<b class="wl-bad">記録なし⚠</b> と表示されます（倉庫入りから1時間以内は「作業中」扱い）。実際に材料を使ったのに記録が無い人への確認にお使いください。</div>
+        <div class="wl-hint"><b>1行＝1人の1回の作業</b>です。鍵を持ち出してから、同じ人が次に鍵を持ち出すまでに記録した材料（使った長さ・登録など）を同じ行にまとめています。鍵を持ち出したのに材料の記録が無いと <b class="wl-bad">記録なし⚠</b>（持出から1時間以内は「作業中」）。鍵を使わずに記録した分は「鍵なし」の行になります。</div>
         <div id="worklogWrap"></div>
       </div>
     </section>
@@ -253,6 +253,11 @@
           <div class="panel-h"><h2><svg class="sec-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg>鋼種別 材料規格候補</h2><span class="tag">SPEC LIST</span></div>
           <div class="tbl-wrap" id="mSpec"></div>
         </div>
+        <div class="panel span2">
+          <div class="panel-h"><h2><svg class="sec-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg>規格表（インターネットから取得・選択肢の絞り込みに使用）</h2><span class="tag">CATALOG</span></div>
+          <div style="padding:12px 18px 0;font-size:12px;color:var(--ink-soft);line-height:1.6">登録・計算画面では、材質・鋼種を選ぶと<b>この表と在庫にある板厚だけ</b>、板厚を選ぶと<b>その板厚で作られている規格・表面仕上げだけ</b>が選択肢に出ます（この表は読み取り専用）。</div>
+          <div class="tbl-wrap" id="mCatalog"></div>
+        </div>
       </div>
     </section>
 
@@ -331,14 +336,14 @@
         <label class="co-lab"><span data-i18n="材料規格">材料規格</span><span class="req">*</span>
           <input id="ns_spec" class="co-input num" list="dl_nsspec" placeholder="例: 50*50 / Φ34" autocomplete="off"><datalist id="dl_nsspec"></datalist></label>
       </div>
-      <label class="co-lab"><span data-i18n="残りの長さ (mm)">残りの長さ (mm)</span><span class="req">*</span>
-        <input type="number" id="ns_len" class="co-input num" inputmode="numeric" min="1" placeholder="例: 2500"></label>
       <div class="ns-row2">
-        <label class="co-lab"><span data-i18n="保管場所">保管場所</span>
-          <select id="ns_loc" class="co-input"></select></label>
+        <label class="co-lab"><span data-i18n="残りの長さ (mm)">残りの長さ (mm)</span><span class="req">*</span>
+          <input type="number" id="ns_len" class="co-input num" inputmode="numeric" min="1" placeholder="例: 2500"></label>
         <label class="co-lab"><span data-i18n="表面仕上げ">表面仕上げ</span>
           <select id="ns_fin" class="co-input"></select></label>
       </div>
+      <!-- 保管場所は選ばない：登録時に棚割りから自動で決めて大きく案内する（2026-09-24〜） -->
+      <div class="ns-hint" data-i18n="置き場所は、登録すると自動で表示されます">置き場所は、登録すると自動で表示されます</div>
       <label class="co-lab"><span data-i18n="あなたの名前">あなたの名前</span><span class="req">*</span>
         <select id="nsPersonSel" class="co-input"></select>
         <input type="text" id="nsPerson" class="co-input" style="display:none;margin-top:7px" placeholder="例: 山田" autocomplete="off">
