@@ -525,6 +525,26 @@
 
 <div class="toast" id="toast"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 13l4 4L19 7"/></svg><span id="toastMsg"></span></div>
 
+<!-- 元に戻す（記録の直後に15秒だけ表示。押すとその記録を取り消す） -->
+<div class="undo-bar" id="undoBar" role="status" aria-live="polite">
+  <svg class="undo-ok" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 13l4 4L19 7"/></svg>
+  <span class="undo-msg" id="undoMsg"></span>
+  <button type="button" class="undo-btn" id="undoBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg><span data-i18n="元に戻す">元に戻す</span></button>
+  <span class="undo-count" id="undoCount"></span>
+</div>
+
+<!-- 確認（全部持ち出すとき） -->
+<div class="overlay" id="confirmOverlay">
+  <div class="modal confirm-modal">
+    <div class="confirm-t" id="confirmTitle"></div>
+    <div class="confirm-b" id="confirmBody"></div>
+    <div class="confirm-btns">
+      <button type="button" class="btn ghost" id="confirmNo"></button>
+      <button type="button" class="btn primary" id="confirmYes"></button>
+    </div>
+  </div>
+</div>
+
 <script src="js/jsqr.js"></script>
 <script src="js/vendor/zxing-reader.js"></script>
 <script src="js/app.js"></script>

@@ -582,6 +582,61 @@ function refreshSearchThkFin(){
 function finishOptions(mat,koshu){const k=mat+"|"+koshu;if(FINISH_BY_MAT_KOSHU[k]&&FINISH_BY_MAT_KOSHU[k].length)return FINISH_BY_MAT_KOSHU[k];return FINISH_ALL;}
 function toast(msg,ms){const t=$("#toast");$("#toastMsg").textContent=msg;t.classList.add("show");clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove("show"),ms||2200);}
 
+/* ===================== 元に戻す（記録の直後の取り消し） =====================
+ * 持ち出し・残材登録・鍵・在庫の登録/編集/削除の直後に「元に戻す」バーを15秒出す。
+ * 押すとサーバーがその記録を取り消す（記録から5分以内は誰でも可。全部持ち出しは同じ番号で在庫が復活）。
+ * 単体版（オフライン）では出さず、従来どおりのお知らせだけ */
+const UNDO_SHOW_SEC=15;
+let undoState=null;
+function offerUndo(hid,msg){
+  if(MODE!=="server"||!hid){toast(msg);return;}
+  hideUndo();
+  let left=UNDO_SHOW_SEC;
+  $("#undoMsg").textContent=msg;
+  $("#undoCount").textContent=left+t("秒");
+  undoState={hid,timer:setInterval(()=>{left--;$("#undoCount").textContent=left+t("秒");if(left<=0)hideUndo();},1000)};
+  $("#toast").classList.remove("show");
+  $("#undoBar").classList.add("show");document.body.classList.add("undo-on");
+}
+function hideUndo(){
+  if(undoState)clearInterval(undoState.timer);
+  undoState=null;
+  $("#undoBar").classList.remove("show");document.body.classList.remove("undo-on");
+}
+/* 取り消しの実行（直後のバー・作業ログの両方から使う）。admin=true なら管理者パスコードを付けて送る */
+async function runUndo(hid,admin){
+  let person="";try{person=(localStorage.getItem(PERSON_KEY)||"").trim();}catch(e){}
+  const body={id:hid,person:person||(admin?"管理者":"")};
+  if(admin)body.pin=ADMIN_PIN;
+  await apiSend("POST","/api/undo",body);
+  closeLocGuide();
+  try{await refresh();}catch(e){} /* 取り消しは済んでいる。画面更新は次のポーリングでも回復 */
+  await loadHistory();
+}
+async function undoFromBar(){
+  if(!undoState)return;
+  const hid=undoState.hid;hideUndo();
+  try{await runUndo(hid,false);toast(t("元に戻しました"));}
+  catch(e){toast(t(e.message),6000);}
+}
+
+/* 確認画面（はい／戻る）。Promise<boolean> を返す */
+function askConfirm(o){
+  return new Promise(resolve=>{
+    const ov=$("#confirmOverlay");
+    $("#confirmTitle").textContent=o.title||"";
+    $("#confirmBody").innerHTML=o.bodyHtml||"";
+    $("#confirmYes").textContent=o.yes||t("はい");
+    $("#confirmNo").textContent=o.no||t("戻る");
+    const done=v=>{ov.classList.remove("show");$("#confirmYes").onclick=null;$("#confirmNo").onclick=null;ov.onclick=null;resolve(v);};
+    $("#confirmYes").onclick=()=>done(true);
+    $("#confirmNo").onclick=()=>done(false);
+    ov.onclick=e=>{if(e.target===ov)done(false);};
+    ov.classList.add("show");
+    setTimeout(()=>$("#confirmNo").focus(),50);
+  });
+}
+
 /* ===================== 言語（日本語／ベトナム語） =====================
  * 現場向け画面（タブ・検索・持ち出し・鍵・履歴）を翻訳対象にする。
  * 管理者向け画面（マスタ設定・作業ログ・計算）は日本語のみ。 */
@@ -620,6 +675,14 @@ const I18N_VI={
   "この材料の置き場所":"Vị trí để vật liệu này",
   "保管場所の登録を変更しました":"Đã đổi vị trí đăng ký",
   "置き場所は、登録すると自動で表示されます":"Vị trí cất sẽ tự động hiện ra sau khi đăng ký",
+  /* 元に戻す・確認 */
+  "元に戻す":"Hoàn tác","元に戻しました":"Đã hoàn tác","秒":"giây",
+  "全部使いましたか？":"Bạn đã dùng hết chưa?","この材料は在庫から消えます":"Vật liệu này sẽ bị xóa khỏi kho",
+  "はい、全部使った":"Vâng, đã dùng hết","戻る":"Quay lại","はい":"Có",
+  "この記録はすでに取り消されています":"Bản ghi này đã được hoàn tác",
+  "この在庫はその後にも記録があるため戻せません（新しい記録から順に取り消してください）":"Không thể hoàn tác vì vật liệu này đã có bản ghi mới hơn",
+  "在庫の状態が記録と合わないため戻せません（在庫管理から手で直してください）":"Không thể hoàn tác vì tồn kho đã thay đổi",
+  "記録から時間がたったため、ここからは戻せません。管理者に連絡してください":"Đã quá thời gian để hoàn tác. Hãy liên hệ quản lý",
   "この材料は置き場所の決まりがありません。武田・航に確認してください":"Vật liệu này chưa có quy định vị trí cất. Hãy hỏi Takeda hoặc Wataru (武田・航)",
   "この在庫は見つかりません（すでに使い切った可能性があります）":"Không tìm thấy tồn kho này (có thể đã dùng hết)",
   "使う材料の「持ち出す」ボタンを押してください。空欄はすべて対象です。":"Nhấn nút 「Lấy ra」 của vật liệu cần dùng. Để trống = tất cả.",
@@ -792,8 +855,11 @@ async function delRecord(id){
   const r=records.find(x=>x.id===id);if(!r)return;
   if(!confirm(`この在庫を削除しますか？\n\n${r.mat} / ${r.koshu} / ${r.spec} / 長さ${r.len}mm`))return;
   if(MODE==="server"){
-    try{await apiSend("DELETE","/api/records/"+id);await refresh();toast("在庫を削除しました");}
-    catch(e){toast("削除に失敗しました: "+e.message);}
+    let j;
+    try{j=await apiSend("DELETE","/api/records/"+id);}
+    catch(e){toast("削除に失敗しました: "+e.message);return;}
+    try{await refresh();}catch(e){}
+    loadHistory();offerUndo(j&&j.hid,"在庫を削除しました");
     return;
   }
   records=records.filter(x=>x.id!==id);localHist("delete",r,{len_before:r.len,len_after:null});
@@ -852,12 +918,13 @@ async function saveModal(){
   if(newLoc)rec.loc=newLoc;
   if(MODE==="server"){
     const wasEdit=!!editId;
+    let j;
     try{
-      if(editId)await apiSend("PUT","/api/records/"+editId,rec);
-      else await apiSend("POST","/api/records",rec);
+      if(editId)j=await apiSend("PUT","/api/records/"+editId,rec);
+      else j=await apiSend("POST","/api/records",rec);
     }catch(e){toast("保存に失敗しました: "+e.message);return;}
     try{await refresh();}catch(e){} /* 保存は済んでいる。画面更新の失敗は次のポーリングで回復 */
-    toast(wasEdit?"在庫を更新しました":"在庫を登録しました");closeModal();
+    loadHistory();offerUndo(j&&j.hid,wasEdit?"在庫を更新しました":"在庫を登録しました");closeModal();
     if(newLoc)showLocGuide(newLoc,pickedLoc);
     return;
   }
@@ -1150,6 +1217,15 @@ async function submitCo(){
     if(rem>=len){toast(t("今の長さより短い値を入力してください（変わっていない場合は登録不要です）"));$("#coUsed").focus();return;}
     usedLen=rem===0?null:Math.round((len-rem)*100)/100;
   }
+  /* 全部使う（在庫から消える）ときだけ、押し間違い防止の確認をはさむ */
+  if(usedLen==null){
+    const r=coTarget;
+    const go=await askConfirm({
+      title:t("全部使いましたか？"),
+      bodyHtml:`<b>${escH(r.mat)}　${escH(r.koshu)}　${escH(r.spec)}　t${escH(r.thk)}</b><br>${len.toLocaleString()} mm<span class="cf-warn">${escH(t("この材料は在庫から消えます"))}</span>`,
+      yes:t("はい、全部使った"),no:t("戻る")});
+    if(!go)return;
+  }
   const note=$("#coNote").value.trim();
   try{localStorage.setItem(PERSON_KEY,person);}catch(e){}
   /* 残りが出る場合は、残りの長さで置き場所を決めて一緒に登録する（確認なしで決定） */
@@ -1161,7 +1237,7 @@ async function submitCo(){
       const j=await apiSend("POST","/api/checkout",{id:coTarget.id,person,usedLen,note,loc:newLoc});
       try{await refresh();}catch(e){} /* 記録は済んでいる。画面更新の失敗は次のポーリングで回復 */
       loadHistory();
-      toast(j.removed?t("持ち出しを記録しました（全部使用・在庫から削除）"):t("持ち出しを記録しました（残り ")+Number(j.remain).toLocaleString()+" mm）");
+      offerUndo(j.hid,j.removed?t("持ち出しを記録しました（全部使用・在庫から削除）"):t("持ち出しを記録しました（残り ")+Number(j.remain).toLocaleString()+" mm）");
       closeCo();
       if(!j.removed&&newLoc)showLocGuide(newLoc,prevLoc); /* 残った材料の置き場所を大きく案内 */
     }catch(e){toast(t("記録に失敗しました: ")+e.message);}
@@ -1193,7 +1269,7 @@ function showLocGuide(to,prevLoc){
 function closeLocGuide(){$("#locOverlay").classList.remove("show");}
 
 /* ===================== 履歴の共通部品（作業ログで使用） ===================== */
-const HTYPE={checkout:["持ち出し","h-out"],add:["登録","h-in"],edit:["編集","h-edit"],delete:["削除","h-del"],bulk:["CSV取込","h-in"],keyout:["鍵 持出","h-out"],keyin:["鍵 返却","h-in"]};
+const HTYPE={checkout:["持ち出し","h-out"],add:["登録","h-in"],edit:["編集","h-edit"],delete:["削除","h-del"],bulk:["CSV取込","h-in"],keyout:["鍵 持出","h-out"],keyin:["鍵 返却","h-in"],undo:["取り消し","h-edit"]};
 function fmtTs(t){const d=new Date(t);const p=n=>String(n).padStart(2,"0");return d.getFullYear()+"/"+p(d.getMonth()+1)+"/"+p(d.getDate())+" "+p(d.getHours())+":"+p(d.getMinutes());}
 function fmtDateJ(t){const d=new Date(t);const w=["日","月","火","水","木","金","土"][d.getDay()];const p=n=>String(n).padStart(2,"0");return d.getFullYear()+"/"+p(d.getMonth()+1)+"/"+p(d.getDate())+"（"+w+"）";}
 function fmtTime(t){const d=new Date(t);const p=n=>String(n).padStart(2,"0");return p(d.getHours())+":"+p(d.getMinutes());}
@@ -1227,8 +1303,11 @@ function renderWorklog(){
     h+='<div class="tbl-wrap"><table class="dt wl-tbl"><thead><tr><th style="width:58px">時刻</th><th style="width:150px">名前</th><th style="width:108px">鍵</th><th>使った材料・どれだけ</th></tr></thead><tbody>';
     rows.forEach(r=>{
       const recent=(Date.now()-r.start)<3600e3;
-      const noRec=r.key&&!r.items.length&&!recent;
-      const key=r.key?`<span class="wl-keyout">${KEY_ICO}${fmtTime(r.key)} 持出</span>`:'<span class="muted">鍵なし</span>';
+      const keyUndone=!!(r.keyEv&&r.keyEv.undone_at);
+      const noRec=r.key&&!keyUndone&&!r.items.some(i=>i.type!=="undo"&&!i.undone_at)&&!recent;
+      const key=!r.key?'<span class="muted">鍵なし</span>'
+        :keyUndone?`<span class="wl-keyout wl-undone">${KEY_ICO}${fmtTime(r.key)} 持出</span><span class="wl-undone-tag">取り消し済み</span>`
+        :`<span class="wl-keyout">${KEY_ICO}${fmtTime(r.key)} 持出</span><button type="button" class="wl-undo" data-undo="${r.keyEv.id}" title="この鍵の記録を取り消す">元に戻す</button>`;
       let items;
       if(!r.items.length)items=noRec?'<span class="wl-bad">使った材料の記録なし ⚠</span>':'<span class="muted">（作業中）</span>';
       else{
@@ -1240,6 +1319,16 @@ function renderWorklog(){
     h+="</tbody></table></div></div>";
   }
   wrap.innerHTML=h;
+  wrap.querySelectorAll("[data-undo]").forEach(b=>b.addEventListener("click",()=>undoFromLog(Number(b.dataset.undo))));
+}
+/* 作業ログからの取り消し（管理者）：何日前の記録でも、在庫をその記録の前の状態に戻す */
+async function undoFromLog(hid){
+  const x=history.find(e=>e.id===hid);if(!x)return;
+  const what=x.type==="keyout"?"鍵の持出":[x.mat,x.koshu,x.spec,x.thk!=null&&x.thk!==""?"t"+x.thk:""].filter(Boolean).join(" ");
+  const label=(HTYPE[x.type]||[x.type])[0];
+  if(!confirm(`この記録を取り消して、元に戻しますか？\n\n${fmtTs(x.ts)}　${x.person||"—"}\n${label}：${what}${x.type==="checkout"&&!(Number(x.len_after)>0)?"\n（全部持ち出し → 在庫を同じ番号で復活させます）":""}`))return;
+  try{await runUndo(hid,true);toast("元に戻しました");}
+  catch(e){toast(e.message,6000);}
 }
 /* 1日分の記録を「1行＝1人の1回の作業」にまとめる。
  * 鍵の持出（keyout）から、同じ人が次に鍵を持ち出すまでの在庫記録（持ち出し・登録・編集・削除）を同じ行に入れる。
@@ -1248,7 +1337,7 @@ function worklogRows(evs){
   const rows=[],open=new Map();
   for(const e of evs){
     const p=e.person||"—";
-    if(e.type==="keyout"){const r={person:p,start:e.ts,key:e.ts,items:[]};rows.push(r);open.set(p,r);continue;}
+    if(e.type==="keyout"){const r={person:p,start:e.ts,key:e.ts,keyEv:e,items:[]};rows.push(r);open.set(p,r);continue;}
     if(e.type==="keyin")continue; /* 旧運用の返却記録は表示しない */
     let r=open.get(p);
     if(!r){r={person:p,start:e.ts,key:null,items:[]};rows.push(r);open.set(p,r);}
@@ -1271,15 +1360,19 @@ function wlItem(x){
   }else if(x.type==="add")act=`<b class="wl-add">＋${n(x.len_after||0)}mm 登録</b>${x.loc?`<span class="muted">→${escH(x.loc)}</span>`:""}`;
   else if(x.type==="edit")act='<b class="wl-edit">編集</b>'+((x.len_before!=null&&x.len_after!=null&&x.len_before!==x.len_after)?`<span class="muted">（${n(x.len_before)}→${n(x.len_after)}mm）</span>`:"");
   else if(x.type==="delete")act=`<b class="wl-del">削除</b>${x.len_before!=null?`<span class="muted">（${n(x.len_before)}mm）</span>`:""}`;
+  else if(x.type==="undo")return `<span class="wl-item wl-undoitem">↩ <b>${escH(x.note||"取り消し")}</b> ${what}</span>`;
   else act=escH((HTYPE[x.type]||[x.type])[0]);
   const note=x.note?`<span class="muted wl-note">［${escH(x.note)}］</span>`:"";
-  return `<span class="wl-item">${what} ${act}${note}</span>`;
+  if(x.undone_at)return `<span class="wl-item wl-undone">${what} ${act}${note}</span><span class="wl-undone-tag">取り消し済み</span>`;
+  /* 取り消しボタン：この機能を入れた後の記録（在庫の番号を持つもの）だけ */
+  const btn=(["checkout","add","edit","delete"].includes(x.type)&&x.record_id!=null)?`<button type="button" class="wl-undo" data-undo="${x.id}" title="この記録を取り消して元に戻す">元に戻す</button>`:"";
+  return `<span class="wl-item">${what} ${act}${note}</span>${btn}`;
 }
 function exportWorklogCSV(){
   if(!history.length){toast("出力対象がありません");return;}
   const head=["日時","種別","名前","材質","鋼種","板厚(mm)","材料規格","表面仕上げ","保管場所","変更前長さ(mm)","変更後長さ(mm)","件数","メモ"];
   const lines=[head.join(",")];
-  history.forEach(x=>{const t=HTYPE[x.type]||[x.type];lines.push([fmtTs(x.ts),t[0],x.person||"",x.mat||"",x.koshu||"",x.thk==null?"":x.thk,x.spec||"",x.fin||"",x.loc||"",x.len_before==null?"":x.len_before,x.len_after==null?"":x.len_after,x.qty==null?"":x.qty,x.note||""].map(csvCell).join(","));});
+  history.forEach(x=>{const t=HTYPE[x.type]||[x.type];lines.push([fmtTs(x.ts),t[0],x.person||"",x.mat||"",x.koshu||"",x.thk==null?"":x.thk,x.spec||"",x.fin||"",x.loc||"",x.len_before==null?"":x.len_before,x.len_after==null?"":x.len_after,x.qty==null?"":x.qty,(x.undone_at?"【取り消し済み】":"")+(x.note||"")].map(csvCell).join(","));});
   const blob=new Blob(["﻿"+lines.join("\r\n")],{type:"text/csv;charset=utf-8"});
   const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="作業ログ.csv";a.click();URL.revokeObjectURL(a.href);toast("作業ログ.csv を出力しました");
 }
@@ -1308,17 +1401,18 @@ async function submitNs(){
   /* 置き場所は選ばせず、棚割りから自動で決める（決まりが無い材料は空欄＝事務所が後で設定） */
   const newLoc=suggestLoc({mat:rec.mat,koshu:rec.koshu,fin:rec.fin,spec:rec.spec,len:Number(rec.len),loc:""});
   if(newLoc)rec.loc=newLoc;
-  const done=()=>{
-    toast(t("残材を登録しました"));closeNs();
+  const done=hid=>{
+    offerUndo(hid,t("残材を登録しました"));closeNs();
     if(newLoc)showLocGuide(newLoc,"");
     else setTimeout(()=>toast(t("この材料は置き場所の決まりがありません。武田・航に確認してください"),5000),2300);
   };
   const body={mat:rec.mat,koshu:rec.koshu,thk:Number(rec.thk),spec:rec.spec,len:Number(rec.len),loc:rec.loc,fin:rec.fin,person};
   if(MODE==="server"){
-    try{await apiSend("POST","/api/records",body);}
+    let j;
+    try{j=await apiSend("POST","/api/records",body);}
     catch(e){toast(t("保存に失敗しました: ")+e.message);return;}
     try{await refresh();}catch(e){} /* 登録は済んでいる。画面更新の失敗は次のポーリングで回復 */
-    loadHistory();done();
+    loadHistory();done(j&&j.hid);
     return;
   }
   records.push({id:nextId(),mat:rec.mat,koshu:rec.koshu,thk:Number(rec.thk),spec:rec.spec,len:Number(rec.len),loc:rec.loc,fin:rec.fin});
@@ -1341,9 +1435,9 @@ async function keyAction(){
   if(!person){toast(t("名前を入力してください"));$("#keyPersonSel").focus();return;}
   try{localStorage.setItem(PERSON_KEY,person);}catch(e){}
   try{
-    await apiSend("POST","/api/key",{action:"out",person});
+    const j=await apiSend("POST","/api/key",{action:"out",person});
     loadHistory();
-    toast(t("鍵の持ち出しを記録しました。行ってらっしゃい！"));
+    offerUndo(j.hid,t("鍵の持ち出しを記録しました。行ってらっしゃい！"));
     setTimeout(closeKey,1400);
   }catch(e){toast(e.message);}
 }
@@ -1839,6 +1933,7 @@ async function init(){
   $("#scanFile").addEventListener("change",onScanPhoto);
   $("#scanClose").addEventListener("click",closeScanner);
   $("#locClose").addEventListener("click",closeLocGuide);
+  $("#undoBtn").addEventListener("click",undoFromBar);
   $("#locOverlay").addEventListener("click",e=>{if(e.target===$("#locOverlay"))closeLocGuide();});
   $("#scanTorch").addEventListener("click",toggleTorch);
   $("#scanOverlay").addEventListener("click",e=>{if(e.target===$("#scanOverlay"))closeScanner();});
@@ -1864,6 +1959,7 @@ async function init(){
     }
   }
   document.addEventListener("keydown",e=>{
+    if(e.key==="Escape"&&$("#confirmOverlay").classList.contains("show")){$("#confirmNo").click();return;} /* 確認中は確認だけ閉じる */
     if(e.key==="Escape"){closeModal();closePin();closeHelp();closeCo();closeQr();closeKey();closeNs();closeScanner();closeLocGuide();}
     else if(e.key==="?"||e.key==="F1"){const t=(document.activeElement||{}).tagName;if(t!=="INPUT"&&t!=="SELECT"&&t!=="TEXTAREA"){e.preventDefault();openHelp();}}
   });

@@ -54,8 +54,8 @@ app.get("/api/state", (req, res) => {
 // ── 在庫の追加 ──
 app.post("/api/records", (req, res) => {
   try {
-    const { id, version } = dbm.addRecord(req.body || {}, (req.body || {}).person);
-    res.json({ ok: true, id, version });
+    const { id, hid, version } = dbm.addRecord(req.body || {}, (req.body || {}).person);
+    res.json({ ok: true, id, hid, version });
   } catch (e) {
     res.status(500).json({ error: `追加に失敗: ${e.message}` });
   }
@@ -66,7 +66,7 @@ app.put("/api/records/:id", (req, res) => {
   try {
     const r = dbm.updateRecord(req.params.id, req.body || {}, (req.body || {}).person);
     if (!r.ok) return res.status(404).json({ error: "該当の在庫が見つかりません", version: r.version });
-    res.json({ ok: true, version: r.version });
+    res.json({ ok: true, hid: r.hid, version: r.version });
   } catch (e) {
     res.status(500).json({ error: `更新に失敗: ${e.message}` });
   }
@@ -77,7 +77,7 @@ app.delete("/api/records/:id", (req, res) => {
   try {
     const r = dbm.deleteRecord(req.params.id, req.query.person);
     if (!r.ok) return res.status(404).json({ error: "該当の在庫が見つかりません", version: r.version });
-    res.json({ ok: true, version: r.version });
+    res.json({ ok: true, hid: r.hid, version: r.version });
   } catch (e) {
     res.status(500).json({ error: `削除に失敗: ${e.message}` });
   }
@@ -107,7 +107,7 @@ app.post("/api/checkout", (req, res) => {
         : "使う長さが正しくありません";
       return res.status(r.reason === "notfound" ? 404 : 400).json({ error: msg, version: r.version });
     }
-    res.json({ ok: true, removed: r.removed, remain: r.remain, version: r.version });
+    res.json({ ok: true, hid: r.hid, removed: r.removed, remain: r.remain, version: r.version });
   } catch (e) {
     res.status(500).json({ error: `持ち出しの記録に失敗: ${e.message}` });
   }
@@ -122,7 +122,7 @@ app.post("/api/key", (req, res) => {
   if (!r.ok) {
     return res.status(400).json({ error: r.reason === "noperson" ? "名前を入力してください" : "鍵はすでに返却されています" });
   }
-  res.json({ ok: true, status: r.status });
+  res.json({ ok: true, hid: r.hid, status: r.status });
 });
 
 // ── マスタ設定（単価・比重・式割当）：取得は誰でも、保存は管理者パスコード必須 ──
@@ -132,6 +132,31 @@ function adminPin() {
     return m ? m[1] : "";
   } catch (e) { return ""; }
 }
+
+// ── 取り消し（元に戻す）：記録の直後（5分以内）は誰でも、それより前は管理者パスコード必須 ──
+app.post("/api/undo", (req, res) => {
+  const b = req.body || {};
+  const pin = adminPin();
+  const admin = !!(pin && b.pin === pin);
+  try {
+    const r = dbm.undoHistory(b.id, b.person, admin);
+    if (!r.ok) {
+      const msg = {
+        notfound: "取り消す記録が見つかりません",
+        already: "この記録はすでに取り消されています",
+        unsupported: "この記録は取り消せません",
+        old: "この機能を入れる前の記録なので、自動では元に戻せません（在庫管理から手で直してください）",
+        later: "この在庫はその後にも記録があるため戻せません（新しい記録から順に取り消してください）",
+        state: "在庫の状態が記録と合わないため戻せません（在庫管理から手で直してください）",
+        expired: "記録から時間がたったため、ここからは戻せません。管理者に連絡してください",
+      }[r.reason] || "取り消せませんでした";
+      return res.status(r.reason === "notfound" ? 404 : r.reason === "expired" ? 403 : 409).json({ error: msg, reason: r.reason, version: r.version });
+    }
+    res.json({ ok: true, type: r.type, record_id: r.record_id, version: r.version });
+  } catch (e) {
+    res.status(500).json({ error: `取り消しに失敗: ${e.message}` });
+  }
+});
 app.get("/api/masters", (req, res) =>
   res.json({ masters: dbm.getMasters(), mv: dbm.getMastersVersion() }));
 app.put("/api/masters", (req, res) => {

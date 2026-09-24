@@ -211,6 +211,31 @@ table.dt tbody tr:last-child td{border-bottom:none}
   padding:12px 20px;border-radius:10px;font-size:13.5px;font-weight:600;box-shadow:var(--shadow-lg);z-index:80;opacity:0;transition:.28s;display:flex;align-items:center;gap:9px}
 .toast.show{transform:translateX(-50%);opacity:1}
 .toast svg{width:17px;height:17px;color:var(--accent)}
+/* 元に戻すバー（記録の直後に15秒。画面下・案内画面より手前） */
+.undo-bar{position:fixed;left:50%;bottom:18px;transform:translateX(-50%) translateY(120px);z-index:85;display:flex;align-items:center;gap:10px; background:#15171c;color:#fff;border-radius:14px;padding:10px 10px 10px 16px;box-shadow:0 10px 30px rgba(0,0,0,.35);opacity:0;transition:.25s; width:max-content;max-width:calc(100vw - 24px);font-size:13.5px;font-weight:600}
+.undo-bar.show{transform:translateX(-50%);opacity:1}
+.undo-bar .undo-ok{width:18px;height:18px;color:#4ade80;flex:0 0 auto}
+.undo-msg{line-height:1.4}
+.undo-btn{display:inline-flex;align-items:center;gap:6px;background:#fff;color:var(--accent-d);border:none;border-radius:10px; padding:9px 14px;font-size:14px;font-weight:800;cursor:pointer;white-space:nowrap;flex:0 0 auto;font-family:inherit}
+.undo-btn svg{width:17px;height:17px}
+.undo-btn:active{transform:scale(.97)}
+.undo-count{font-family:var(--mono);font-size:11px;color:#9aa1ad;flex:0 0 auto;min-width:26px}
+body.undo-on .toast{bottom:96px}
+/* 確認（全部持ち出す前） */
+#confirmOverlay{z-index:70}
+.confirm-modal{max-width:400px;width:100%;padding:24px 22px 18px;text-align:center}
+.confirm-t{font-size:20px;font-weight:800;color:var(--ink);margin-bottom:12px}
+.confirm-b{font-size:14px;line-height:1.7;color:var(--ink-soft);margin-bottom:18px}
+.confirm-b b{color:var(--ink)}
+.confirm-b .cf-warn{display:block;margin-top:8px;color:var(--accent-d);font-weight:800}
+.confirm-btns{display:flex;gap:10px}
+.confirm-btns .btn{flex:1;justify-content:center;padding:13px 10px;font-size:15px}
+/* 作業ログの取り消し */
+.wl-undo{margin-left:6px;border:1px solid var(--line);background:#fff;color:var(--ink-soft);border-radius:7px;padding:1px 8px;font-size:11px; font-weight:700;cursor:pointer;font-family:inherit;vertical-align:1px}
+.wl-undo:hover{border-color:var(--accent);color:var(--accent-d)}
+.wl-undone{text-decoration:line-through;opacity:.5}
+.wl-undone-tag{font-size:10.5px;font-weight:800;color:#8a6100;background:#fff3cf;border-radius:6px;padding:1px 6px;margin-left:5px}
+.wl-undoitem{color:#8a6100}
 
 ::-webkit-scrollbar{width:11px;height:11px}
 ::-webkit-scrollbar-thumb{background:#c2c9d2;border-radius:6px;border:3px solid var(--bg)}
