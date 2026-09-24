@@ -11924,12 +11924,20 @@ async function saveModal(){
   const r=readModal();
   if(!r.mat||!r.koshu||r.thk===""||!r.spec||r.len===""){toast("材質・鋼種・板厚・規格・長さは必須です");return;}
   const rec={...r,thk:Number(r.thk),len:Number(r.len)};
+  /* 新規登録は残材登録と同じく、置き場所を棚割りから決定して大きく案内（選ばれた場所と違っても確認なし）。
+   * 編集は選んだ場所のまま */
+  const pickedLoc=r.loc;
+  const newLoc=(!editId&&MODE==="server")?suggestLoc({...rec,loc:pickedLoc}):null;
+  if(newLoc)rec.loc=newLoc;
   if(MODE==="server"){
+    const wasEdit=!!editId;
     try{
       if(editId)await apiSend("PUT","/api/records/"+editId,rec);
       else await apiSend("POST","/api/records",rec);
-      await refresh();toast(editId?"在庫を更新しました":"在庫を登録しました");closeModal();
-    }catch(e){toast("保存に失敗しました: "+e.message);}
+    }catch(e){toast("保存に失敗しました: "+e.message);return;}
+    try{await refresh();}catch(e){} /* 保存は済んでいる。画面更新の失敗は次のポーリングで回復 */
+    toast(wasEdit?"在庫を更新しました":"在庫を登録しました");closeModal();
+    if(newLoc)showLocGuide(newLoc,pickedLoc);
     return;
   }
   if(editId){const i=records.findIndex(x=>x.id===editId);const old=records[i];records[i]={id:editId,...rec};localHist("edit",rec,{len_before:old?old.len:null,len_after:rec.len});toast("在庫を更新しました");}
