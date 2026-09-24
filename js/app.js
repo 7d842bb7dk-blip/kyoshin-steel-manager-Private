@@ -580,7 +580,7 @@ function refreshSearchThkFin(){
   refillSelect($("#f_fin"),fins,"すべて");
 }
 function finishOptions(mat,koshu){const k=mat+"|"+koshu;if(FINISH_BY_MAT_KOSHU[k]&&FINISH_BY_MAT_KOSHU[k].length)return FINISH_BY_MAT_KOSHU[k];return FINISH_ALL;}
-function toast(msg){const t=$("#toast");$("#toastMsg").textContent=msg;t.classList.add("show");clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove("show"),2200);}
+function toast(msg,ms){const t=$("#toast");$("#toastMsg").textContent=msg;t.classList.add("show");clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove("show"),ms||2200);}
 
 /* ===================== 言語（日本語／ベトナム語） =====================
  * 現場向け画面（タブ・検索・持ち出し・鍵・履歴）を翻訳対象にする。
@@ -620,7 +620,7 @@ const I18N_VI={
   "この材料の置き場所":"Vị trí để vật liệu này",
   "保管場所の登録を変更しました":"Đã đổi vị trí đăng ký",
   "置き場所は、登録すると自動で表示されます":"Vị trí cất sẽ tự động hiện ra sau khi đăng ký",
-  "この材料は置き場所の決まりがありません。事務所に確認してください":"Vật liệu này chưa có quy định vị trí cất. Hãy hỏi văn phòng",
+  "この材料は置き場所の決まりがありません。武田・航に確認してください":"Vật liệu này chưa có quy định vị trí cất. Hãy hỏi Takeda hoặc Wataru (武田・航)",
   "この在庫は見つかりません（すでに使い切った可能性があります）":"Không tìm thấy tồn kho này (có thể đã dùng hết)",
   "使う材料の「持ち出す」ボタンを押してください。空欄はすべて対象です。":"Nhấn nút 「Lấy ra」 của vật liệu cần dùng. Để trống = tất cả.",
   "持ち出す":"Lấy ra","条件に一致する在庫がありません":"Không có tồn kho phù hợp",
@@ -1311,7 +1311,7 @@ async function submitNs(){
   const done=()=>{
     toast(t("残材を登録しました"));closeNs();
     if(newLoc)showLocGuide(newLoc,"");
-    else setTimeout(()=>toast(t("この材料は置き場所の決まりがありません。事務所に確認してください")),2300);
+    else setTimeout(()=>toast(t("この材料は置き場所の決まりがありません。武田・航に確認してください"),5000),2300);
   };
   const body={mat:rec.mat,koshu:rec.koshu,thk:Number(rec.thk),spec:rec.spec,len:Number(rec.len),loc:rec.loc,fin:rec.fin,person};
   if(MODE==="server"){
