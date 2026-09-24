@@ -9,4 +9,7 @@ const path = require("node:path");
 process.env.PORT = process.env.PORT || "3002";
 process.env.DB_DIR = process.env.DB_DIR || path.join(__dirname, "data-dev");
 process.env.AUTO_UPDATE_SEC = "0";
+// 証明書まわり（Let's Encrypt の設定・自動更新・ロック）は本番と共有しない。HTTPS・:80 も使わない
+process.env.TLS_DATA_DIR = process.env.TLS_DATA_DIR || path.join(__dirname, "data-dev");
+process.env.HTTP80 = process.env.HTTP80 || "0";
 require("./index.js");

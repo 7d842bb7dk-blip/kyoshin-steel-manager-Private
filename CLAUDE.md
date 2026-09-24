@@ -20,6 +20,13 @@
   （Git対象外）、IPが変わったら `tools/TLS証明書を作る.bat` で作り直す。
 - 旧アドレス `http://…:3001`（印刷済みQRラベルのリンク先）と `http://…:80` は正式アドレスへ
   **302転送**（`/api/*` と localhost は転送しない）。443が使えない環境では 3443 に自動退避。
+- **正式な証明書（Let's Encrypt）**：`tools/証明書を自動取得.bat` を一度実行すると
+  `https://zaiko.f-kyo-shin.co.jp/`（会社ドメイン・エックスサーバーDNS）に切り替わり、全端末で警告が消える。
+  実装は `server/acme.js`（外部パッケージなし）。サーバーは既存証明書を期限30日前に自動更新し、
+  社内の名前解決がこのサーバーを指している間だけドメインへ転送する（それ以外はIPのまま動く）。
+  **エックスサーバーのDNSは `zaiko` の A と `_acme-challenge.zaiko` の TXT 以外に触らないこと**
+  （ホームページ・メールと同じドメイン）。API仕様は https://developer.xserver.ne.jp/api/server/openapi.json 。
+  DuckDNS は社内の FortiGate で「ダイナミックDNS」としてブロックされている（2026-09 確認）。
 
 ## 本番サーバー機（重要）
 

@@ -10,6 +10,7 @@ const os = require("node:os");
 const fs = require("node:fs");
 const https = require("node:https");
 const tls = require("node:tls");
+const dnsp = require("node:dns").promises;
 const { execFile } = require("node:child_process");
 const express = require("express");
 const dbm = require("./db");
@@ -33,6 +34,8 @@ app.use((req, res, next) => {
   if (req.path.startsWith("/api/")) return next();
   if (req.path === "/ca.crt") return next(); // 証明書を信頼する前でも取得できるようそのまま通す
   if (req.hostname === "localhost" || req.hostname === "127.0.0.1") return next();
+  // 有効な証明書でドメイン宛てに届いたものは、そのまま通す（IPへ追い返さない）
+  if (req.secure && leCtx && String(req.hostname).toLowerCase() === leDomain) return next();
   const want = new URL(canonicalBase());
   if (req.secure && req.hostname === want.hostname) return next();
   res.redirect(302, want.origin + req.originalUrl);
@@ -192,6 +195,7 @@ let startedHead = ""; // 起動時のコミット。変わっていたら（こ�
 gitExec(["rev-parse", "HEAD"], (e, out) => { if (!e) startedHead = String(out).trim(); });
 function checkForUpdate() {
   if (updating) return;
+  if (renewing) return; // 証明書の更新中は再起動しない（途中で止めると確認用レコードやロックが残る）
   // ① このPC上で直接コミットされた場合（リモートより遅れ0でも HEAD は変わる）
   gitExec(["rev-parse", "HEAD"], (eh, oh) => {
     if (!eh && startedHead && String(oh).trim() !== startedHead && !updating) {
@@ -235,20 +239,35 @@ function lanIP() {
 }
 function canonicalBase() { // 正式アドレス（QRラベルのリンク先・誘導リンクに使う）
   const suffix = HTTPS_PORT === 443 ? "" : ":" + HTTPS_PORT;
-  if (httpsOn && leCtx && leDomain) return `https://${leDomain}${suffix}/`;
+  // ドメインに切り替えるのは、証明書が有効で、しかも社内の名前解決がこのサーバーを指しているときだけ
+  if (httpsOn && leCtx && leDomain && leReady) return `https://${leDomain}${suffix}/`;
   if (httpsOn) return `https://${lanIP()}${suffix}/`;
   return `http://${lanIP()}:${PORT}/`;
 }
+function tlsStatus() { // 管理者向けの状態表示用
+  if (!leDomain && !acme.readCfg()) return null;
+  const cfg = acme.readCfg() || {};
+  const info = acme.certInfo(acme.leFiles(false).cert, cfg.domain);
+  const st = acme.readState();
+  return {
+    domain: cfg.domain || null,
+    active: !!(leCtx && leReady),
+    expires: info ? info.expires.toISOString() : null,
+    daysLeft: info ? Math.floor((info.expires.getTime() - Date.now()) / 86400000) : null,
+    lastError: st.lastError || null,
+  };
+}
 app.get("/api/health", (req, res) =>
   res.json({ ok: true, version: dbm.getVersion(), base: canonicalBase(),
-    httpsBase: httpsOn ? canonicalBase() : null }));
+    httpsBase: httpsOn ? canonicalBase() : null, tls: tlsStatus() }));
 
 // ── Let's Encrypt 証明書の読み直し（取得ツールから呼ぶ。サーバー機の中からだけ受け付ける） ──
-app.post("/api/tls-reload", (req, res) => {
+app.post("/api/tls-reload", async (req, res) => {
   const ip = String(req.socket.remoteAddress || "");
   if (!/^(::1|127\.0\.0\.1|::ffff:127\.0\.0\.1)$/.test(ip)) return res.status(403).json({ error: "forbidden" });
   const ok = loadLe();
-  res.json({ ok, domain: leDomain, base: canonicalBase() });
+  await checkLeDns();
+  res.json({ ok, domain: leDomain, ready: leReady, base: canonicalBase() });
 });
 
 // ── 社内CA証明書の配布（旧方式。Let's Encrypt 導入後は不要だが、IP直打ち用に残す） ──
@@ -293,38 +312,72 @@ const server = app.listen(PORT, HOST, () => {
 let HTTPS_PORT = parseInt(process.env.HTTPS_PORT || "443", 10);
 let httpsOn = false;
 let httpsServer = null;
-let leCtx = null, leDomain = null;
+let leCtx = null, leDomain = null, leReady = false, leExpires = null;
+function dropLe(reason) {
+  if (leCtx && reason) console.log("[tls] Let's Encrypt 証明書を使いません：" + reason);
+  leCtx = null; leDomain = null; leReady = false; leExpires = null;
+}
+// 期限切れ・名前違いの証明書は使わない（その場合は従来どおりIPのアドレスで動く）
 function loadLe() {
   try {
     const cfg = acme.readCfg();
     const f = acme.leFiles(false);
-    if (!cfg || !cfg.domain || !fs.existsSync(f.cert) || !fs.existsSync(f.key)) { leCtx = null; leDomain = null; return false; }
+    if (!cfg || !cfg.domain || !fs.existsSync(f.cert) || !fs.existsSync(f.key)) { dropLe(); return false; }
+    const domain = String(cfg.domain).toLowerCase();
+    const info = acme.certInfo(f.cert, domain);
+    if (!info) { dropLe("証明書を読めません"); return false; }
+    if (!info.matches) { dropLe(`証明書の名前が ${domain} と違います`); return false; }
+    if (info.expired) { dropLe("期限切れです"); return false; }
     leCtx = tls.createSecureContext({ key: fs.readFileSync(f.key), cert: fs.readFileSync(f.cert) });
-    leDomain = String(cfg.domain).toLowerCase();
-    const exp = acme.certExpiry(f.cert);
-    console.log(`[tls] Let's Encrypt 証明書: ${leDomain}（期限 ${exp ? exp.toLocaleDateString("ja-JP") : "?"}）`);
+    leDomain = domain;
+    leExpires = info.expires;
+    console.log(`[tls] Let's Encrypt 証明書: ${leDomain}（期限 ${info.expires.toLocaleDateString("ja-JP")}）`);
     return true;
   } catch (e) {
     console.error("[tls] Let's Encrypt 証明書の読み込みに失敗:", e.message);
-    leCtx = null; leDomain = null;
+    dropLe();
     return false;
   }
 }
+// 社内の名前解決（スマホと同じ 192.168.1.1 を使うOSのDNS）がこのサーバーを指しているか。
+// 指していない間（切り替え直後のキャッシュ・IP変更後など）はドメインへの転送をしない。
+// あわせて、ディスク上の証明書が別の手段で更新されていれば読み直す。
+async function checkLeDns() {
+  const cfg = acme.readCfg() || {};
+  const disk = cfg.domain ? acme.certInfo(acme.leFiles(false).cert, cfg.domain) : null;
+  if (disk && disk.matches && !disk.expired && (!leExpires || disk.expires.getTime() !== leExpires.getTime())) loadLe();
+  if (leCtx && leExpires && leExpires.getTime() <= Date.now()) dropLe("期限切れになりました");
+  if (!leCtx || !leDomain) { leReady = false; return; }
+  const want = cfg.lanIp;
+  let ok;
+  if (!want || !acme.lanIPs().includes(want)) ok = false; // このPCのIPが変わった
+  else {
+    try { ok = (await dnsp.lookup(leDomain, { family: 4, all: true })).some((a) => a.address === want); }
+    catch (e) { return; } // 一時的な名前解決の失敗では切り替えない（今の状態を保つ）
+  }
+  if (ok !== leReady) console.log(ok ? `[tls] 名前解決OK。正式アドレスを https://${leDomain}/ に切り替えます`
+    : `[tls] ${leDomain} がこのサーバー（${want}）を指していないため、IPのアドレスで動かします`);
+  leReady = ok;
+}
 loadLe();
-// 期限30日前になったら自動更新（12時間ごとに確認。未設定なら何もしない）
+checkLeDns();
+setInterval(checkLeDns, 5 * 60 * 1000);
+// 既存証明書の自動更新（期限30日前。12時間ごとに確認。初回の取得はツールで行う）
 let renewing = false;
 async function renewTick() {
   if (renewing) return;
   renewing = true;
   try {
     const r = await acme.renewIfNeeded((m) => console.log("[acme] " + m));
-    if (r && r.ok) loadLe();
+    if (r && r.ok) { loadLe(); await checkLeDns(); }
   } catch (e) {
-    console.error("[acme] 証明書の自動更新に失敗（次回再試行）:", e.message);
+    console.error("[acme] 証明書の自動更新に失敗（6時間後に再試行）:", e.message);
   } finally { renewing = false; }
 }
 setTimeout(renewTick, 60 * 1000);
 setInterval(renewTick, 12 * 3600 * 1000);
+// 想定外の非同期エラーでサーバーごと落ちないよう、記録だけ残す
+process.on("unhandledRejection", (e) => console.error("[steel-manager] 未処理のエラー:", e && e.message ? e.message : e));
 function startHttps(tlsOpts, port) {
   const s = https.createServer({
     ...tlsOpts,

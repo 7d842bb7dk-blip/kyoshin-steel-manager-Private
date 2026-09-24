@@ -450,6 +450,10 @@ select.m-in{width:auto;max-width:100%;cursor:pointer}
 .ns-hint{font-size:12px;color:var(--ink-soft);background:var(--bg);border-radius:8px;padding:8px 12px;line-height:1.6;margin-bottom:4px}
 .ns-row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 
+/* ─── 証明書の自動更新の警告（管理者のみ） ─── */
+.tls-warn{background:#fde8e8;border:1.5px solid #e6a3a3;color:#9b1c1c;border-radius:10px;padding:10px 14px;
+  margin:0 0 12px;font-size:12.5px;font-weight:700;line-height:1.6}
+
 /* ─── 保管場所の案内（登録後に大きく表示） ─── */
 .loc-modal{width:400px;max-width:94vw;padding:26px 24px 20px;text-align:center}
 .loc-head{display:flex;align-items:center;justify-content:center;gap:7px;font-size:14px;font-weight:800;color:var(--ink-soft)}

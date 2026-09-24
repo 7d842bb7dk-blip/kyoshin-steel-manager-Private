@@ -312,6 +312,7 @@ let version=0;      // server: meta.version（差分ポーリング用）
 let pollTimer=null;
 let qrBase="";      // QRラベルに埋めるサーバーURL（/api/health の base。LAN側IPで返る）
 let httpsBase="";   // かざすだけスキャン用のHTTPS URL（/api/health の httpsBase。無効時は空）
+let tlsInfo=null;   // 証明書の状態（/api/health の tls。管理者向けの警告表示に使う）
 let bootId=0;       // サーバーの起動時刻。変わったら（自動更新で再起動したら）ページを再読み込み
 
 /* サーバーが再起動していたら true を返しつつページを再読み込み（GitHub自動反映の波及）
@@ -333,7 +334,7 @@ async function detectMode(){
   if(location.protocol==="file:")return "local";
   try{
     const r=await fetch("/api/health",{cache:"no-store"});
-    if(r.ok){try{const j=await r.json();if(j&&j.base)qrBase=j.base;if(j&&j.httpsBase)httpsBase=j.httpsBase;}catch(e){}return "server";}
+    if(r.ok){try{const j=await r.json();if(j&&j.base)qrBase=j.base;if(j&&j.httpsBase)httpsBase=j.httpsBase;if(j&&j.tls)tlsInfo=j.tls;}catch(e){}return "server";}
   }catch(e){}
   return "local";
 }
@@ -584,7 +585,20 @@ document.querySelectorAll(".tab").forEach(it=>it.addEventListener("click",()=>{
 
 /* ===================== 管理者モード ===================== */
 let isAdmin=false;
+/* 証明書の自動更新が失敗している・期限が近いときは、管理者にだけ赤い帯で知らせる */
+function renderTlsWarn(){
+  let el=$("#tlsWarn");
+  const t=tlsInfo;
+  const warn=isAdmin&&t&&t.domain&&(t.lastError||(t.daysLeft!=null&&t.daysLeft<14));
+  if(!warn){if(el)el.remove();return;}
+  if(!el){el=document.createElement("div");el.id="tlsWarn";el.className="tls-warn";const c=document.querySelector("main.content");if(c)c.prepend(el);}
+  el.textContent="⚠ 証明書（"+t.domain+"）の自動更新に問題があります"
+    +(t.daysLeft!=null?"：期限まであと"+t.daysLeft+"日":"")
+    +(t.lastError?"／原因："+t.lastError:"")
+    +"。サーバーPCで tools\\証明書を自動取得.bat を実行してください（期限が切れても今までのアドレスで使い続けられます）";
+}
 function applyAdmin(){
+  renderTlsWarn();
   document.querySelectorAll(".tab.admin-only").forEach(t=>{t.style.display=isAdmin?"inline-flex":"none";});
   const b=$("#adminBtn");if(b)b.classList.toggle("on",isAdmin);
   const l=$("#adminLabel");if(l)l.textContent=isAdmin?"管理者中（解除）":"管理者モード";

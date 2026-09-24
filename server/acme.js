@@ -1,10 +1,12 @@
 // ─────────────────────────────────────────────────────────────
 // acme.js — Let's Encrypt 証明書の自動取得・自動更新（ACME / RFC 8555・DNS-01）
-//   ・ドメインは DuckDNS（無料）。<名前>.duckdns.org → サーバーPCのLAN IP を向ける。
+//   ・ドメインは会社のドメイン（エックスサーバー管理：zaiko.f-kyo-shin.co.jp 等）か DuckDNS。
+//     その名前 → サーバーPCのLAN IP を向ける。
 //   ・Let's Encrypt の証明書はスマホ・PCが最初から信頼しているので、各端末の設定は不要。
 //   ・DNS-01 方式なので、サーバーをインターネットに公開する必要はない（外からは入れないまま）。
 //   ・外部パッケージなし（Node標準の crypto / fetch、CSR作成だけ Git 同梱の openssl を使う）。
-//   設定: server/data/acme.json（tools/証明書を自動取得.bat が作る。Git対象外）
+//   設定: server/data/acme.json（tools/証明書を自動取得.bat が「本番取得に成功した後」に作る。Git対象外）
+//   初回の取得はツールだけが行い、サーバーは既存証明書の更新（期限30日前）だけを行う。
 // ─────────────────────────────────────────────────────────────
 "use strict";
 const fs = require("node:fs");
@@ -17,77 +19,260 @@ const { execFile } = require("node:child_process");
 const DATA_DIR = process.env.TLS_DATA_DIR ? path.resolve(process.env.TLS_DATA_DIR) : path.join(__dirname, "data");
 const TLS_DIR = path.join(DATA_DIR, "tls");
 const CFG_PATH = path.join(DATA_DIR, "acme.json");
+const STATE_PATH = path.join(TLS_DIR, "renew-state.json");
+const LOCK_PATH = path.join(TLS_DIR, "acme.lock");
 const DIRS = {
   prod: "https://acme-v02.api.letsencrypt.org/directory",
   staging: "https://acme-staging-v02.api.letsencrypt.org/directory",
 };
 const RENEW_BEFORE_DAYS = 30;
+const RETRY_AFTER_FAIL_MS = 6 * 3600 * 1000; // 失敗後は6時間あけて再試行（Let's Encrypt の失敗回数制限対策）
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const b64u = (b) => Buffer.from(b).toString("base64").replace(/=+$/, "").replace(/\+/g, "-").replace(/\//g, "_");
 
-function readCfg() {
-  try { return JSON.parse(fs.readFileSync(CFG_PATH, "utf8")); } catch (e) { return null; }
+function readJson(p) { try { return JSON.parse(fs.readFileSync(p, "utf8")); } catch (e) { return null; } }
+function writeJson(p, v) {
+  fs.mkdirSync(path.dirname(p), { recursive: true });
+  fs.writeFileSync(p + ".tmp", JSON.stringify(v, null, 2));
+  fs.renameSync(p + ".tmp", p);
 }
-function writeCfg(c) {
-  fs.mkdirSync(DATA_DIR, { recursive: true });
-  fs.writeFileSync(CFG_PATH, JSON.stringify(c, null, 2));
-}
+const readCfg = () => readJson(CFG_PATH);
+const writeCfg = (c) => writeJson(CFG_PATH, c);
+const readState = () => readJson(STATE_PATH) || {};
+const writeState = (s) => writeJson(STATE_PATH, s);
+
 function leFiles(staging) {
   const s = staging ? "-staging" : "";
   return { key: path.join(TLS_DIR, `le${s}-key.pem`), cert: path.join(TLS_DIR, `le${s}-fullchain.pem`) };
 }
-function certExpiry(certPath) {
-  try { return new Date(new crypto.X509Certificate(fs.readFileSync(certPath)).validTo); } catch (e) { return null; }
+// 証明書の情報（期限・対象の名前が合っているか）
+function certInfo(certPath, domain) {
+  try {
+    const x = new crypto.X509Certificate(fs.readFileSync(certPath));
+    const expires = new Date(x.validTo);
+    return { expires, matches: !domain || !!x.checkHost(domain), expired: expires.getTime() <= Date.now() };
+  } catch (e) { return null; }
 }
-function lanIP() {
+function certExpiry(certPath) { const i = certInfo(certPath); return i ? i.expires : null; }
+function lanIPs() {
+  const out = [];
   const nets = os.networkInterfaces();
   for (const name of Object.keys(nets)) {
-    for (const ni of nets[name] || []) if (ni.family === "IPv4" && !ni.internal) return ni.address;
+    for (const ni of nets[name] || []) if (ni.family === "IPv4" && !ni.internal) out.push(ni.address);
   }
-  return null;
+  return out;
+}
+function lanIP() { return lanIPs()[0] || null; }
+
+// ── 同時実行の防止（ツールとサーバーが同時に取得しないように） ──
+function acquireLock() {
+  fs.mkdirSync(TLS_DIR, { recursive: true });
+  let st = null;
+  try { st = fs.statSync(LOCK_PATH); } catch (e) { /* ロック無し */ }
+  if (st) {
+    let alive = false;
+    const pid = parseInt(fs.readFileSync(LOCK_PATH, "utf8"), 10);
+    if (pid > 0 && pid !== process.pid) {
+      try { process.kill(pid, 0); alive = true; } catch (e) { alive = e.code === "EPERM"; } // ESRCH＝もう居ない
+    }
+    if (alive && Date.now() - st.mtimeMs < 40 * 60000) throw new Error("別の証明書取得が実行中です。しばらく待ってから再実行してください");
+    fs.rmSync(LOCK_PATH, { force: true }); // 途中で閉じた等の残骸
+  }
+  fs.writeFileSync(LOCK_PATH, String(process.pid), { flag: "wx" });
+  return () => { try { fs.rmSync(LOCK_PATH, { force: true }); } catch (e) { /* */ } };
 }
 
-// ── DuckDNS（A レコードと、検証用 TXT レコードの設定） ──
-function duckSub(domain) { return String(domain).toLowerCase().replace(/\.duckdns\.org\.?$/, ""); }
-const FW_BLOCKED = "DuckDNS に接続できません。社内のファイアウォール（FortiGate）でまだブロックされています（duckdns.org の許可が必要）";
-function duckNetError(e) {
+// ── 通信エラーの説明（FortiGate の Webフィルターは差し替えた証明書でブロック画面を返すため、証明書エラーになる） ──
+function netError(service, e) {
   const code = String((e && e.cause && e.cause.code) || "");
-  // FortiGate の Webフィルターは差し替えた証明書でブロック画面を返すため、証明書エラーになる
-  if (/CERT|SELF_SIGNED|UNABLE_TO_VERIFY/.test(code)) return new Error(FW_BLOCKED);
-  return new Error("DuckDNS に接続できません（" + (code || (e && e.message)) + "）");
+  if (/CERT|SELF_SIGNED|UNABLE_TO_VERIFY/.test(code)) {
+    return new Error(`${service} に接続できません。社内のファイアウォール（FortiGate）でブロックされています`);
+  }
+  return new Error(`${service} に接続できません（${code || (e && e.message)}）`);
 }
-// 設定前の疎通確認（ブロック中かどうか）
-async function duckReachable() {
-  try { await fetch("https://www.duckdns.org/", { method: "HEAD" }); return { ok: true }; }
-  catch (e) { return { ok: false, message: duckNetError(e).message }; }
+
+// ── 公開DNS（このPCの既定DNS 127.0.0.1 は外部への問い合わせを受け付けないため） ──
+function publicResolver() {
+  const r = new dnsp.Resolver({ timeout: 4000, tries: 2 });
+  r.setServers(["8.8.8.8", "1.1.1.1"]);
+  return r;
 }
+
+// ── DNS サービスごとの操作 ──
+//   provider: name / reachable() / setA(cfg, ip) / setTxt(cfg, value)→handle / clearTxt(cfg, handle)
+//             / nsHosts(cfg)（権威DNSサーバー名） / settleMs（反映確認後の待ち時間）
+//   setA は cfg.aId（自分が作ったAレコードのID）を記録する（エックスサーバーのみ）
+
+// DuckDNS
+function duckSub(domain) { return String(domain).toLowerCase().replace(/\.duckdns\.org\.?$/, ""); }
 async function duck(params) {
   let r;
   try { r = await fetch("https://www.duckdns.org/update?" + new URLSearchParams(params).toString()); }
-  catch (e) { throw duckNetError(e); }
+  catch (e) { throw netError("DuckDNS", e); }
   const t = (await r.text()).trim();
   if (!t.startsWith("OK")) throw new Error("DuckDNS の更新に失敗しました（サブドメイン名かトークンが違う可能性）");
   return t;
 }
-const setARecord = (cfg, ip) => duck({ domains: duckSub(cfg.domain), token: cfg.token, ip });
-const setTxt = (cfg, txt) => duck({ domains: duckSub(cfg.domain), token: cfg.token, txt });
-const clearTxt = (cfg) => duck({ domains: duckSub(cfg.domain), token: cfg.token, txt: "x", clear: "true" });
+const duckdns = {
+  name: "DuckDNS",
+  async reachable() {
+    try { await fetch("https://www.duckdns.org/", { method: "HEAD" }); return { ok: true }; }
+    catch (e) { return { ok: false, message: netError("DuckDNS", e).message }; }
+  },
+  setA: (cfg, ip) => duck({ domains: duckSub(cfg.domain), token: cfg.token, ip }),
+  async setTxt(cfg, value) { await duck({ domains: duckSub(cfg.domain), token: cfg.token, txt: value }); return null; },
+  clearTxt: (cfg) => duck({ domains: duckSub(cfg.domain), token: cfg.token, txt: "x", clear: "true" }),
+  nsHosts: async () => ["ns1.duckdns.org", "ns2.duckdns.org", "ns3.duckdns.org"],
+  settleMs: 65000, // TXT の TTL(60秒)ぶん待って、予行演習の古い値が残らないようにする
+};
 
-// DuckDNS の権威DNSに TXT が載ったか確認してから検証を依頼する
-async function waitTxt(name, value) {
-  const servers = [];
-  for (const ns of ["ns1.duckdns.org", "ns2.duckdns.org", "ns3.duckdns.org"]) {
-    try { servers.push(...(await dnsp.resolve4(ns))); } catch (e) { /* 取れた分だけ使う */ }
+// エックスサーバー（XServer API。公式仕様: https://developer.xserver.ne.jp/api/server/openapi.json ）
+//   一覧 GET /v1/server/{servername}/dns?domain=… → { records: [{ id, domain, host("@"=本体), type, content, ttl }] }
+//   追加 POST …/dns { domain, host, type, content, ttl } → { id }　更新 PUT …/dns/{id}　削除 DELETE …/dns/{id}
+//   cfg: { zone:"f-kyo-shin.co.jp", host:"zaiko", servername:"xs123456.xsrv.jp", token:"APIキー", aId }
+//   会社のホームページ・メールのDNSを壊さないため、触るのは次の2つだけ：
+//     ・cfg.host の A レコード（自分が作ったもの＝cfg.aId か、中身がこのサーバーのIPのもの）
+//     ・_acme-challenge.<cfg.host> の TXT レコード
+const XS_API = process.env.XSERVER_API_BASE || "https://api.xserver.ne.jp";
+async function xsReq(token, method, p, body, retried) {
+  let r;
+  try {
+    r = await fetch(XS_API + p, {
+      method,
+      headers: { Authorization: "Bearer " + token, "Content-Type": "application/json", Accept: "application/json" },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+  } catch (e) { throw netError("エックスサーバー", e); }
+  if (r.status === 429 && !retried) { // 回数制限：指定秒数待って1回だけ再試行
+    await sleep(Math.min(60, parseInt(r.headers.get("retry-after") || "5", 10) || 5) * 1000);
+    return xsReq(token, method, p, body, true);
   }
-  const r = new dnsp.Resolver();
-  if (servers.length) r.setServers(servers);
-  for (let i = 0; i < 40; i++) {
-    try {
-      const recs = await r.resolveTxt(name);
-      if (recs.some((x) => x.join("") === value)) return true;
-    } catch (e) { /* まだ無い */ }
-    await sleep(3000);
+  let j = null;
+  try { j = await r.json(); } catch (e) { /* 本文なし */ }
+  if (!r.ok) {
+    const er = j && j.error;
+    const detail = er ? String(er.message || er.code || "") + (Array.isArray(er.errors) && er.errors.length ? "（" + er.errors.join(" / ") + "）" : "") : "";
+    const hint = r.status === 401 ? "：APIキーを確認" : r.status === 403 ? "：APIキーの権限（DNSレコード）を確認"
+      : r.status === 404 ? "：サーバーを確認" : "";
+    const err = new Error(`エックスサーバーAPIエラー ${r.status} ${detail}${hint}`.replace(/\s+/g, " ").trim());
+    err.status = r.status;
+    throw err;
+  }
+  return j || {};
+}
+const xs = (cfg, method, p, body) => xsReq(cfg.token, method, `/v1/server/${encodeURIComponent(cfg.servername)}${p}`, body);
+const up = (s) => String(s || "").toUpperCase();
+function xsHost(cfg, h) { // 一覧の host を「ゾーンを除いた部分」にそろえる（本体は "@"）
+  let s = String(h == null ? "" : h).toLowerCase().trim().replace(/\.$/, "");
+  const z = String(cfg.zone).toLowerCase();
+  if (s === "" || s === "@" || s === z) return "@";
+  if (s.endsWith("." + z)) s = s.slice(0, -(z.length + 1));
+  return s;
+}
+// 使える名前は「1語だけ」（zaiko など）。ホームページ・メールで使われうる名前は使わない
+//   （エックスサーバーは *.ドメイン がホームページを指すため、mail 等に A を作ると上書きになる）
+const RESERVED_HOSTS = new Set(["www", "mail", "smtp", "pop", "pop3", "imap", "ftp", "webmail", "autodiscover",
+  "autoconfig", "mx", "ns", "ns1", "ns2", "ns3", "ns4", "ns5", "localhost", "cpanel", "admin", "server"]);
+function checkHostName(h) {
+  const s = String(h || "").toLowerCase();
+  if (!/^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/.test(s)) return "使うアドレスの名前は英数字1語にしてください（例: zaiko）";
+  if (RESERVED_HOSTS.has(s)) return `「${s}」はホームページ・メールで使われる名前なので使えません（例: zaiko）`;
+  return null;
+}
+function hostOf(cfg) {
+  const bad = checkHostName(cfg.host);
+  if (bad) throw new Error(bad);
+  return String(cfg.host).toLowerCase();
+}
+async function xsList(cfg) {
+  const j = await xs(cfg, "GET", "/dns?domain=" + encodeURIComponent(cfg.zone));
+  if (!j || !Array.isArray(j.records)) throw new Error("エックスサーバーのDNS一覧の形式が想定と違うため中止しました（何も変更していません）");
+  const z = String(cfg.zone).toLowerCase();
+  const recs = j.records.filter((r) => !r.domain || String(r.domain).toLowerCase() === z);
+  // 安全装置：ドメイン本体（ホームページ・メール）の設定が一覧に見えない＝正しく読めていない → 書き込まない
+  if (!recs.some((r) => xsHost(cfg, r.host) === "@" && ["A", "MX", "NS", "CNAME"].includes(up(r.type)))) {
+    throw new Error(`エックスサーバーのDNS一覧に ${cfg.zone} 本体の設定が見当たらないため中止しました（何も変更していません）`);
+  }
+  return recs;
+}
+function foreignErr(cfg, r) {
+  return new Error(`${cfg.domain} には既に別の設定（${up(r.type)} ${r.content}）があります。上書きしないので、別の名前を使ってください（何も変更していません）`);
+}
+const xserver = {
+  name: "エックスサーバー",
+  async reachable() {
+    try { await fetch(XS_API + "/", { method: "GET" }); return { ok: true }; }
+    catch (e) { return { ok: false, message: netError("エックスサーバー", e).message }; }
+  },
+  // APIキー情報（有効期限など）とサーバー一覧（ツールでの自動検出用）
+  me: (token) => xsReq(token, "GET", "/v1/me"),
+  servers: async (token) => { const j = await xsReq(token, "GET", "/v1/server"); return Array.isArray(j.servers) ? j.servers : []; },
+  probe: (cfg) => xsList(cfg),
+  async setA(cfg, ip) {
+    const host = hostOf(cfg);
+    const same = (await xsList(cfg)).filter((r) => xsHost(cfg, r.host) === host);
+    const blocker = same.find((r) => ["CNAME", "AAAA"].includes(up(r.type)));
+    if (blocker) throw foreignErr(cfg, blocker);
+    const aRecs = same.filter((r) => up(r.type) === "A");
+    const mine = aRecs.filter((r) => (cfg.aId != null && String(r.id) === String(cfg.aId)) || String(r.content).trim() === ip);
+    const foreign = aRecs.find((r) => !mine.includes(r));
+    if (foreign) throw foreignErr(cfg, foreign);
+    if (!mine.length) {
+      const j = await xs(cfg, "POST", "/dns", { domain: cfg.zone, host, type: "A", content: ip, ttl: 300 });
+      cfg.aId = j.id;
+      return;
+    }
+    const keep = mine.find((r) => cfg.aId != null && String(r.id) === String(cfg.aId)) || mine[0];
+    if (String(keep.content).trim() !== ip) {
+      await xs(cfg, "PUT", "/dns/" + keep.id, { domain: cfg.zone, host, type: "A", content: ip, ttl: 300 });
+    }
+    for (const x of mine) if (x !== keep) await xs(cfg, "DELETE", "/dns/" + x.id);
+    cfg.aId = keep.id;
+  },
+  async setTxt(cfg, value) {
+    const host = "_acme-challenge." + hostOf(cfg);
+    for (const x of (await xsList(cfg)).filter((r) => up(r.type) === "TXT" && xsHost(cfg, r.host) === host)) {
+      await xs(cfg, "DELETE", "/dns/" + x.id); // 前回の残りを掃除（この名前のTXTだけ）
+    }
+    const j = await xs(cfg, "POST", "/dns", { domain: cfg.zone, host, type: "TXT", content: value, ttl: 60 });
+    return j.id;
+  },
+  async clearTxt(cfg, id) { if (id != null) await xs(cfg, "DELETE", "/dns/" + id); },
+  nsHosts: (cfg) => publicResolver().resolveNs(cfg.zone),
+  settleMs: 65000,
+};
+
+const PROVIDERS = { duckdns, xserver };
+function providerOf(cfg) { return PROVIDERS[(cfg && cfg.provider) || "duckdns"] || duckdns; }
+
+// ── 権威DNSに TXT が載ったか確認してから検証を依頼する ──
+//   各権威DNSサーバーへ直接問い合わせ、全サーバーに載るまで待つ（載る前に検証すると
+//   「無い」という結果が最長1時間キャッシュされて失敗が続くため）。
+async function waitTxt(name, value, nsHosts, maxMs, log) {
+  const pub = publicResolver();
+  const ips = [];
+  for (const h of nsHosts) {
+    try { ips.push(...(await pub.resolve4(h))); } catch (e) { /* 取れた分だけ使う */ }
+  }
+  if (!ips.length) throw new Error("権威DNSサーバーが見つかりません（" + nsHosts.join(", ") + "）");
+  const deadline = Date.now() + maxMs;
+  let lastLog = 0;
+  while (Date.now() < deadline) {
+    let missing = 0, ok = 0;
+    for (const ip of ips) {
+      const r = new dnsp.Resolver({ timeout: 3000, tries: 1 });
+      r.setServers([ip]);
+      try {
+        const recs = await r.resolveTxt(name);
+        if (recs.some((x) => x.join("") === value)) ok++; else missing++;
+      } catch (e) {
+        if (e.code === "ENODATA" || e.code === "ENOTFOUND") missing++; // まだ載っていない（応答なしは数えない）
+      }
+    }
+    if (ok > 0 && missing === 0) return true;
+    if (log && Date.now() - lastLog > 60000) { log(`DNSへの反映待ち…（${ok}/${ok + missing} 台に反映）`); lastLog = Date.now(); }
+    await sleep(5000);
   }
   return false;
 }
@@ -107,10 +292,15 @@ function makeCsr(keyPem, domain) {
     execFile(opensslPath(), ["req", "-new", "-key", kp, "-subj", "/CN=" + domain,
       "-addext", "subjectAltName=DNS:" + domain, "-outform", "DER", "-out", out], { timeout: 30000 },
     (err, so, se) => {
+      // この中の例外は呼び出し元の try/catch に届かないため、必ずここで reject に変える
       try {
-        if (err) return reject(new Error("CSRの作成に失敗: " + String(se || err.message).trim()));
+        if (err) throw new Error("CSRの作成に失敗: " + String(se || err.message).trim());
         resolve(fs.readFileSync(out));
-      } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
+      } catch (e) {
+        reject(e);
+      } finally {
+        try { fs.rmSync(tmp, { recursive: true, force: true, maxRetries: 3 }); } catch (e) { /* 一時ファイルは残っても害なし */ }
+      }
     });
   });
 }
@@ -127,7 +317,8 @@ class Acme {
     this.nonce = null;
   }
   async init() {
-    const r = await fetch(this.dirUrl);
+    let r;
+    try { r = await fetch(this.dirUrl); } catch (e) { throw netError("Let's Encrypt", e); }
     if (!r.ok) throw new Error("Let's Encrypt に接続できません（HTTP " + r.status + "）");
     this.dir = await r.json();
     return this.dir;
@@ -180,91 +371,125 @@ function loadOrCreateAccountKey(staging) {
 }
 
 // ── 証明書の取得（本番 / staging=予行演習） ──
+//   cfg はメモリ上のもの（setA が cfg.aId を書き込む）。acme.json への保存は呼び出し側が行う。
 async function issue(cfg, opts) {
   const o = opts || {};
   const log = o.log || (() => {});
-  if (!cfg || !cfg.domain || !cfg.token) throw new Error("acme.json の設定（ドメイン・トークン）がありません");
+  if (!cfg || !cfg.domain || !cfg.token) throw new Error("設定（ドメイン・トークン）がありません");
   if (!cfg.agreed) throw new Error("Let's Encrypt の利用規約に同意していません");
-  // 先に DuckDNS を更新（トークン違い等はここで止まり、Let's Encrypt には何も送らない）
-  const ip = cfg.lanIp || lanIP();
-  log(`DNS 設定: ${cfg.domain} → ${ip}`);
-  await setARecord(cfg, ip);
+  const release = acquireLock();
+  try {
+    const dnsSvc = providerOf(cfg);
+    // 先に DNS を更新（トークン違い等はここで止まり、Let's Encrypt には何も送らない）
+    const ip = cfg.lanIp || lanIP();
+    log(`DNS 設定（${dnsSvc.name}）: ${cfg.domain} → ${ip}`);
+    await dnsSvc.setA(cfg, ip);
 
-  const acme = new Acme(o.staging ? DIRS.staging : DIRS.prod, loadOrCreateAccountKey(o.staging));
-  await acme.init();
-  await acme.account(false);
+    const acme = new Acme(o.staging ? DIRS.staging : DIRS.prod, loadOrCreateAccountKey(o.staging));
+    await acme.init();
+    await acme.account(false);
 
-  const order = await acme.post(acme.dir.newOrder, { identifiers: [{ type: "dns", value: cfg.domain }] });
-  const orderUrl = order.location;
-  let ord = order.body;
-
-  for (const authzUrl of ord.authorizations) {
-    const az = (await acme.post(authzUrl, "")).body;
-    if (az.status === "valid") continue;
-    const ch = (az.challenges || []).find((c) => c.type === "dns-01");
-    if (!ch) throw new Error("DNS-01 検証が使えません");
-    const txt = b64u(crypto.createHash("sha256").update(ch.token + "." + acme.thumbprint).digest());
-    log("ドメインの確認用レコードを設定…");
-    await setTxt(cfg, txt);
-    await waitTxt("_acme-challenge." + cfg.domain, txt);
-    await sleep(10000); // 反映待ちの余裕
-    log("ドメインの確認を依頼…");
-    await acme.post(ch.url, {});
-    let st = az;
-    for (let i = 0; i < 60; i++) {
-      await sleep(3000);
-      st = (await acme.post(authzUrl, "")).body;
-      if (st.status !== "pending") break;
+    const order = await acme.post(acme.dir.newOrder, { identifiers: [{ type: "dns", value: cfg.domain }] });
+    const orderUrl = order.location;
+    let ord = order.body;
+    const txtHandles = [];
+    try {
+      for (const authzUrl of ord.authorizations) {
+        const az = (await acme.post(authzUrl, "")).body;
+        if (az.status === "valid") continue;
+        const ch = (az.challenges || []).find((c) => c.type === "dns-01");
+        if (!ch) throw new Error("DNS-01 検証が使えません");
+        const txt = b64u(crypto.createHash("sha256").update(ch.token + "." + acme.thumbprint).digest());
+        log("ドメインの確認用レコードを設定…");
+        txtHandles.push(await dnsSvc.setTxt(cfg, txt));
+        const nsHosts = await dnsSvc.nsHosts(cfg);
+        // 全権威DNSに載るまで待つ（最大30分）。載らないまま検証を頼むと失敗が1時間続くので、ここで中止する
+        if (!(await waitTxt("_acme-challenge." + cfg.domain, txt, nsHosts, 30 * 60000, log))) {
+          throw new Error("DNSへの反映が30分たっても確認できませんでした。時間をおいて再実行してください");
+        }
+        await sleep(dnsSvc.settleMs);
+        log("ドメインの確認を依頼…");
+        await acme.post(ch.url, {});
+        let st = az;
+        for (let i = 0; i < 60; i++) {
+          await sleep(3000);
+          st = (await acme.post(authzUrl, "")).body;
+          if (st.status !== "pending") break;
+        }
+        if (st.status !== "valid") {
+          const d = (st.challenges || []).find((c) => c.type === "dns-01");
+          throw new Error("ドメインの確認に失敗: " + ((d && d.error && d.error.detail) || st.status));
+        }
+      }
+    } finally {
+      // 確認用レコードは検証が済んだら（失敗しても）消す
+      for (const h of txtHandles) { try { await dnsSvc.clearTxt(cfg, h); } catch (e) { /* 次回の実行時にも掃除される */ } }
     }
-    if (st.status !== "valid") {
-      const d = (st.challenges || []).find((c) => c.type === "dns-01");
-      throw new Error("ドメインの確認に失敗: " + ((d && d.error && d.error.detail) || st.status));
+
+    for (let i = 0; i < 30 && ord.status !== "ready" && ord.status !== "valid"; i++) {
+      await sleep(2000);
+      ord = (await acme.post(orderUrl, "")).body;
+      if (ord.status === "invalid") throw new Error("注文が無効になりました");
     }
-  }
 
-  for (let i = 0; i < 30 && ord.status !== "ready" && ord.status !== "valid"; i++) {
-    await sleep(2000);
-    ord = (await acme.post(orderUrl, "")).body;
-    if (ord.status === "invalid") throw new Error("注文が無効になりました");
-  }
+    const { privateKey } = crypto.generateKeyPairSync("ec", { namedCurve: "P-256" });
+    const keyPem = privateKey.export({ type: "pkcs8", format: "pem" });
+    const csr = await makeCsr(keyPem, cfg.domain);
+    log("証明書の発行を依頼…");
+    if (ord.status !== "valid") ord = (await acme.post(ord.finalize, { csr: b64u(csr) })).body;
+    for (let i = 0; i < 60 && ord.status !== "valid"; i++) {
+      if (ord.status === "invalid") throw new Error("証明書の発行に失敗しました");
+      await sleep(2000);
+      ord = (await acme.post(orderUrl, "")).body;
+    }
+    if (ord.status !== "valid" || !ord.certificate) throw new Error("証明書の発行がタイムアウトしました");
+    const pem = (await acme.post(ord.certificate, "", "application/pem-certificate-chain")).body;
+    if (!String(pem).includes("BEGIN CERTIFICATE")) throw new Error("証明書の受け取りに失敗しました");
 
-  const { privateKey } = crypto.generateKeyPairSync("ec", { namedCurve: "P-256" });
-  const keyPem = privateKey.export({ type: "pkcs8", format: "pem" });
-  const csr = await makeCsr(keyPem, cfg.domain);
-  log("証明書の発行を依頼…");
-  if (ord.status !== "valid") ord = (await acme.post(ord.finalize, { csr: b64u(csr) })).body;
-  for (let i = 0; i < 60 && ord.status !== "valid"; i++) {
-    if (ord.status === "invalid") throw new Error("証明書の発行に失敗しました");
-    await sleep(2000);
-    ord = (await acme.post(orderUrl, "")).body;
+    const f = leFiles(o.staging);
+    fs.mkdirSync(TLS_DIR, { recursive: true });
+    fs.writeFileSync(f.key + ".tmp", keyPem);
+    fs.writeFileSync(f.cert + ".tmp", pem);
+    fs.renameSync(f.key + ".tmp", f.key);
+    fs.renameSync(f.cert + ".tmp", f.cert);
+    const expires = certExpiry(f.cert);
+    log(`証明書を取得しました（有効期限 ${expires ? expires.toLocaleDateString("ja-JP") : "?"}）`);
+    return { ok: true, expires, files: f };
+  } finally {
+    release();
   }
-  if (ord.status !== "valid" || !ord.certificate) throw new Error("証明書の発行がタイムアウトしました");
-  const pem = (await acme.post(ord.certificate, "", "application/pem-certificate-chain")).body;
-  if (!String(pem).includes("BEGIN CERTIFICATE")) throw new Error("証明書の受け取りに失敗しました");
-
-  const f = leFiles(o.staging);
-  fs.mkdirSync(TLS_DIR, { recursive: true });
-  fs.writeFileSync(f.key + ".tmp", keyPem);
-  fs.writeFileSync(f.cert + ".tmp", pem);
-  fs.renameSync(f.key + ".tmp", f.key);
-  fs.renameSync(f.cert + ".tmp", f.cert);
-  try { await clearTxt(cfg); } catch (e) { /* 残っても害はない */ }
-  const expires = certExpiry(f.cert);
-  log(`証明書を取得しました（有効期限 ${expires ? expires.toLocaleDateString("ja-JP") : "?"}）`);
-  return { ok: true, expires, files: f };
 }
 
-// ── サーバーから定期的に呼ぶ：期限30日前になったら自動更新 ──
+// ── サーバーから定期的に呼ぶ：既存の証明書を期限30日前に自動更新 ──
+//   初回の取得はツールだけが行う（証明書が無ければ何もしない）。
+//   失敗したら6時間あけて再試行（再起動をまたいでも renew-state.json で覚えておく）。
 async function renewIfNeeded(log) {
   const cfg = readCfg();
   if (!cfg || !cfg.agreed || !cfg.domain || !cfg.token) return { skipped: "未設定" };
-  const exp = certExpiry(leFiles(false).cert);
-  if (exp && exp.getTime() - Date.now() > RENEW_BEFORE_DAYS * 86400000) return { skipped: "期限内", expires: exp };
-  return issue(cfg, { log });
+  const info = certInfo(leFiles(false).cert, cfg.domain);
+  if (!info) return { skipped: "証明書なし（初回はツールで取得）" };
+  const st = readState();
+  if (info.matches && info.expires.getTime() - Date.now() > RENEW_BEFORE_DAYS * 86400000) {
+    if (st.lastError) writeState({ ...st, lastError: null }); // ツール等で取り直し済み → 警告を消す
+    return { skipped: "期限内", expires: info.expires };
+  }
+  if (st.lastError && st.lastAttempt && Date.now() - st.lastAttempt < RETRY_AFTER_FAIL_MS) {
+    return { skipped: "前回失敗のため待機中", lastError: st.lastError };
+  }
+  writeState({ ...st, lastAttempt: Date.now() });
+  try {
+    const r = await issue(cfg, { log });
+    writeCfg(cfg); // aId 等の更新を保存
+    writeState({ lastAttempt: Date.now(), lastSuccess: Date.now(), lastError: null });
+    return r;
+  } catch (e) {
+    writeState({ ...readState(), lastAttempt: Date.now(), lastError: e.message });
+    throw e;
+  }
 }
 
 module.exports = {
   DATA_DIR, TLS_DIR, CFG_PATH, DIRS,
-  readCfg, writeCfg, leFiles, certExpiry, lanIP, duckSub, duckReachable,
-  setARecord, issue, renewIfNeeded, makeCsr, Acme,
+  readCfg, writeCfg, readState, writeState, leFiles, certInfo, certExpiry, lanIP, lanIPs, duckSub, checkHostName,
+  PROVIDERS, providerOf, publicResolver, waitTxt, issue, renewIfNeeded, makeCsr, Acme,
 };
