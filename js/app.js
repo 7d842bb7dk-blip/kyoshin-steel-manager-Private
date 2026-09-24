@@ -898,39 +898,46 @@ function openModal(id){
   delete $("#m_thk").dataset.opts;
   fillDatalist($("#dl_mspec"),(r.mat||r.koshu)?specOptions(r.koshu,r.mat,r.thk):[]);$("#m_spec").value=r.spec||"";
   $("#m_len").value=r.len!==""?r.len:"";
-  fillSelect($("#m_loc"),locOptions(),"指定なし");$("#m_loc").value=r.loc||"";
   fillSelect($("#m_fin"),(r.mat||r.koshu)?finOptions(r.mat,r.koshu,r.thk):finOptions("",""),"指定なし");$("#m_fin").value=r.fin||"";
   delete $("#m_fin").dataset.opts;
   modalPreview();
   $("#overlay").classList.add("show");
 }
 function closeModal(){$("#overlay").classList.remove("show");editId=null;}
-function readModal(){return{mat:$("#m_mat").value,koshu:$("#m_koshu").value,thk:$("#m_thk").value,spec:$("#m_spec").value.trim(),len:$("#m_len").value.trim(),loc:$("#m_loc").value,fin:$("#m_fin").value};}
+/* 保管場所は画面で選ばない（棚割りから自動）。編集時は今の場所を引き継ぐ */
+function readModal(){const cur=editId?records.find(x=>x.id===editId):null;return{mat:$("#m_mat").value,koshu:$("#m_koshu").value,thk:$("#m_thk").value,spec:$("#m_spec").value.trim(),len:$("#m_len").value.trim(),loc:cur?(cur.loc||""):"",fin:$("#m_fin").value};}
 function modalPreview(){const r=readModal();const c=compute(r);$("#pvArea").textContent=c.area==null?"—":fmtNum(c.area,1);$("#pvWeight").textContent=c.weight==null?"—":fmtKg(c.weight);$("#pvUnit").textContent=c.unit==null?"—":c.unit.toLocaleString();$("#pvCost").textContent=c.cost==null?"—":fmtYenP(c.cost);}
 async function saveModal(){
   const r=readModal();
   if(!r.mat||!r.koshu||r.thk===""||!r.spec||r.len===""){toast("材質・鋼種・板厚・規格・長さは必須です");return;}
   const rec={...r,thk:Number(r.thk),len:Number(r.len)};
-  /* 新規登録は残材登録と同じく、置き場所を棚割りから決定して大きく案内（選ばれた場所と違っても確認なし）。
-   * 編集は選んだ場所のまま */
-  const pickedLoc=r.loc;
-  const newLoc=(!editId&&MODE==="server")?suggestLoc({...rec,loc:pickedLoc}):null;
+  /* 置き場所は選ばせない：残材登録と同じく棚割りから自動で決め、保存後に「〇-〇になおしてください」を大きく案内。
+   * 編集では、今の場所が条件（材質・寸法・長さ）に合っていればそのまま。合わなくなったときだけ決め直して案内。
+   * 棚の決まりが無い材料（SS400等）は、新規なら空欄で登録して「武田・航に確認」を表示、編集なら今の場所のまま */
+  const wasEdit=!!editId;
+  const curLoc=r.loc;
+  const sug=suggestLoc({...rec,loc:curLoc});
+  const newLoc=sug&&(!wasEdit||sug!==curLoc)?sug:null;
   if(newLoc)rec.loc=newLoc;
+  const after=()=>{
+    if(newLoc)showLocGuide(newLoc,wasEdit?curLoc:"");
+    else if(!wasEdit&&!sug)setTimeout(()=>toast(t("この材料は置き場所の決まりがありません。武田・航に確認してください"),5000),2300);
+  };
   if(MODE==="server"){
-    const wasEdit=!!editId;
     let j;
     try{
-      if(editId)j=await apiSend("PUT","/api/records/"+editId,rec);
+      if(wasEdit)j=await apiSend("PUT","/api/records/"+editId,rec);
       else j=await apiSend("POST","/api/records",rec);
     }catch(e){toast("保存に失敗しました: "+e.message);return;}
     try{await refresh();}catch(e){} /* 保存は済んでいる。画面更新の失敗は次のポーリングで回復 */
     loadHistory();offerUndo(j&&j.hid,wasEdit?"在庫を更新しました":"在庫を登録しました");closeModal();
-    if(newLoc)showLocGuide(newLoc,pickedLoc);
+    after();
     return;
   }
-  if(editId){const i=records.findIndex(x=>x.id===editId);const old=records[i];records[i]={id:editId,...rec};localHist("edit",rec,{len_before:old?old.len:null,len_after:rec.len});toast("在庫を更新しました");}
+  if(wasEdit){const i=records.findIndex(x=>x.id===editId);const old=records[i];records[i]={id:editId,...rec};localHist("edit",rec,{len_before:old?old.len:null,len_after:rec.len});toast("在庫を更新しました");}
   else{records.push({id:nextId(),...rec});localHist("add",rec,{len_after:rec.len});toast("在庫を登録しました");}
   saveRecords();renderInventory();runSearch();updateFoot();renderCheckout();renderWorklog();closeModal();
+  after();
 }
 
 /* ===================== QRコード生成（自前実装・外部ライブラリ不使用） =====================
@@ -1398,7 +1405,7 @@ async function submitNs(){
   if(!(Number(rec.len)>0)){toast(t("残りの長さを入力してください"));$("#ns_len").focus();return;}
   if(!person){toast(t("名前を入力してください"));$("#nsPersonSel").focus();return;}
   try{localStorage.setItem(PERSON_KEY,person);}catch(e){}
-  /* 置き場所は選ばせず、棚割りから自動で決める（決まりが無い材料は空欄＝事務所が後で設定） */
+  /* 置き場所は選ばせず、棚割りから自動で決める（決まりが無い材料は空欄＝武田・航が後で設定） */
   const newLoc=suggestLoc({mat:rec.mat,koshu:rec.koshu,fin:rec.fin,spec:rec.spec,len:Number(rec.len),loc:""});
   if(newLoc)rec.loc=newLoc;
   const done=hid=>{
@@ -1875,7 +1882,7 @@ async function init(){
   initCheckoutControls();
   initCalc();
   setupCascade($("#m_mat"),$("#m_koshu"),$("#m_spec"),$("#dl_mspec"),$("#m_fin"),$("#m_thk"));
-  ["#m_mat","#m_koshu","#m_thk","#m_fin","#m_loc"].forEach(s=>$(s).addEventListener("change",modalPreview));
+  ["#m_mat","#m_koshu","#m_thk","#m_fin"].forEach(s=>$(s).addEventListener("change",modalPreview));
   ["#m_spec","#m_len"].forEach(s=>$(s).addEventListener("input",modalPreview));
   $("#btnNew").addEventListener("click",()=>openModal(null));
   $("#modalClose").addEventListener("click",closeModal);$("#modalCancel").addEventListener("click",closeModal);
