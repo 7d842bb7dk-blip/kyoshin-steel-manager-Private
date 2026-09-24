@@ -70,6 +70,20 @@ async function detectServer(token, zone) {
   return { servers, hits };
 }
 
+// XServerドメインの準備（DNSが動き出すまで 数時間〜24時間かかることがある）を待ちきれないときは、
+// 続きをサーバーに任せて終わる（サーバーが10分ごとに確認し、準備ができ次第 取得して切り替える）
+function handOff(cfg, confirmedOthers, reason) {
+  acme.writePending({ cfg: { ...cfg }, removeOthers: confirmedOthers, since: Date.now() });
+  console.log("");
+  console.log("==============================================================");
+  console.log("  ここまでの設定は済みました。この画面は閉じて大丈夫です。");
+  if (reason) console.log(`  （${reason}）`);
+  console.log("  XServerドメイン側の準備（通常 数時間〜24時間）ができ次第、在庫システムのサーバーが");
+  console.log(`  自動で証明書を取って https://${cfg.domain}/ に切り替えます。これ以上の作業はいりません。`);
+  console.log("  （それまでは今までのアドレスのまま使えます）");
+  console.log("==============================================================");
+}
+
 const isXdNs = (ns) => Array.isArray(ns) && ns.length > 0 && ns.every((n) => /\.xdomain\.ne\.jp\.?$/i.test(n));
 
 // ドメインの登録先ネームサーバーが XServerドメイン用になるまで待つ。
@@ -94,12 +108,16 @@ async function waitPublicNs(zone, maxMs, justSwitched) {
         }
       }
     }
-    if (isXdNs(ns)) return true;
+    // 登録先が切り替わっても、XServerドメイン側がこのドメインの設定を配り始めるまで少しかかる
+    const serving = isXdNs(ns) && (await acme.zoneServed(zone, acme.XDOMAIN_NS));
+    if (serving) return true;
     fails = ns === null ? fails + 1 : 0;
     if (fails >= 4) throw new Error("ネームサーバーの反映を確認できません（DNSへの問い合わせが通りません。ネットワークを確認してから、もう一度実行してください）");
     if (Date.now() >= deadline) return false;
     if (Date.now() - last > 60000) {
-      log(`ネームサーバーの反映待ち…（今の登録先：${ns && ns.length ? ns.join(", ") : "確認中"}。通常は数分〜1時間。このまま待っていてください）`);
+      log(isXdNs(ns)
+        ? "ネームサーバーは切り替わりました。XServerドメイン側のDNSが動き出すのを待っています…（20分ほどで動かなければ、続きはサーバーに任せて終わります）"
+        : `ネームサーバーの反映待ち…（今の登録先：${ns && ns.length ? ns.join(", ") : "確認中"}。通常は数分〜1時間。このまま待っていてください）`);
       last = Date.now();
     }
     await new Promise((r) => setTimeout(r, 15000));
@@ -277,13 +295,15 @@ async function waitPublicNs(zone, maxMs, justSwitched) {
   const svc = acme.providerOf(cfg);
   console.log(`\n[1/4] DNS に ${cfg.domain} → ${cfg.lanIp} を設定…`);
   if (cfg.provider === "xdomain") {
+    acme.clearPending(); // 前回「サーバーに任せた」分は、今回の実行で引き取る
     if (nsSwitch) {
       nsSwitched = true;
       await acme.PROVIDERS.xdomain.useXdomainNs(cfg);
       log("ネームサーバーを XServerドメイン用に切り替えました");
     }
-    if (!(await waitPublicNs(cfg.zone, parseInt(process.env.NS_WAIT_MAX_MS || String(60 * 60000), 10), nsSwitch))) {
-      throw new Error("ネームサーバーの切り替えがまだ反映されていません。1〜数時間後にもう一度このツールを実行してください（次回も反映を確認してから進みます。最大60分）");
+    if (!(await waitPublicNs(cfg.zone, parseInt(process.env.NS_WAIT_MAX_MS || String(20 * 60000), 10), nsSwitch))) {
+      handOff(cfg, removeOthers);
+      return;
     }
     // 待っている間に初期設定が変わっていないか（切替時に案内ページ等が追加されることがある）→ 変わっていたら確認し直し
     const nowOthers = await acme.PROVIDERS.xdomain.others(cfg, cfg.lanIp);
@@ -304,10 +324,16 @@ async function waitPublicNs(zone, maxMs, justSwitched) {
     console.log("\n[2/4][3/4] 有効な証明書がすでにあるので、取得は省略します");
     expires = existing.expires;
   } else {
-    console.log("\n[2/4] 予行演習（テスト用の認証局で手順を確認。数分〜十数分かかります）…");
-    await acme.issue(cfg, { staging: true, log });
-    console.log("\n[3/4] 本番の証明書を取得…");
-    expires = (await acme.issue(cfg, { log })).expires;
+    try {
+      console.log("\n[2/4] 予行演習（テスト用の認証局で手順を確認。数分〜十数分かかります）…");
+      await acme.issue(cfg, { staging: true, log });
+      console.log("\n[3/4] 本番の証明書を取得…");
+      expires = (await acme.issue(cfg, { log })).expires;
+    } catch (e) {
+      // XServerドメインのDNSが途中で止まった等の「反映待ち」は、続きをサーバーに任せる
+      if (cfg.provider === "xdomain" && e.code === "EDNSWAIT") { handOff(cfg, [], "DNSへの反映が遅れているため"); return; }
+      throw e;
+    }
   }
   acme.writeCfg(cfg); // ここで初めて保存（以後、サーバーが自動更新する）
   acme.writeState({ lastAttempt: Date.now(), lastSuccess: Date.now(), lastError: null }); // 管理者向けの警告を消す

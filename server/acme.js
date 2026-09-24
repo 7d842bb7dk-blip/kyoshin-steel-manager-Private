@@ -77,7 +77,11 @@ function acquireLock() {
     if (pid > 0 && pid !== process.pid) {
       try { process.kill(pid, 0); alive = true; } catch (e) { alive = e.code === "EPERM"; } // ESRCH＝もう居ない
     }
-    if (alive && Date.now() - st.mtimeMs < 40 * 60000) throw new Error("別の証明書取得が実行中です。しばらく待ってから再実行してください");
+    if (alive && Date.now() - st.mtimeMs < 40 * 60000) {
+      const e = new Error("別の証明書取得が実行中です。しばらく待ってから再実行してください");
+      e.code = "ELOCKED";
+      throw e;
+    }
     fs.rmSync(LOCK_PATH, { force: true }); // 途中で閉じた等の残骸
   }
   fs.writeFileSync(LOCK_PATH, String(process.pid), { flag: "wx" });
@@ -144,6 +148,19 @@ function dnsQueryNs(serverIp, zone, timeoutMs = 3000) {
     });
     sock.send(Buffer.concat(q), 53, serverIp);
   });
+}
+// 権威DNSサーバー（nsHosts）が、そのドメインの設定を実際に配り始めているか（SOA が返るか）。
+//   XServerドメインは、ネームサーバー切替の後しばらくは問い合わせを拒否（REFUSED）する。
+async function zoneServed(zone, nsHosts) {
+  const pub = publicResolver();
+  for (const h of nsHosts) {
+    let ips = [];
+    try { ips = await pub.resolve4(h); } catch (e) { continue; }
+    const r = new dnsp.Resolver({ timeout: 3000, tries: 1 });
+    r.setServers([ips[0]]);
+    try { await r.resolveSoa(zone); return true; } catch (e) { /* まだ */ }
+  }
+  return false;
 }
 async function delegationNs(zone) {
   const pub = publicResolver();
@@ -571,7 +588,9 @@ async function issue(cfg, opts) {
         const nsHosts = await dnsSvc.nsHosts(cfg);
         // 全権威DNSに載るまで待つ（最大30分）。載らないまま検証を頼むと失敗が1時間続くので、ここで中止する
         if (!(await waitTxt("_acme-challenge." + cfg.domain, txt, nsHosts, 30 * 60000, log))) {
-          throw new Error("DNSへの反映が30分たっても確認できませんでした。時間をおいて再実行してください");
+          const e = new Error("DNSへの反映が30分たっても確認できませんでした。時間をおいて再実行してください");
+          e.code = "EDNSWAIT";
+          throw e;
         }
         await sleep(dnsSvc.settleMs);
         log("ドメインの確認を依頼…");
@@ -654,8 +673,57 @@ async function renewIfNeeded(log) {
   }
 }
 
+// ── 初回取得の「続きはサーバーに任せる」（XServerドメインの準備待ち） ──
+//   ツールで利用規約に同意し、ネームサーバーも切り替えたが、XServerドメイン側のDNSが動き出すまで
+//   数時間〜24時間かかることがある。その間ツールを開いたまま待たせないよう、設定を acme-pending.json に
+//   置いておき、サーバーが10分ごとに確認して、準備ができ次第 証明書を取って切り替える。
+//   ・DNSが動き出す前は何もしない（Let's Encrypt に失敗を積まない）
+//   ・取得に失敗したら6時間あけて再試行
+//   ・確認済みの初期設定（案内ページのA等）が変わっていたら、消さずに止めてツールの再実行を案内する
+const PENDING_PATH = path.join(DATA_DIR, "acme-pending.json");
+const readPending = () => readJson(PENDING_PATH);
+const writePending = (p) => writeJson(PENDING_PATH, p);
+function clearPending() { try { fs.rmSync(PENDING_PATH, { force: true }); } catch (e) { /* */ } }
+const recKey = (r) => `${r.id}|${up(r.type)}|${r.content}`;
+async function finishPending(log = () => {}) {
+  const p = readPending();
+  if (!p || !p.cfg || !p.cfg.agreed || !p.cfg.domain) return null;
+  const cfg = { ...p.cfg };
+  const cur = readCfg();
+  const info = certInfo(leFiles(false).cert, cfg.domain);
+  if (cur && cur.domain === cfg.domain && info && info.matches && !info.expired) { clearPending(); return { ok: true, already: true }; }
+  if (p.stop) return { waiting: "stopped", lastError: p.lastError };
+  if (p.nextTry && Date.now() < p.nextTry) return { waiting: "retry", lastError: p.lastError };
+  if (cfg.provider === "xdomain") {
+    const ns = await delegationNs(cfg.zone);
+    if (!(Array.isArray(ns) && ns.length && ns.every((n) => /\.xdomain\.ne\.jp\.?$/i.test(n)))) return { waiting: "ns" };
+    if (!(await zoneServed(cfg.zone, XDOMAIN_NS))) return { waiting: "zone" };
+  }
+  log(`${cfg.domain} のDNSが動き出したので、証明書を取得します`);
+  try {
+    if (cfg.provider === "xdomain") {
+      const now = await xdomain.others(cfg, cfg.lanIp);
+      const ok = new Set((p.removeOthers || []).map(recKey));
+      if (now.some((r) => !ok.has(recKey(r)))) {
+        writePending({ ...p, stop: true, lastError: "DNSの初期設定が確認時から変わっています。tools\\証明書を自動取得.bat をもう一度実行してください" });
+        return { waiting: "stopped" };
+      }
+      if (now.length) await xdomain.removeRecords(cfg, now);
+    }
+    const r = await issue(cfg, { log }); // A レコードの設定も issue の中で行う
+    writeCfg(cfg);
+    writeState({ lastAttempt: Date.now(), lastSuccess: Date.now(), lastError: null });
+    clearPending();
+    return { ok: true, expires: r.expires };
+  } catch (e) {
+    if (e.code !== "ELOCKED") writePending({ ...p, lastError: e.message, lastTry: Date.now(), nextTry: Date.now() + RETRY_AFTER_FAIL_MS });
+    throw e;
+  }
+}
+
 module.exports = {
   DATA_DIR, TLS_DIR, CFG_PATH, DIRS,
   readCfg, writeCfg, readState, writeState, leFiles, certInfo, certExpiry, lanIP, lanIPs, duckSub, checkHostName,
-  PROVIDERS, XDOMAIN_NS, providerOf, publicResolver, delegationNs, waitTxt, issue, renewIfNeeded, makeCsr, Acme,
+  PROVIDERS, XDOMAIN_NS, providerOf, publicResolver, delegationNs, zoneServed, waitTxt, issue, renewIfNeeded, makeCsr, Acme,
+  PENDING_PATH, readPending, writePending, clearPending, finishPending,
 };

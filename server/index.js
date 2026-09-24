@@ -245,7 +245,9 @@ function canonicalBase() { // 正式アドレス（QRラベルのリンク先・
   return `http://${lanIP()}:${PORT}/`;
 }
 function tlsStatus() { // 管理者向けの状態表示用
-  if (!leDomain && !acme.readCfg()) return null;
+  const pend = acme.readPending();
+  const pending = pend && pend.cfg ? { domain: pend.cfg.domain, lastError: pend.lastError || null } : null;
+  if (!leDomain && !acme.readCfg()) return pending ? { domain: null, active: false, pending } : null;
   const cfg = acme.readCfg() || {};
   const info = acme.certInfo(acme.leFiles(false).cert, cfg.domain);
   const st = acme.readState();
@@ -255,6 +257,7 @@ function tlsStatus() { // 管理者向けの状態表示用
     expires: info ? info.expires.toISOString() : null,
     daysLeft: info ? Math.floor((info.expires.getTime() - Date.now()) / 86400000) : null,
     lastError: st.lastError || null,
+    pending,
   };
 }
 app.get("/api/health", (req, res) =>
@@ -376,6 +379,23 @@ async function renewTick() {
 }
 setTimeout(renewTick, 60 * 1000);
 setInterval(renewTick, 12 * 3600 * 1000);
+// 初回取得の続き（ツールで「サーバーに任せる」になった分）。DNSが動き出し次第、取得して切り替える
+async function pendingTick() {
+  if (renewing || !acme.readPending()) return;
+  renewing = true;
+  try {
+    const r = await acme.finishPending((m) => console.log("[acme] " + m));
+    if (r && r.ok) {
+      console.log("[acme] 初回の証明書取得が完了しました");
+      loadLe();
+      await checkLeDns();
+    }
+  } catch (e) {
+    console.error("[acme] 初回の証明書取得に失敗（6時間後に再試行）:", e.message);
+  } finally { renewing = false; }
+}
+setTimeout(pendingTick, 90 * 1000);
+setInterval(pendingTick, 10 * 60 * 1000);
 // 想定外の非同期エラーでサーバーごと落ちないよう、記録だけ残す
 process.on("unhandledRejection", (e) => console.error("[steel-manager] 未処理のエラー:", e && e.message ? e.message : e));
 function startHttps(tlsOpts, port) {
