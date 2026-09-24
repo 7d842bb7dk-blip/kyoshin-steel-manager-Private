@@ -1,6 +1,7 @@
 // ─────────────────────────────────────────────────────────────
 // acme.js — Let's Encrypt 証明書の自動取得・自動更新（ACME / RFC 8555・DNS-01）
-//   ・ドメインは会社のドメイン（エックスサーバー管理：zaiko.f-kyo-shin.co.jp 等）か DuckDNS。
+//   ・ドメインは会社のドメイン（エックスサーバー管理：zaiko.f-kyo-shin.co.jp 等）、自分で取ったドメイン
+//     （XServerドメイン：kyoshin-zaiko.com 等）、DuckDNS のいずれか。
 //     その名前 → サーバーPCのLAN IP を向ける。
 //   ・Let's Encrypt の証明書はスマホ・PCが最初から信頼しているので、各端末の設定は不要。
 //   ・DNS-01 方式なので、サーバーをインターネットに公開する必要はない（外からは入れないまま）。
@@ -99,6 +100,70 @@ function publicResolver() {
   return r;
 }
 
+// ドメインの「登録先ネームサーバー」を、上位（.com や .jp）の管理サーバーに直接聞く。
+//   公開DNS（8.8.8.8 等）は古い値を数時間覚えていることがあるため、切り替えの反映確認はこちらで行う。
+//   Node の dns は委任（応答の authority 部）を返さないので、UDP で1問だけ自前で問い合わせる。
+//   戻り値：NS名の配列／聞けなかったら null（呼び出し側で公開DNSに切り替える）
+function dnsQueryNs(serverIp, zone, timeoutMs = 3000) {
+  const dgram = require("node:dgram");
+  return new Promise((resolve) => {
+    const id = crypto.randomBytes(2).readUInt16BE(0);
+    const q = [Buffer.from([id >> 8, id & 255, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0])]; // RD=0（再帰なし）・質問1件
+    for (const l of zone.split(".")) { q.push(Buffer.from([l.length]), Buffer.from(l, "ascii")); }
+    q.push(Buffer.from([0, 0, 2, 0, 1])); // 終端・NS・IN
+    const sock = dgram.createSocket("udp4");
+    const done = (v) => { clearTimeout(t); try { sock.close(); } catch (e) { /* */ } resolve(v); };
+    const t = setTimeout(() => done(null), timeoutMs);
+    sock.on("error", () => done(null));
+    sock.on("message", (m) => {
+      try {
+        if (m.length < 12 || m.readUInt16BE(0) !== id) return;
+        if ((m[3] & 15) !== 0) return done((m[3] & 15) === 3 ? [] : null); // NXDOMAIN＝登録なし
+        const name = (off) => { // 圧縮に対応した名前の読み取り → [名前, 次の位置]
+          const parts = []; let end = -1, jumps = 0;
+          for (;;) {
+            const len = m[off];
+            if (len === 0) { off++; break; }
+            if ((len & 0xc0) === 0xc0) { if (end < 0) end = off + 2; off = ((len & 0x3f) << 8) | m[off + 1]; if (++jumps > 20) throw new Error("loop"); continue; }
+            parts.push(m.toString("ascii", off + 1, off + 1 + len)); off += len + 1;
+          }
+          return [parts.join(".").toLowerCase(), end < 0 ? off : end];
+        };
+        let off = 12;
+        const qd = m.readUInt16BE(4), rrCount = m.readUInt16BE(6) + m.readUInt16BE(8);
+        for (let i = 0; i < qd; i++) off = name(off)[1] + 4;
+        const out = [];
+        for (let i = 0; i < rrCount; i++) {
+          const [owner, o2] = name(off);
+          const type = m.readUInt16BE(o2), rdlen = m.readUInt16BE(o2 + 8);
+          if (type === 2 && owner === zone.toLowerCase()) out.push(name(o2 + 10)[0]);
+          off = o2 + 10 + rdlen;
+        }
+        done(out);
+      } catch (e) { done(null); }
+    });
+    sock.send(Buffer.concat(q), 53, serverIp);
+  });
+}
+async function delegationNs(zone) {
+  const pub = publicResolver();
+  const labels = zone.split(".");
+  let hosts = [];
+  for (let i = 1; i < labels.length && !hosts.length; i++) { // .co.jp → co.jp に無ければ jp、のように上へ
+    try { hosts = await pub.resolveNs(labels.slice(i).join(".")); } catch (e) { /* この階層は区切りではない */ }
+  }
+  if (!hosts.length) return null;
+  for (const h of hosts.slice(0, 4)) {
+    let ips = [];
+    try { ips = await pub.resolve4(h); } catch (e) { continue; }
+    for (const ip of ips.slice(0, 1)) {
+      const r = await dnsQueryNs(ip, zone);
+      if (r) return r;
+    }
+  }
+  return null;
+}
+
 // ── DNS サービスごとの操作 ──
 //   provider: name / reachable() / setA(cfg, ip) / setTxt(cfg, value)→handle / clearTxt(cfg, handle)
 //             / nsHosts(cfg)（権威DNSサーバー名） / settleMs（反映確認後の待ち時間）
@@ -135,7 +200,11 @@ const duckdns = {
 //     ・cfg.host の A レコード（自分が作ったもの＝cfg.aId か、中身がこのサーバーのIPのもの）
 //     ・_acme-challenge.<cfg.host> の TXT レコード
 const XS_API = process.env.XSERVER_API_BASE || "https://api.xserver.ne.jp";
-async function xsReq(token, method, p, body, retried) {
+// エラー時の案内（サーバー用とドメイン用で見るところが違う）
+const XS_KIND = { label: "エックスサーバー", 401: "：APIキーを確認", 403: "：APIキーの権限（DNSレコード）を確認", 404: "：サーバーを確認" };
+const XD_KIND = { label: "XServerドメイン", 401: "：APIキーを確認", 403: "：APIキーの権限（DNSレコード・ネームサーバー）と対象ドメインを確認",
+  404: "：ドメイン名・APIキーの対象ドメインを確認" };
+async function xsReq(token, method, p, body, kind = XS_KIND, retried) {
   let r;
   try {
     r = await fetch(XS_API + p, {
@@ -146,16 +215,15 @@ async function xsReq(token, method, p, body, retried) {
   } catch (e) { throw netError("エックスサーバー", e); }
   if (r.status === 429 && !retried) { // 回数制限：指定秒数待って1回だけ再試行
     await sleep(Math.min(60, parseInt(r.headers.get("retry-after") || "5", 10) || 5) * 1000);
-    return xsReq(token, method, p, body, true);
+    return xsReq(token, method, p, body, kind, true);
   }
   let j = null;
   try { j = await r.json(); } catch (e) { /* 本文なし */ }
   if (!r.ok) {
     const er = j && j.error;
     const detail = er ? String(er.message || er.code || "") + (Array.isArray(er.errors) && er.errors.length ? "（" + er.errors.join(" / ") + "）" : "") : "";
-    const hint = r.status === 401 ? "：APIキーを確認" : r.status === 403 ? "：APIキーの権限（DNSレコード）を確認"
-      : r.status === 404 ? "：サーバーを確認" : "";
-    const err = new Error(`エックスサーバーAPIエラー ${r.status} ${detail}${hint}`.replace(/\s+/g, " ").trim());
+    const hint = kind[r.status] || "";
+    const err = new Error(`${kind.label}APIエラー ${r.status} ${detail}${hint}`.replace(/\s+/g, " ").trim());
     err.status = r.status;
     throw err;
   }
@@ -243,7 +311,105 @@ const xserver = {
   settleMs: 65000,
 };
 
-const PROVIDERS = { duckdns, xserver };
+// XServerドメイン（自分で取ったドメイン。XServer Domain API: https://developer.xserver.ne.jp/api/domain/openapi.json ）
+//   一覧 GET /v1/domain/{zone}/dns → { records: [{ id, host("@"=本体), type, content, ttl }] }
+//   追加 POST …/dns { type, host, content, ttl } → { id }　変更 PUT …/dns/{id}　削除 DELETE …/dns/{id}
+//   ネームサーバーが ns1〜3.xdomain.ne.jp でないと、設定した DNS は反映されない（ツールで確認・切り替え）
+//   cfg: { zone:"kyoshin-zaiko.com", host:"@" or "zaiko", token, aId }
+//   在庫システム専用のドメインなので、本体（@）も使える。触るのは cfg.host の A と _acme-challenge の TXT だけ。
+const XDOMAIN_NS = ["ns1.xdomain.ne.jp", "ns2.xdomain.ne.jp", "ns3.xdomain.ne.jp"];
+const xd = (cfg, method, p, body) => xsReq(cfg.token, method, `/v1/domain/${encodeURIComponent(cfg.zone)}${p}`, body, XD_KIND);
+// ネームサーバーの権限が無いときは、どこを直せばよいかをはっきり言う
+const NS_PERM_MSG = "APIキーに「ネームサーバー」の権限がありません（XServerアカウント →「APIキー管理」→ このキーの権限を「カスタム」にして、ネームサーバーとDNSレコードを変更できるようにする）";
+async function xdNs(cfg, method, body) {
+  try { return await xd(cfg, method, "/nameservers", body); }
+  catch (e) {
+    if (e.status !== 403) throw e;
+    const er = new Error(NS_PERM_MSG);
+    er.status = 403;
+    throw er;
+  }
+}
+// /v1/me の services.domain を見て、NS切替・DNS書き込みに必要な権限が「無いとはっきり分かる」ときだけ理由を返す
+//   （形が想定と違う・項目名が分からないときは null＝判断しない。最後は実際の呼び出しで確かめる）
+function xdPermProblem(me, zone) {
+  if (!me || !me.services || typeof me.services !== "object") return null;
+  const d = me.services.domain;
+  if (!d) return "このAPIキーは「ドメイン」用ではありません（サーバー用のキーは使えません。「利用するサービス：ドメイン」で作り直してください）";
+  if (zone && d.target_mode === "selected" && Array.isArray(d.targets) && d.targets.length
+    && !d.targets.some((t) => String(t).toLowerCase() === zone)) {
+    return `このAPIキーの対象に ${zone} が入っていません（対象：${d.targets.join(", ")}。ドメイン名の打ち間違いか、キーの対象ドメインを確認）`;
+  }
+  if (d.permission_type === "read") return "このAPIキーは「読み取りのみ」です（権限を「カスタム」にして、DNSレコードとネームサーバーを変更できるようにしてください）";
+  if (d.permission_type === "custom" && d.permissions && typeof d.permissions === "object") {
+    for (const [k, v] of Object.entries(d.permissions)) {
+      if (/ネームサーバー|nameserver|DNSレコード|^dns([_-]?records?)?$/i.test(k) && v !== "full") return `このAPIキーには「${k}」の変更権限がありません（権限をカスタムで「変更可」にしてください）`;
+    }
+  }
+  return null;
+}
+function xdHost(cfg) {
+  const h = String(cfg.host || "").toLowerCase();
+  if (h === "@") return "@";
+  if (!/^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/.test(h)) throw new Error("使うアドレスの名前は英数字1語にしてください（例: zaiko）");
+  return h;
+}
+async function xdList(cfg) {
+  const j = await xd(cfg, "GET", "/dns");
+  if (!j || !Array.isArray(j.records)) throw new Error("XServerドメインのDNS一覧の形式が想定と違うため中止しました（何も変更していません）");
+  return j.records;
+}
+const xdomain = {
+  name: "XServerドメイン",
+  reachable: () => xserver.reachable(),
+  me: (token) => xsReq(token, "GET", "/v1/me", undefined, XD_KIND),
+  permProblem: xdPermProblem,
+  domains: async (token) => { const j = await xsReq(token, "GET", "/v1/domain", undefined, XD_KIND); return Array.isArray(j.domains) ? j.domains : []; },
+  nameservers: async (cfg) => { const j = await xdNs(cfg, "GET"); return Array.isArray(j.nameservers) ? j.nameservers : []; },
+  useXdomainNs: (cfg) => xdNs(cfg, "PUT", { nameservers: XDOMAIN_NS }),
+  probe: (cfg) => xdList(cfg),
+  // 同じ名前にある、自分の物ではない A / AAAA / CNAME（初期設定の駐車ページ等）。ツールで確認してから消す
+  async others(cfg, ip) {
+    const host = xdHost(cfg);
+    return (await xdList(cfg)).filter((r) => xsHost(cfg, r.host) === host && ["A", "AAAA", "CNAME"].includes(up(r.type))
+      && !(up(r.type) === "A" && ((cfg.aId != null && String(r.id) === String(cfg.aId)) || String(r.content).trim() === ip)));
+  },
+  async removeRecords(cfg, recs) { for (const r of recs) await xd(cfg, "DELETE", "/dns/" + r.id); },
+  async setA(cfg, ip) {
+    const host = xdHost(cfg);
+    const same = (await xdList(cfg)).filter((r) => xsHost(cfg, r.host) === host);
+    const blocker = same.find((r) => ["CNAME", "AAAA"].includes(up(r.type)));
+    if (blocker) throw foreignErr(cfg, blocker);
+    const aRecs = same.filter((r) => up(r.type) === "A");
+    const mine = aRecs.filter((r) => (cfg.aId != null && String(r.id) === String(cfg.aId)) || String(r.content).trim() === ip);
+    const foreign = aRecs.find((r) => !mine.includes(r));
+    if (foreign) throw foreignErr(cfg, foreign);
+    if (!mine.length) {
+      const j = await xd(cfg, "POST", "/dns", { type: "A", host, content: ip, ttl: 300 });
+      cfg.aId = j.id;
+      return;
+    }
+    const keep = mine.find((r) => cfg.aId != null && String(r.id) === String(cfg.aId)) || mine[0];
+    if (String(keep.content).trim() !== ip) await xd(cfg, "PUT", "/dns/" + keep.id, { type: "A", host, content: ip, ttl: 300 });
+    for (const x of mine) if (x !== keep) await xd(cfg, "DELETE", "/dns/" + x.id);
+    cfg.aId = keep.id;
+  },
+  async setTxt(cfg, value) {
+    const h = xdHost(cfg);
+    const host = h === "@" ? "_acme-challenge" : "_acme-challenge." + h;
+    for (const x of (await xdList(cfg)).filter((r) => up(r.type) === "TXT" && xsHost(cfg, r.host) === host)) {
+      await xd(cfg, "DELETE", "/dns/" + x.id);
+    }
+    const j = await xd(cfg, "POST", "/dns", { type: "TXT", host, content: value, ttl: 60 });
+    return j.id;
+  },
+  async clearTxt(cfg, id) { if (id != null) await xd(cfg, "DELETE", "/dns/" + id); },
+  // 反映確認は XServerドメインの権威DNSに直接聞く（公開DNSが切替前の古いNSを覚えていても影響されない）
+  nsHosts: async () => XDOMAIN_NS.slice(),
+  settleMs: 65000,
+};
+
+const PROVIDERS = { duckdns, xserver, xdomain };
 function providerOf(cfg) { return PROVIDERS[(cfg && cfg.provider) || "duckdns"] || duckdns; }
 
 // ── 権威DNSに TXT が載ったか確認してから検証を依頼する ──
@@ -491,5 +657,5 @@ async function renewIfNeeded(log) {
 module.exports = {
   DATA_DIR, TLS_DIR, CFG_PATH, DIRS,
   readCfg, writeCfg, readState, writeState, leFiles, certInfo, certExpiry, lanIP, lanIPs, duckSub, checkHostName,
-  PROVIDERS, providerOf, publicResolver, waitTxt, issue, renewIfNeeded, makeCsr, Acme,
+  PROVIDERS, XDOMAIN_NS, providerOf, publicResolver, delegationNs, waitTxt, issue, renewIfNeeded, makeCsr, Acme,
 };

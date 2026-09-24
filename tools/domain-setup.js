@@ -1,8 +1,10 @@
 // ─────────────────────────────────────────────────────────────
 // domain-setup.js — 正式な証明書（Let's Encrypt）の初期設定
 //   「証明書を自動取得.bat」から起動。以後の更新（期限30日前）はサーバーが自動で行う。
-//   ① 会社のドメイン（エックスサーバー）… zaiko.f-kyo-shin.co.jp など（おすすめ）
-//   ② DuckDNS … ○○.duckdns.org（社内ファイアウォールの許可が必要）
+//   ① 会社のドメイン（エックスサーバー）… zaiko.f-kyo-shin.co.jp など
+//   ② 自分で取ったドメイン（XServerドメイン）… kyoshin-zaiko.com など。在庫システム専用のドメインに限る
+//      （ネームサーバーを XServerドメイン用に切り替えるため、使用中のドメインは入れないこと）
+//   ③ DuckDNS … ○○.duckdns.org（社内ファイアウォールの許可が必要）
 //   設定（acme.json）は「本番の証明書が取れた後」にだけ保存する。途中で失敗・中断しても
 //   サーバーの動作は何も変わらない。
 // ─────────────────────────────────────────────────────────────
@@ -14,8 +16,10 @@ const acme = require("../server/acme");
 
 const PORT = parseInt(process.env.PORT || "3001", 10);
 const DEFAULT_DOMAIN = "zaiko.f-kyo-shin.co.jp";
+const COMPANY_ZONE = DEFAULT_DOMAIN.split(".").slice(1).join("."); // 会社のホームページ・メールのドメイン
 const log = (m) => console.log("  " + m);
 let rl = null;
+let nsSwitched = false; // ネームサーバーを切り替えた後か（エラー時の案内を変える）
 
 // 入力は行ごとに貯めておき、質問のたびに1行ずつ取り出す（通信中に打たれた入力も取りこぼさない）
 function makeAsker() {
@@ -66,6 +70,42 @@ async function detectServer(token, zone) {
   return { servers, hits };
 }
 
+const isXdNs = (ns) => Array.isArray(ns) && ns.length > 0 && ns.every((n) => /\.xdomain\.ne\.jp\.?$/i.test(n));
+
+// ドメインの登録先ネームサーバーが XServerドメイン用になるまで待つ。
+//   .com 等の上位の管理サーバーに直接確認（公開DNSは古い値を数時間覚えていることがあるため）。
+//   直接聞けないときだけ公開DNS（8.8.8.8 と 1.1.1.1 を別々に）で確認する。
+async function waitPublicNs(zone, maxMs, justSwitched) {
+  const deadline = Date.now() + maxMs;
+  let last = 0, fails = 0;
+  if (justSwitched) await new Promise((r) => setTimeout(r, Math.min(30000, maxMs))); // 登録の反映を少し待ってから聞く
+  for (;;) {
+    let ns = await acme.delegationNs(zone);
+    if (ns === null) {
+      for (const ip of ["8.8.8.8", "1.1.1.1"]) {
+        const r = new dnsp.Resolver({ timeout: 4000, tries: 1 });
+        r.setServers([ip]);
+        try {
+          const x = await r.resolveNs(zone);
+          if (isXdNs(x)) { ns = x; break; }
+          if (ns === null) ns = x;
+        } catch (e) {
+          if (["ENOTFOUND", "ENODATA", "ESERVFAIL"].includes(e.code) && ns === null) ns = []; // 応答はある（まだ引けないだけ）
+        }
+      }
+    }
+    if (isXdNs(ns)) return true;
+    fails = ns === null ? fails + 1 : 0;
+    if (fails >= 4) throw new Error("ネームサーバーの反映を確認できません（DNSへの問い合わせが通りません。ネットワークを確認してから、もう一度実行してください）");
+    if (Date.now() >= deadline) return false;
+    if (Date.now() - last > 60000) {
+      log(`ネームサーバーの反映待ち…（今の登録先：${ns && ns.length ? ns.join(", ") : "確認中"}。通常は数分〜1時間。このまま待っていてください）`);
+      last = Date.now();
+    }
+    await new Promise((r) => setTimeout(r, 15000));
+  }
+}
+
 (async () => {
   console.log("");
   console.log("==============================================================");
@@ -75,8 +115,12 @@ async function detectServer(token, zone) {
   console.log("");
   rl = makeAsker();
 
-  const kind = (await rl.ask("どちらで設定しますか？ 1=会社のドメイン(エックスサーバー)  2=DuckDNS  [Enterで1]: ")).trim() || "1";
+  console.log("  1 = 会社のドメイン（エックスサーバー。zaiko.f-kyo-shin.co.jp など）");
+  console.log("  2 = 自分で取ったドメイン（XServerドメイン。例: kyoshin-zaiko.com）");
+  console.log("  3 = DuckDNS（社内ファイアウォールの許可が必要）");
+  const kind = (await rl.ask("どれで設定しますか？ [Enterで1]: ")).trim() || "1";
   let cfg;
+  let nsSwitch = false, removeOthers = [];
 
   if (kind === "1") {
     const reach = await acme.PROVIDERS.xserver.reachable();
@@ -125,6 +169,74 @@ async function detectServer(token, zone) {
     const recs = await acme.PROVIDERS.xserver.probe(cfg); // 一覧が正しく読めるか（読めなければここで中止）
     log(`DNS設定の確認：OK（${z.zone} の設定 ${recs.length} 件を読み取り）`);
   } else if (kind === "2") {
+    const xdv = acme.PROVIDERS.xdomain;
+    const reach = await xdv.reachable();
+    if (!reach.ok) throw new Error(reach.message);
+    let zone = (await rl.ask("1) 取ったドメイン名（例: kyoshin-zaiko.com）: ")).trim().toLowerCase();
+    zone = zone.replace(/^https?:\/\//, "").replace(/\/.*$/, "").replace(/\.$/, "").replace(/^www\./, "");
+    if (!/^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(zone)) throw new Error("ドメイン名の形式が違います（例: kyoshin-zaiko.com）");
+    if (zone === COMPANY_ZONE || zone.endsWith("." + COMPANY_ZONE)) {
+      throw new Error(`${COMPANY_ZONE} は会社のホームページ・メールのドメインなので 2 では使えません（会社のドメインで設定するなら 1 を選んでください）`);
+    }
+    const hostIn = (await rl.ask(`2) 使うアドレス [Enterで https://${zone}/ ／ 例えば zaiko と入れると https://zaiko.${zone}/]: `)).trim().toLowerCase();
+    let host = hostIn.replace(/^https?:\/\//, "").replace(/\/.*$/, "").replace(/\.$/, "");
+    if (host === "" || host === "@" || host === zone) host = "@";
+    else if (host.endsWith("." + zone)) host = host.slice(0, -(zone.length + 1));
+    if (host !== "@" && !/^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/.test(host)) throw new Error("名前は英数字1語にしてください（例: zaiko）");
+    const domain = host === "@" ? zone : host + "." + zone;
+
+    const token = (await rl.ask("3) XServerドメインのAPIキー: ")).trim();
+    if (token.length < 20) throw new Error("APIキーが短すぎます（コピーし直してください）");
+    let me = null;
+    try {
+      me = await xdv.me(token);
+      if (me && me.expires_at) log(`⚠ このAPIキーは ${me.expires_at} に期限切れになります。それまでに新しいキーでこのツールを再実行してください`);
+      else log("APIキー：OK（無期限）");
+    } catch (e) {
+      if (e.status === 401) throw new Error("APIキーが違います（コピーし直してください）");
+      log("（APIキーの期限は確認できませんでした。続けます）");
+    }
+    const perm = xdv.permProblem(me, zone); // 権限不足は、質問に全部答える前にここで止める
+    if (perm) throw new Error(perm);
+    let doms = null;
+    try { doms = await xdv.domains(token); } catch (e) { /* 権限で一覧が見られない場合は、下のDNS確認で判断 */ }
+    if (doms) {
+      const d = doms.find((x) => String(x.domain_name).toLowerCase() === zone);
+      if (!d) throw new Error(`このAPIキーでは ${zone} が見えません（APIキーの対象ドメイン・ドメイン名を確認）`);
+      if (d.status === "pending_create") throw new Error("ドメインの取得手続きがまだ処理中です。完了してからもう一度実行してください");
+      if (d.status && d.status !== "active") throw new Error(`ドメインの状態が「${d.status}」のため使えません`);
+    }
+    cfg = { provider: "xdomain", domain, zone, host, token };
+    const prev = acme.readCfg();
+    if (prev && prev.provider === "xdomain" && prev.zone === cfg.zone && prev.host === cfg.host && prev.aId != null) cfg.aId = prev.aId;
+    const recs = await xdv.probe(cfg); // DNSの一覧が読めるか（読めなければここで中止）
+    log(`DNS設定の確認：OK（${zone} の設定 ${recs.length} 件を読み取り）`);
+    // ネームサーバー（XServerドメインの ns1〜3.xdomain.ne.jp でないと、設定したDNSが反映されない）
+    const ns = await xdv.nameservers(cfg);
+    if (!isXdNs(ns)) {
+      log(`今のネームサーバー：${ns.join(", ") || "（なし）"}`);
+      // 使用中のドメインの取り違え防止（切り替えると、そのドメインのホームページ・メールが止まる）
+      const pub = acme.publicResolver();
+      let mx = [];
+      try { mx = (await pub.resolveMx(zone)).map((m) => m.exchange).filter(Boolean); } catch (e) { /* メール設定なし */ }
+      if (mx.length) {
+        throw new Error(`${zone} はメールで使われています（${mx.join(", ")}）。切り替えるとメールが止まるため中止しました（何も変更していません）。在庫システム用に新しく取ったドメインを入力してください`);
+      }
+      const web = [];
+      for (const n of [zone, "www." + zone]) {
+        try { for (const ip of await pub.resolve4(n)) web.push(`${n} → ${ip}`); } catch (e) { /* なし */ }
+      }
+      if (web.length) {
+        log("⚠ このドメインは今、次の場所を指しています（ホームページ等で使っている場合は、切り替えると止まります）:");
+        for (const w of web) log("   " + w);
+      }
+      log("ネームサーバーを XServerドメイン用（ns1〜3.xdomain.ne.jp）に切り替えます。");
+      const typed = (await rl.ask(`在庫システム用に新しく取ったドメインで間違いなければ、確認のためドメイン名（${zone}）をそのまま入力: `))
+        .trim().toLowerCase().replace(/\.$/, "");
+      if (typed !== zone) throw new Error("ドメイン名が一致しないため中止しました（何も変更していません）");
+      nsSwitch = true;
+    }
+  } else if (kind === "3") {
     const reach = await acme.PROVIDERS.duckdns.reachable();
     if (!reach.ok) throw new Error(reach.message);
     let sub = (await rl.ask("1) DuckDNS のサブドメイン名（例: kyoshin-zaiko）: ")).trim().toLowerCase();
@@ -134,13 +246,23 @@ async function detectServer(token, zone) {
     if (!/^[0-9a-f-]{36}$/i.test(token)) throw new Error("token の形式が違います（xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx）");
     cfg = { provider: "duckdns", domain: `${sub}.duckdns.org`, token };
   } else {
-    throw new Error("1 か 2 を入力してください");
+    throw new Error("1〜3 を入力してください");
   }
 
   const detected = acme.lanIP() || "192.168.1.107";
   const ipIn = (await rl.ask(`このサーバーPCのIPアドレス [Enterで ${detected}]: `)).trim() || detected;
   if (!/^\d{1,3}(\.\d{1,3}){3}$/.test(ipIn)) throw new Error("IPアドレスの形式が違います");
   cfg.lanIp = ipIn;
+  if (cfg.provider === "xdomain") {
+    // 同じ名前にある初期設定（案内ページ等）の確認。消すのは利用規約に同意した後
+    removeOthers = await acme.PROVIDERS.xdomain.others(cfg, cfg.lanIp);
+    if (removeOthers.length) {
+      log(`${cfg.domain} には今、次の設定があります（ドメイン取得時の初期設定など）:`);
+      for (const r of removeOthers) log(`   ${String(r.type).toUpperCase()}  ${r.content}`);
+      const yn = (await rl.ask("在庫システム専用のドメインなので、これを消して置き換えますか？ (y/n): ")).trim().toLowerCase();
+      if (yn !== "y") throw new Error("中止しました（何も変更していません）");
+    }
+  }
 
   const dir = await new acme.Acme(acme.DIRS.prod, crypto.generateKeyPairSync("ec", { namedCurve: "P-256" }).privateKey).init();
   console.log("");
@@ -154,6 +276,24 @@ async function detectServer(token, zone) {
 
   const svc = acme.providerOf(cfg);
   console.log(`\n[1/4] DNS に ${cfg.domain} → ${cfg.lanIp} を設定…`);
+  if (cfg.provider === "xdomain") {
+    if (nsSwitch) {
+      nsSwitched = true;
+      await acme.PROVIDERS.xdomain.useXdomainNs(cfg);
+      log("ネームサーバーを XServerドメイン用に切り替えました");
+    }
+    if (!(await waitPublicNs(cfg.zone, parseInt(process.env.NS_WAIT_MAX_MS || String(60 * 60000), 10), nsSwitch))) {
+      throw new Error("ネームサーバーの切り替えがまだ反映されていません。1〜数時間後にもう一度このツールを実行してください（次回も反映を確認してから進みます。最大60分）");
+    }
+    // 待っている間に初期設定が変わっていないか（切替時に案内ページ等が追加されることがある）→ 変わっていたら確認し直し
+    const nowOthers = await acme.PROVIDERS.xdomain.others(cfg, cfg.lanIp);
+    const key = (r) => `${r.id}|${String(r.type).toUpperCase()}|${r.content}`;
+    const confirmed = new Set(removeOthers.map(key));
+    if (nowOthers.length !== removeOthers.length || nowOthers.some((r) => !confirmed.has(key(r)))) {
+      throw new Error("待っている間にDNSの初期設定が変わったため、ここで止めました。もう一度このツールを実行してください（新しい内容で確認が出ます）");
+    }
+    if (nowOthers.length) { await acme.PROVIDERS.xdomain.removeRecords(cfg, nowOthers); log("初期設定を削除しました"); }
+  }
   await svc.setA(cfg, cfg.lanIp);
   log("OK");
 
@@ -199,6 +339,11 @@ async function detectServer(token, zone) {
 })().catch((e) => {
   if (rl) rl.close();
   console.error("\n  エラー: " + e.message);
-  console.error("  （何も壊れていません。内容を確認してもう一度実行してください。ダメなら画面をそのまま連絡）");
+  if (nsSwitched) {
+    console.error("  （ネームサーバーは XServerドメイン用に切り替え済みです。在庫システムは今までどおり使えます。");
+    console.error("    時間をおいてもう一度このツールを実行すると続きから進みます。ダメなら画面をそのまま連絡）");
+  } else {
+    console.error("  （在庫システムは今までどおり使えます。内容を確認してもう一度実行してください。ダメなら画面をそのまま連絡）");
+  }
   process.exitCode = 1;
 });

@@ -27,6 +27,8 @@
   **エックスサーバーのDNSは `zaiko` の A と `_acme-challenge.zaiko` の TXT 以外に触らないこと**
   （ホームページ・メールと同じドメイン）。API仕様は https://developer.xserver.ne.jp/api/server/openapi.json 。
   DuckDNS は社内の FortiGate で「ダイナミックDNS」としてブロックされている（2026-09 確認）。
+  自分で取ったドメイン（XServerドメイン）も選べる（provider "xdomain"。API仕様は
+  https://developer.xserver.ne.jp/api/domain/openapi.json 、ネームサーバーは ns1〜3.xdomain.ne.jp 必須）。
 
 ## 本番サーバー機（重要）
 
