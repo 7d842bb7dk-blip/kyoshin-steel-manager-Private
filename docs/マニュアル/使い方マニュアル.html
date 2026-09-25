@@ -23,7 +23,9 @@
   .phoneframe{background:var(--ink);border-radius:6mm;padding:2.2mm;box-shadow:0 1.5mm 4mm rgba(0,0,0,.25);flex:0 0 auto}
   .phoneframe img{display:block;width:100%;border-radius:4.2mm}
   .zbox{border:0.8mm dashed var(--red);border-radius:3mm;background:#fff;padding:2.5mm;overflow:hidden}
-  .zbox svg{display:block;width:100%}
+  .zbox svg,.zbox img{display:block;width:100%}
+  /* 切り抜き画像は crops.py で作った普通のPNG（どのPDFアプリでも表示されるように） */
+  img.crop{display:block;width:100%}
   .zttl{font-size:10pt;font-weight:800;color:var(--redD);margin-bottom:2mm}
   .note{background:#fdfaef;border:1px solid #efe6c6;border-radius:3mm;padding:3.5mm 5mm;font-size:9.5pt;line-height:1.7}
   .note b{color:var(--redD)}
@@ -47,7 +49,7 @@
   .toc-s{font-size:9.5pt;color:var(--soft);margin-top:1mm;line-height:1.6}
   .toc-pg{font-size:10pt;font-weight:800;color:var(--redD);flex:0 0 auto}
   .toc-thumb{width:13mm;flex:0 0 auto;background:var(--ink);border-radius:2.5mm;padding:0.9mm}
-  .toc-thumb svg{display:block;width:100%;border-radius:1.8mm}
+  .toc-thumb svg,.toc-thumb img{display:block;width:100%;border-radius:1.8mm}
 
 </style>
 </head>
@@ -71,7 +73,7 @@
   <div class="toc">
     <div class="toc-card">
       <div class="toc-no">1</div>
-      <div class="toc-thumb"><svg viewBox="0 0 750 1624"><image href="shots/shot-checkout.png" width="750" height="1624"/></svg></div>
+      <div class="toc-thumb"><img src="shots/shot-checkout.png" alt=""></div>
       <div class="toc-body">
         <div class="toc-t">在庫があるか確認する</div>
         <div class="toc-s">欲しい材料が倉庫にあるか、長さ・置き場所をスマホで調べる／<span class="vi">Kiểm tra tồn kho</span></div>
@@ -80,7 +82,7 @@
     </div>
     <div class="toc-card">
       <div class="toc-no">2</div>
-      <div class="toc-thumb"><svg viewBox="0 0 750 1624"><image href="shots/shot-scan.png" width="750" height="1624"/></svg></div>
+      <div class="toc-thumb"><img src="shots/shot-scan.png" alt=""></div>
       <div class="toc-body">
         <div class="toc-t">在庫を使う</div>
         <div class="toc-s">鍵置き場のQRにかざして倉庫へ → 使った後の<b>残りの長さ</b>を登録する／<span class="vi" style="white-space:nowrap">Dùng vật liệu</span></div>
@@ -89,7 +91,7 @@
     </div>
     <div class="toc-card">
       <div class="toc-no">3</div>
-      <div class="toc-thumb"><svg viewBox="0 0 750 1624"><image href="shots/shot-ns.png" width="750" height="1624"/></svg></div>
+      <div class="toc-thumb"><img src="shots/shot-ns.png" alt=""></div>
       <div class="toc-body">
         <div class="toc-t">新しい在庫を登録する</div>
         <div class="toc-s">今日納入された定尺の残りなど、リストに無い材料を登録する／<span class="vi" style="white-space:nowrap">Đăng ký vật liệu mới</span></div>
@@ -140,12 +142,12 @@
       <div class="pt"><div class="n">2</div><div><b>材質・鋼種で絞り込む</b>。<b>「材料規格」</b>（一部だけでもOK 例：50）と<b>「板厚」</b>は別々に指定できます。板厚は、その材料に在庫がある厚さだけが出ます</div></div>
       <div class="zbox" style="margin:2mm 0 4mm">
         <div class="zttl">【拡大】絞り込み欄（空欄はすべて対象）</div>
-        <svg viewBox="20 780 710 420"><image href="shots/shot-checkout.png" width="750" height="1624"/></svg>
+        <img data-crop="shots/shot-checkout.png 20 780 710 420" src="shots/crop/shot-checkout_20_780_710_420.png" class="crop" alt="">
       </div>
       <div class="pt"><div class="n">3</div><div><b>カードを見る</b>。1枚 ＝ 材料1本。<b>長さ・置き場所（棚番号）・仕上げ</b>が分かります</div></div>
       <div class="zbox" style="margin:2mm 0 4mm">
         <div class="zttl">【拡大】在庫カードの見方</div>
-        <svg viewBox="20 1240 710 285"><image href="shots/shot-checkout.png" width="750" height="1624"/></svg>
+        <img data-crop="shots/shot-checkout.png 20 1240 710 285" src="shots/crop/shot-checkout_20_1240_710_285.png" class="crop" alt="">
         <div style="font-size:9pt;color:var(--soft);margin-top:2mm">この材料は「SUS304の角パイプ 50*50・板厚t2、残り3,000mm、置き場所B-2」という意味です</div>
       </div>
       <div class="gnote"><b>PCも同じアドレスでOK。</b>「在庫検索」タブなら、もっと細かい絞り込みと合計重量・合計金額の集計ができます。</div>
@@ -172,7 +174,7 @@
 
   <div class="pt"><div class="n">1</div><div><b>プログラム室の鍵置き場へ。</b>鍵のフックの横に、この<b>「鋼材倉庫の鍵」のQRの貼り紙</b>が貼ってあります</div></div>
   <div style="border:0.6mm solid var(--line);border-radius:4mm;overflow:hidden;margin:2mm 0 4mm">
-    <svg viewBox="40 90 830 320" style="display:block;width:100%"><image href="shots/keyplace.png" width="900" height="640"/></svg>
+    <img data-crop="shots/keyplace.png 40 90 830 320" src="shots/crop/keyplace_40_90_830_320.png" class="crop" alt="">
   </div>
 
   <div style="display:flex;gap:7mm;align-items:flex-start">
@@ -186,11 +188,11 @@
     <div style="width:52mm;flex:0 0 auto;display:flex;flex-direction:column;gap:4mm">
       <div class="zbox">
         <div class="zttl">【手順2】貼り紙にかざす</div>
-        <svg viewBox="105 585 540 520"><image href="shots/shot-scankey.png" width="750" height="1624"/></svg>
+        <img data-crop="shots/shot-scankey.png 105 585 540 520" src="shots/crop/shot-scankey_105_585_540_520.png" class="crop" alt="">
       </div>
       <div class="zbox">
         <div class="zttl">【手順3】この画面が出たら押すだけ</div>
-        <svg viewBox="78 386 594 622"><image href="shots/shot-key.png" width="750" height="1624"/></svg>
+        <img data-crop="shots/shot-key.png 78 386 594 622" src="shots/crop/shot-key_78_386_594_622.png" class="crop" alt="">
       </div>
     </div>
   </div>
@@ -213,13 +215,13 @@
       <div class="pt"><div class="n">1</div><div><b>材料のQRにかざす</b>：赤い「QRを読み取る」を押すとカメラが起動。<b>ラベルを枠に入れるだけで自動で読み取り</b>、その材料の画面が開きます（シャッター不要）</div></div>
       <div class="zbox" style="margin:2mm auto 3.5mm;width:62mm">
         <div class="zttl">【拡大】枠に入れるだけ</div>
-        <svg viewBox="105 545 540 600"><image href="shots/shot-scan.png" width="750" height="1624"/></svg>
+        <img data-crop="shots/shot-scan.png 105 545 540 600" src="shots/crop/shot-scan_105_545_540_600.png" class="crop" alt="">
       </div>
       <div class="pt"><div class="n">2</div><div><b>使い方を選ぶ</b>：全部使ったら「<b>全部 持ち出す</b>」、一部だけなら「<b>一部使った（残りを登録）</b>」</div></div>
       <div class="pt"><div class="n">3</div><div><b>残った長さを測って入力</b>：使用量は自動計算。<b>「持ち出しを記録」</b>で完了！</div></div>
       <div class="zbox" style="margin:2mm 0 3.5mm">
         <div class="zttl">【拡大】残りの長さ（mm）— 例：残り1.5mなら「1500」</div>
-        <svg viewBox="95 755 565 255"><image href="shots/shot-co.png" width="750" height="1624"/></svg>
+        <img data-crop="shots/shot-co.png 95 755 565 255" src="shots/crop/shot-co_95_755_565_255.png" class="crop" alt="">
       </div>
       <div class="note"><b>入力するのは「使った長さ」ではなく「残った長さ」です。</b>登録しないと在庫と実物がズレて、次に使う人が困ります。使ったその場で必ず登録を（1回10秒）。</div>
       <div class="gnote" style="margin-top:3mm"><b>押し間違えたら：</b>記録の直後に画面の下に出る<b>「元に戻す」</b>を押す（15秒間）。気づくのが遅れたら武田・航へ（作業ログから戻せます）。「全部持ち出す」は確認が1回出ます。</div>
@@ -251,7 +253,7 @@
       <div class="pt"><div class="n">1</div><div>持ち出し画面の<b>「＋ 残材を登録」</b>を押す</div></div>
       <div class="zbox" style="margin:2mm 0 4mm">
         <div class="zttl">【拡大】このボタン</div>
-        <svg viewBox="15 479 720 178"><image href="shots/shot-checkout.png" width="750" height="1624"/></svg>
+        <img data-crop="shots/shot-checkout.png 15 479 720 178" src="shots/crop/shot-checkout_15_479_720_178.png" class="crop" alt="">
       </div>
       <div class="pt"><div class="n">2</div><div><b>材料の情報を選ぶ</b>：材質 → 鋼種 → 板厚 → 材料規格（例：50*50）。選んだ材料に<b>実在する板厚・規格・仕上げだけ</b>が出ます。サニタリーパイプは規格を入れると<b>板厚が自動で入ります</b></div></div>
       <div class="pt"><div class="n">3</div><div><b>残りの長さ(mm)</b>を測って入力</div></div>
