@@ -1674,6 +1674,55 @@ function openQr(ids){
   $("#qrOverlay").classList.add("show");
 }
 function closeQr(){$("#qrOverlay").classList.remove("show");}
+
+/* ===================== シールプリンター（ブラザー TD-4420DN 等）でのラベル印刷 =====================
+ * 1枚＝1ページで、ラベルの大きさ（@page）ぴったりに印刷する。プリンタードライバーの用紙サイズを同じ大きさにしておく。
+ * ・QRは 203dpi の点（0.125mm）の整数倍の大きさにして、にじまず読みやすくする
+ * ・材料に貼りっぱなしにするので、変わる情報（長さ・置き場所）は入れない（材質・鋼種・規格・板厚・仕上げ・番号だけ） */
+const LABEL_SIZES={"50x30":[50,30],"40x30":[40,30],"60x40":[60,40],"50x25":[50,25],"62x29":[62,29]};
+const LABEL_MODE_KEY="steel_mgr_label_mode";
+const PRINTER_DOT_MM=25.4/203; /* TD-4420DN：203dpi */
+function qrSvgQuiet(text,quiet){ /* 余白（クワイエットゾーン）を指定できるQR SVG。ラベルの縁の白もあるので2モジュールで足りる */
+  const m=QR.matrix(text,"Q"),n=m.length,q=quiet,S=n+q*2;let d="";
+  for(let i=0;i<n;i++)for(let j=0;j<n;j++)if(m[i][j])d+="M"+(j+q)+" "+(i+q)+"h1v1h-1z";
+  return {n:S,svg:'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 '+S+" "+S+'" shape-rendering="crispEdges"><rect width="'+S+'" height="'+S+'" fill="#fff"/><path d="'+d+'" fill="#000"/></svg>'};
+}
+function buildLabelPrint(list,W,H){
+  let st=$("#labelPageStyle");
+  if(!st){st=document.createElement("style");st.id="labelPageStyle";document.head.appendChild(st);}
+  st.textContent=`@media print{@page{size:${W}mm ${H}mm;margin:0}}`;
+  let box=$("#labelPrint");
+  if(!box){box=document.createElement("div");box.id="labelPrint";document.body.appendChild(box);}
+  const pad=Math.max(1.2,H*0.05),gap=Math.max(1.2,W*0.03);
+  let h="";
+  for(const r of list){
+    const {n,svg}=qrSvgQuiet(qrUrl(r.id),2);
+    const qMax=Math.min(H-pad*2,W*0.5);
+    const dots=Math.max(3,Math.floor(qMax/n/PRINTER_DOT_MM)); /* 1モジュール＝整数ドット（最低3ドット） */
+    const q=Math.min(qMax,dots*PRINTER_DOT_MM*n);
+    const tw=W-q-pad*2-gap;
+    const fs=Math.max(1.8,Math.min(H*0.11,tw/8.5)); /* 文字の大きさ（mm） */
+    h+=`<div class="lbl" style="width:${W}mm;height:${H}mm;padding:${pad}mm;gap:${gap}mm">`
+      +`<div class="lbl-qr" style="width:${q.toFixed(3)}mm;height:${q.toFixed(3)}mm">${svg}</div>`
+      +`<div class="lbl-txt" style="width:${tw.toFixed(2)}mm;font-size:${fs.toFixed(2)}mm">`
+      +`<span class="lbl-mat" style="font-size:${(fs*1.25).toFixed(2)}mm">${escH(r.mat)}</span>`
+      +`<span>${escH(r.koshu)}</span>`
+      +`<span>${escH(r.spec)}${r.thk!=null&&r.thk!==""?" t"+escH(r.thk):""}</span>`
+      +(r.fin?`<span>${escH(r.fin)}</span>`:"")
+      +`<span class="lbl-id" style="font-size:${(fs*0.85).toFixed(2)}mm">No.${escH(r.id)}</span>`
+      +`</div></div>`;
+  }
+  box.innerHTML=h;
+}
+function printQr(){
+  const mode=$("#qrMode")?$("#qrMode").value:"a4";
+  try{localStorage.setItem(LABEL_MODE_KEY,mode);}catch(e){}
+  if(!LABEL_SIZES[mode]||!qrTargetIds){document.body.classList.add("qr-printing");window.print();return;}
+  const [W,H]=LABEL_SIZES[mode];
+  buildLabelPrint(records.filter(r=>qrTargetIds.includes(r.id)),W,H);
+  document.body.classList.add("label-printing");
+  window.print();
+}
 /* 印刷後に「印刷済み」の目印を付ける（印刷ダイアログを閉じた後に確認） */
 async function markPrinted(){
   if(MODE!=="server"||!qrTargetIds||!qrTargetIds.length)return;
@@ -1945,10 +1994,11 @@ async function init(){
   $("#scanTorch").addEventListener("click",toggleTorch);
   $("#scanOverlay").addEventListener("click",e=>{if(e.target===$("#scanOverlay"))closeScanner();});
   $("#qrClose").addEventListener("click",closeQr);$("#qrCancel").addEventListener("click",closeQr);
-  $("#qrPrint").addEventListener("click",()=>{document.body.classList.add("qr-printing");window.print();});
+  $("#qrPrint").addEventListener("click",printQr);
+  if($("#qrMode")){let m="a4";try{m=localStorage.getItem(LABEL_MODE_KEY)||"a4";}catch(e){}if([...$("#qrMode").options].some(o=>o.value===m))$("#qrMode").value=m;}
   window.addEventListener("afterprint",()=>{
-    const was=document.body.classList.contains("qr-printing");
-    document.body.classList.remove("qr-printing");
+    const was=document.body.classList.contains("qr-printing")||document.body.classList.contains("label-printing");
+    document.body.classList.remove("qr-printing");document.body.classList.remove("label-printing");
     if(was)setTimeout(markPrinted,300);
   });
   $("#qrOnlyNew").addEventListener("click",()=>{

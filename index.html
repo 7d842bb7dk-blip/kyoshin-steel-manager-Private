@@ -307,6 +307,16 @@
     <div class="qr-sheet" id="qrSheet"></div>
     <div class="modal-foot">
       <span class="help-foot-note" id="qrCount"></span>
+      <label class="qr-mode">印刷先
+        <select id="qrMode" title="シールプリンター（TD-4420DN）はドライバーの用紙サイズを同じ大きさに設定しておく">
+          <option value="a4">A4用紙（切り取って貼る）</option>
+          <option value="50x30">シールプリンター 50×30mm</option>
+          <option value="40x30">シールプリンター 40×30mm</option>
+          <option value="60x40">シールプリンター 60×40mm</option>
+          <option value="50x25">シールプリンター 50×25mm</option>
+          <option value="62x29">シールプリンター 62×29mm</option>
+        </select>
+      </label>
       <div style="margin-left:auto;display:flex;gap:9px">
         <button class="btn ghost" id="qrOnlyNew"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 5h18M6 12h12M10 19h4"/></svg>未印刷のみ</button>
         <button class="btn ghost" id="qrCancel">閉じる</button>

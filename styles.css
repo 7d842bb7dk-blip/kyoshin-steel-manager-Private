@@ -432,6 +432,25 @@ select.m-in{width:auto;max-width:100%;cursor:pointer}
   body.qr-printing .qr-txt b{font-size:12pt}
 }
 
+/* ============ シールプリンター（TD-4420DN 等）：1枚＝1ページで、ラベルの大きさぴったりに印刷 ============ */
+.qr-mode{display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--ink-soft);font-weight:700}
+.qr-mode select{padding:7px 9px;border:1px solid var(--line);border-radius:8px;font:inherit;font-weight:600;color:var(--ink);background:#fff}
+#labelPrint{display:none}
+@media print{
+  body.label-printing>*:not(#labelPrint){display:none!important}
+  body.label-printing{display:block;height:auto;overflow:visible;background:#fff;margin:0;padding:0}
+  body.label-printing #labelPrint{display:block}
+}
+.lbl{box-sizing:border-box;display:flex;align-items:center;overflow:hidden;background:#fff;color:#000;break-after:page;page-break-after:always;
+  font-family:"Yu Gothic UI","Meiryo",sans-serif}
+.lbl:last-child{break-after:auto;page-break-after:auto}
+.lbl-qr{flex:0 0 auto}
+.lbl-qr svg{display:block;width:100%;height:100%}
+.lbl-txt{min-width:0;display:flex;flex-direction:column;justify-content:center;line-height:1.18;font-weight:700}
+.lbl-txt span{white-space:nowrap;overflow:hidden}
+.lbl-txt .lbl-mat{font-weight:900}
+.lbl-txt .lbl-id{font-family:Consolas,monospace;font-weight:700}
+
 /* ============ 鋼材倉庫の鍵（QRから開くモーダル） ============ */
 .key-modal{width:440px;max-width:calc(100% - 32px)}
 .key-status{background:var(--panel-2);border:1px solid var(--line-soft);border-radius:var(--r-sm);
