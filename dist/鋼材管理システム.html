@@ -764,7 +764,6 @@ tr.wl-warn td{background:var(--accent-soft)}
           <label class="fld"><span class="fld-lab"><svg class="lab-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>鋼種</span><select id="co_koshu"></select></label>
           <label class="fld"><span class="fld-lab"><svg class="lab-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8l5-5 13 13-5 5z"/><path d="M8 6l2 2M11 9l2 2M14 12l2 2"/></svg>材料規格</span><input type="text" id="co_spec" class="num" list="dl_cospec" placeholder="部分一致 例: 50"><datalist id="dl_cospec"></datalist></label>
           <label class="fld"><span class="fld-lab"><svg class="lab-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 4v16M18 4v16M6 12h12"/></svg>板厚 (mm)</span><select id="co_thk" class="num"></select></label>
-          <label class="fld"><span class="fld-lab"><svg class="lab-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-5.5 7-11a7 7 0 1 0-14 0c0 5.5 7 11 7 11z"/><circle cx="12" cy="10" r="2.3"/></svg>保管場所</span><select id="co_loc"></select></label>
         </div>
         <div class="filter-foot">
           <span class="filter-hint">使う材料の「持ち出す」ボタンを押してください。空欄はすべて対象です。</span>
@@ -12435,7 +12434,6 @@ async function loadHistory(){
 function initCheckoutControls(){
   fillSelect($("#co_mat"),MATERIALS,"すべての材質");
   fillSelect($("#co_koshu"),[],"すべての鋼種");$("#co_koshu").disabled=true;
-  fillSelect($("#co_loc"),locOptions(),"すべての場所");
   if($("#co_thk")){fillSelect($("#co_thk"),[],"すべて");$("#co_thk").addEventListener("change",renderCheckout);}
   $("#co_mat").addEventListener("change",()=>{
     const m=$("#co_mat").value;
@@ -12444,11 +12442,10 @@ function initCheckoutControls(){
     updateCoDatalist();renderCheckout();
   });
   $("#co_koshu").addEventListener("change",()=>{updateCoDatalist();renderCheckout();});
-  $("#co_loc").addEventListener("change",renderCheckout);
   $("#co_spec").addEventListener("input",renderCheckout);
   $("#coClear").addEventListener("click",()=>{
     $("#co_mat").value="";fillSelect($("#co_koshu"),[],"すべての鋼種");$("#co_koshu").disabled=true;
-    $("#co_spec").value="";$("#co_loc").value="";if($("#co_thk"))$("#co_thk").value="";updateCoDatalist();renderCheckout();
+    $("#co_spec").value="";if($("#co_thk"))$("#co_thk").value="";updateCoDatalist();renderCheckout();
   });
   updateCoDatalist();
 }
@@ -12459,8 +12456,7 @@ function renderCheckout(){
   refillSelect($("#co_mat"),matOptions(),"すべての材質");
   const cm=$("#co_mat").value;
   if(cm){refillSelect($("#co_koshu"),koshuOptions(cm),"すべての鋼種");$("#co_koshu").disabled=false;}
-  refillSelect($("#co_loc"),locOptions(),"すべての場所");
-  const f={mat:$("#co_mat").value,koshu:$("#co_koshu").value,spec:$("#co_spec").value.trim(),loc:$("#co_loc").value,thk:""};
+  const f={mat:$("#co_mat").value,koshu:$("#co_koshu").value,spec:$("#co_spec").value.trim(),thk:""};
   /* 板厚：材質・鋼種・規格で絞った在庫にある板厚だけを選択肢に（規格と板厚を別々に指定できる） */
   const thkSel=$("#co_thk");
   if(thkSel){
@@ -12474,7 +12470,6 @@ function renderCheckout(){
     if(f.koshu&&r.koshu!==f.koshu)return false;
     if(f.spec&&!String(r.spec).includes(f.spec))return false;
     if(f.thk!==""&&Number(r.thk)!==Number(f.thk))return false;
-    if(f.loc&&r.loc!==f.loc)return false;
     return true;
   });
   if(!hits.length){wrap.innerHTML=emptyState(t("条件に一致する在庫がありません"));return;}

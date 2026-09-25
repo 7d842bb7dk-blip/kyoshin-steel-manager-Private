@@ -1140,7 +1140,6 @@ async function loadHistory(){
 function initCheckoutControls(){
   fillSelect($("#co_mat"),MATERIALS,"すべての材質");
   fillSelect($("#co_koshu"),[],"すべての鋼種");$("#co_koshu").disabled=true;
-  fillSelect($("#co_loc"),locOptions(),"すべての場所");
   if($("#co_thk")){fillSelect($("#co_thk"),[],"すべて");$("#co_thk").addEventListener("change",renderCheckout);}
   $("#co_mat").addEventListener("change",()=>{
     const m=$("#co_mat").value;
@@ -1149,11 +1148,10 @@ function initCheckoutControls(){
     updateCoDatalist();renderCheckout();
   });
   $("#co_koshu").addEventListener("change",()=>{updateCoDatalist();renderCheckout();});
-  $("#co_loc").addEventListener("change",renderCheckout);
   $("#co_spec").addEventListener("input",renderCheckout);
   $("#coClear").addEventListener("click",()=>{
     $("#co_mat").value="";fillSelect($("#co_koshu"),[],"すべての鋼種");$("#co_koshu").disabled=true;
-    $("#co_spec").value="";$("#co_loc").value="";if($("#co_thk"))$("#co_thk").value="";updateCoDatalist();renderCheckout();
+    $("#co_spec").value="";if($("#co_thk"))$("#co_thk").value="";updateCoDatalist();renderCheckout();
   });
   updateCoDatalist();
 }
@@ -1164,8 +1162,7 @@ function renderCheckout(){
   refillSelect($("#co_mat"),matOptions(),"すべての材質");
   const cm=$("#co_mat").value;
   if(cm){refillSelect($("#co_koshu"),koshuOptions(cm),"すべての鋼種");$("#co_koshu").disabled=false;}
-  refillSelect($("#co_loc"),locOptions(),"すべての場所");
-  const f={mat:$("#co_mat").value,koshu:$("#co_koshu").value,spec:$("#co_spec").value.trim(),loc:$("#co_loc").value,thk:""};
+  const f={mat:$("#co_mat").value,koshu:$("#co_koshu").value,spec:$("#co_spec").value.trim(),thk:""};
   /* 板厚：材質・鋼種・規格で絞った在庫にある板厚だけを選択肢に（規格と板厚を別々に指定できる） */
   const thkSel=$("#co_thk");
   if(thkSel){
@@ -1179,7 +1176,6 @@ function renderCheckout(){
     if(f.koshu&&r.koshu!==f.koshu)return false;
     if(f.spec&&!String(r.spec).includes(f.spec))return false;
     if(f.thk!==""&&Number(r.thk)!==Number(f.thk))return false;
-    if(f.loc&&r.loc!==f.loc)return false;
     return true;
   });
   if(!hits.length){wrap.innerHTML=emptyState(t("条件に一致する在庫がありません"));return;}
