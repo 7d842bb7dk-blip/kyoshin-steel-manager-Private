@@ -5,6 +5,14 @@
 //   ・index.html / styles.css / js / assets のみ静的配信（server・data は出さない）
 //   既定 http://0.0.0.0:3001  （社内LANの他PCからアクセス可）
 // ─────────────────────────────────────────────────────────────
+// ログに日時を付ける（いつ落ちた・再起動したかを後から追えるように）
+for (const k of ["log", "warn", "error"]) {
+  const orig = console[k].bind(console);
+  console[k] = (...a) => {
+    const d = new Date(), p2 = (n) => String(n).padStart(2, "0");
+    orig(`${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())} ${p2(d.getHours())}:${p2(d.getMinutes())}:${p2(d.getSeconds())}`, ...a);
+  };
+}
 const path = require("node:path");
 const os = require("node:os");
 const fs = require("node:fs");
@@ -370,12 +378,35 @@ function loadLe() {
 // 社内の名前解決（スマホと同じ 192.168.1.1 を使うOSのDNS）がこのサーバーを指しているか。
 // 指していない間（切り替え直後のキャッシュ・IP変更後など）はドメインへの転送をしない。
 // あわせて、ディスク上の証明書が別の手段で更新されていれば読み直す。
+// このPCのIPが変わったら（DHCPで振り直された等）、ドメインのAレコードを新しいIPに自動で書き換える。
+// 書き換えるのは、証明書取得ツールで設定した自分のAレコード（cfg.aId）だけ。失敗したら次の確認（5分後）に再挑戦。
+let ipFixing = false;
+async function followLanIp(cfg) {
+  if (ipFixing || !cfg || !cfg.domain || !cfg.token || !cfg.lanIp) return;
+  if (!["xdomain", "xserver"].includes(cfg.provider)) return;
+  const ips = acme.lanIPs();
+  if (!ips.length || ips.includes(cfg.lanIp)) return; // 変わっていない／ネットに繋がっていない
+  const sub = (ip) => String(ip).split(".").slice(0, 3).join(".");
+  const next = ips.find((ip) => sub(ip) === sub(cfg.lanIp)) || ips.find((ip) => /^192\.168\./.test(ip));
+  if (!next) return; // 社内LANらしいIPが無い（有線が抜けている等）は触らない
+  ipFixing = true;
+  try {
+    console.log(`[dns] このPCのIPが ${cfg.lanIp} → ${next} に変わりました。${cfg.domain} の向き先を書き換えます`);
+    await acme.providerOf(cfg).setA(cfg, next);
+    cfg.lanIp = next;
+    acme.writeCfg(cfg);
+    console.log(`[dns] 書き換え完了。数分で ${cfg.domain} が ${next} に繋がります`);
+  } catch (e) {
+    console.error("[dns] 向き先の書き換えに失敗（5分後に再挑戦）:", e.message);
+  } finally { ipFixing = false; }
+}
 async function checkLeDns() {
   const cfg = acme.readCfg() || {};
   const disk = cfg.domain ? acme.certInfo(acme.leFiles(false).cert, cfg.domain) : null;
   if (disk && disk.matches && !disk.expired && (!leExpires || disk.expires.getTime() !== leExpires.getTime())) loadLe();
   if (leCtx && leExpires && leExpires.getTime() <= Date.now()) dropLe("期限切れになりました");
   if (!leCtx || !leDomain) { leReady = false; return; }
+  await followLanIp(cfg);
   const want = cfg.lanIp;
   let ok;
   if (!want || !acme.lanIPs().includes(want)) ok = false; // このPCのIPが変わった
