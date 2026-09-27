@@ -461,6 +461,15 @@ const fmtYenP=n=>n==null?"—":"¥"+Math.round(n).toLocaleString("ja-JP");
 const fmtKg=n=>n==null?'<span class="muted">—</span>':n.toLocaleString("ja-JP",{maximumFractionDigits:3});
 const fmtNum=(n,d=1)=>n==null?'<span class="muted">—</span>':n.toLocaleString("ja-JP",{maximumFractionDigits:d});
 function fillSelect(sel,opts,blankLabel){sel.innerHTML="";const b=document.createElement("option");b.value="";b.textContent=t(blankLabel||"指定なし");sel.appendChild(b);opts.forEach(o=>{const e=document.createElement("option");e.value=o;e.textContent=o;sel.appendChild(e);});}
+/* 材料規格のプルダウン：候補で作り直す。選択中（や編集中の在庫）の値が候補に無くても消さずに残す */
+function fillSpec(sel,opts,blank){if(!sel)return;const cur=sel.value;const o=[...opts];if(cur&&!o.includes(cur))o.unshift(cur);const key=o.join("|")+"#"+blank;if(sel.dataset.opts===key)return;fillSelect(sel,o,blank);sel.dataset.opts=key;sel.value=cur;}
+/* 検索・持ち出し用：在庫に実際にある規格だけ（材質・鋼種・板厚で絞る） */
+function stockSpecOptions(mat,koshu,thk){
+  const seen=new Set(),out=[];
+  records.filter(r=>(!mat||r.mat===mat)&&(!koshu||r.koshu===koshu)&&(noThk(thk)||thkEq(r.thk,thk))).forEach(r=>{const v=String(r.spec||"").trim();const k=normSpecKey(v);if(v&&!seen.has(k)){seen.add(k);out.push(v);}});
+  return out.sort(specSort);
+}
+const specMatch=(a,b)=>normSpecKey(a)===normSpecKey(b);
 function fillDatalist(dl,opts){dl.innerHTML="";opts.forEach(o=>{const e=document.createElement("option");e.value=o;dl.appendChild(e);});}
 function matCls(m){return "m-"+String(m).toLowerCase().replace(/[^a-z0-9]/g,"");}
 /* 保管場所の候補：在庫の実データから動的生成（在庫が空なら LOCATIONS を使用） */
@@ -578,6 +587,7 @@ function refreshSearchThkFin(){
   const th=$("#f_thk").value;
   const fins=(m||k||th!=="")?uniqVals(recs.filter(r=>th===""||thkEq(r.thk,th)).map(r=>r.fin)):finOptions("","");
   refillSelect($("#f_fin"),fins,"すべて");
+  updateSpecDatalist();
 }
 function finishOptions(mat,koshu){const k=mat+"|"+koshu;if(FINISH_BY_MAT_KOSHU[k]&&FINISH_BY_MAT_KOSHU[k].length)return FINISH_BY_MAT_KOSHU[k];return FINISH_ALL;}
 function toast(msg,ms){const t=$("#toast");$("#toastMsg").textContent=msg;t.classList.add("show");clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove("show"),ms||2200);}
@@ -800,19 +810,20 @@ function initSearchControls(){
   $("#f_koshu").addEventListener("change",()=>{refreshSearchThkFin();updateSpecDatalist();runSearch();});
   $("#f_thk").addEventListener("change",()=>{refreshSearchThkFin();runSearch();});
   $("#f_fin").addEventListener("change",runSearch);
-  ["#f_spec","#f_len"].forEach(s=>$(s).addEventListener("input",runSearch));
+  $("#f_spec").addEventListener("change",runSearch);$("#f_len").addEventListener("input",runSearch);
+  $("#f_thk").addEventListener("change",updateSpecDatalist);
   $("#btnClear").addEventListener("click",()=>{
     $("#f_mat").value="";fillSelect($("#f_koshu"),[],"すべての鋼種");$("#f_koshu").disabled=true;
     $("#f_thk").value="";$("#f_fin").value="";$("#f_spec").value="";$("#f_len").value="";refreshSearchThkFin();updateSpecDatalist();runSearch();
   });
 }
-function updateSpecDatalist(){fillDatalist($("#dl_spec"),specOptions($("#f_koshu").value));}
+function updateSpecDatalist(){fillSpec($("#f_spec"),stockSpecOptions($("#f_mat").value,$("#f_koshu").value,$("#f_thk").value),"すべて");}
 function getFilter(){return{mat:$("#f_mat").value,koshu:$("#f_koshu").value,thk:$("#f_thk").value,spec:$("#f_spec").value.trim(),len:$("#f_len").value.trim(),fin:$("#f_fin").value};}
 function matchRec(r,f){
   if(f.mat&&r.mat!==f.mat)return false;
   if(f.koshu&&r.koshu!==f.koshu)return false;
   if(f.thk!==""&&Number(r.thk)!==Number(f.thk))return false;
-  if(f.spec&&!String(r.spec).includes(f.spec))return false;
+  if(f.spec&&!specMatch(r.spec,f.spec))return false;
   if(f.len!==""&&Number(r.len)!==Number(f.len))return false;
   if(f.fin&&r.fin!==f.fin)return false;
   return true;
@@ -882,7 +893,7 @@ function refreshCascade(matSel,koshuSel,specDL,finSel,thkSel,thkOnly){
   const m=matSel.value,k=koshuSel.value;
   if(!thkOnly)refillSelect(thkSel,thkOptions(m,k).map(String),"選択");
   const th=thkSel.value;
-  fillDatalist(specDL,(m||k)?specOptions(k,m,th):[]);
+  if(finSel._specInput)fillSpec(finSel._specInput,(m&&k)?specOptions(k,m,th):[],(m&&k)?"選択してください":"先に鋼種を選択");
   const sp=finSel._specInput?finSel._specInput.value.trim():"";
   refillSelect(finSel,finOptions(m,k,th,sp),"指定なし");
 }
@@ -896,7 +907,7 @@ function openModal(id){
   else{fillSelect($("#m_koshu"),[],"先に材質を選択");$("#m_koshu").disabled=true;}
   fillSelect($("#m_thk"),thkOptions(r.mat,r.koshu).map(String),"選択");$("#m_thk").value=(r.thk!==""&&r.thk!=null)?String(Number(r.thk)):"";
   delete $("#m_thk").dataset.opts;
-  fillDatalist($("#dl_mspec"),(r.mat||r.koshu)?specOptions(r.koshu,r.mat,r.thk):[]);$("#m_spec").value=r.spec||"";
+  $("#m_spec").innerHTML="";$("#m_spec").value="";delete $("#m_spec").dataset.opts;{const o=(r.mat&&r.koshu)?specOptions(r.koshu,r.mat,r.thk):[];if(r.spec&&!o.includes(r.spec))o.unshift(r.spec);fillSelect($("#m_spec"),o,(r.mat&&r.koshu)?"選択してください":"先に鋼種を選択");$("#m_spec").value=r.spec||"";$("#m_spec").dataset.opts=o.join("|")+"#"+((r.mat&&r.koshu)?"選択してください":"先に鋼種を選択");}
   $("#m_len").value=r.len!==""?r.len:"";
   fillSelect($("#m_fin"),(r.mat||r.koshu)?finOptions(r.mat,r.koshu,r.thk):finOptions("",""),"指定なし");$("#m_fin").value=r.fin||"";
   delete $("#m_fin").dataset.opts;
@@ -1148,25 +1159,26 @@ function initCheckoutControls(){
     updateCoDatalist();renderCheckout();
   });
   $("#co_koshu").addEventListener("change",()=>{updateCoDatalist();renderCheckout();});
-  $("#co_spec").addEventListener("input",renderCheckout);
+  $("#co_spec").addEventListener("change",renderCheckout);
   $("#coClear").addEventListener("click",()=>{
     $("#co_mat").value="";fillSelect($("#co_koshu"),[],"すべての鋼種");$("#co_koshu").disabled=true;
     $("#co_spec").value="";if($("#co_thk"))$("#co_thk").value="";updateCoDatalist();renderCheckout();
   });
   updateCoDatalist();
 }
-function updateCoDatalist(){fillDatalist($("#dl_cospec"),specOptions($("#co_koshu").value));}
+function updateCoDatalist(){fillSpec($("#co_spec"),stockSpecOptions($("#co_mat").value,$("#co_koshu").value,""),"すべて");}
 function renderCheckout(){
   const wrap=$("#coList");if(!wrap)return;
   /* 絞り込みの候補を実データに追従させる（選択中の値は維持） */
   refillSelect($("#co_mat"),matOptions(),"すべての材質");
   const cm=$("#co_mat").value;
   if(cm){refillSelect($("#co_koshu"),koshuOptions(cm),"すべての鋼種");$("#co_koshu").disabled=false;}
+  updateCoDatalist();
   const f={mat:$("#co_mat").value,koshu:$("#co_koshu").value,spec:$("#co_spec").value.trim(),thk:""};
   /* 板厚：材質・鋼種・規格で絞った在庫にある板厚だけを選択肢に（規格と板厚を別々に指定できる） */
   const thkSel=$("#co_thk");
   if(thkSel){
-    const thks=uniqVals(records.filter(r=>(!f.mat||r.mat===f.mat)&&(!f.koshu||r.koshu===f.koshu)&&(!f.spec||String(r.spec).includes(f.spec))).map(r=>r.thk))
+    const thks=uniqVals(records.filter(r=>(!f.mat||r.mat===f.mat)&&(!f.koshu||r.koshu===f.koshu)&&(!f.spec||specMatch(r.spec,f.spec))).map(r=>r.thk))
       .map(Number).filter(n=>isFinite(n)).filter((n,i,a)=>a.indexOf(n)===i).sort((a,b)=>a-b).map(String);
     refillSelect(thkSel,thks,"すべて");
     f.thk=thkSel.value;
@@ -1174,7 +1186,7 @@ function renderCheckout(){
   const hits=records.filter(r=>{
     if(f.mat&&r.mat!==f.mat)return false;
     if(f.koshu&&r.koshu!==f.koshu)return false;
-    if(f.spec&&!String(r.spec).includes(f.spec))return false;
+    if(f.spec&&!specMatch(r.spec,f.spec))return false;
     if(f.thk!==""&&Number(r.thk)!==Number(f.thk))return false;
     return true;
   });
@@ -1396,8 +1408,8 @@ function openNs(){
   fillSelect($("#ns_mat"),matOptions(),"選択してください");
   fillSelect($("#ns_koshu"),[],"先に材質を選択");$("#ns_koshu").disabled=true;
   fillSelect($("#ns_thk"),thkOptions().map(String),"選択");delete $("#ns_thk").dataset.opts;
-  fillDatalist($("#dl_nsspec"),[]);
-  $("#ns_spec").value="";$("#ns_len").value="";
+  fillSelect($("#ns_spec"),[],"先に鋼種を選択");delete $("#ns_spec").dataset.opts;
+  $("#ns_len").value="";
   fillSelect($("#ns_fin"),finOptions("",""),"指定なし");delete $("#ns_fin").dataset.opts;
   setupPersonPicker("#nsPersonSel","#nsPerson");
   $("#nsOverlay").classList.add("show");
@@ -1755,6 +1767,7 @@ function initCalc(){
   fillSelect($("#c_koshu"),[],"先に材質を選択");$("#c_koshu").disabled=true;
   fillSelect($("#c_thk"),THICKNESS,"選択");
   fillSelect($("#c_fin"),FINISH_ALL,"指定なし");
+  fillSelect($("#c_spec"),[],"先に鋼種を選択");
   $("#c_mat").addEventListener("change",()=>{const m=$("#c_mat").value;if(m){fillSelect($("#c_koshu"),koshuOptions(m),"選択してください");$("#c_koshu").disabled=false;}else{fillSelect($("#c_koshu"),[],"先に材質を選択");$("#c_koshu").disabled=true;}calcSpecFin();calcRun();});
   $("#c_koshu").addEventListener("change",()=>{calcSpecFin();calcRun();});
   $("#c_thk").addEventListener("change",()=>{calcSpecFin(true);calcRun();});
