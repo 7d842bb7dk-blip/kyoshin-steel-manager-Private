@@ -143,7 +143,7 @@ function applyMasters(m){
   KIKAKU_BY_KOSHU={};
   Object.entries(kk).forEach(([k,arr])=>{
     if(!Array.isArray(arr))return;
-    const a=arr.map(s=>String(s).trim()).filter(Boolean);
+    const a=uniqVals(arr.map(s=>dispSpec(s)).filter(Boolean));
     if(a.length)KIKAKU_BY_KOSHU[k]=a;
   });
 }
@@ -290,7 +290,9 @@ function suggestLoc(rec){
 }
 
 /* ===================== 計算エンジン（Excel数式と同一） ===================== */
-function normSpec(s){return String(s==null?"":s).replace(/[Φφ]/g,"").replace(/[×Xx]/g,"*").trim();}
+function normSpec(s){return String(s==null?"":s).replace(/[Φφ]/g,"").replace(/[×✕＊Xx]/g,"*").trim();}
+/* 画面に出す・保存する規格の表記（寸法の区切りは「×」に統一。50*50 → 50×50） */
+function dispSpec(s){return String(s==null?"":s).trim().replace(/(\d)\s*[*＊xX✕×]\s*(?=\d)/g,"$1×");}
 function dims(spec){const n=normSpec(spec),p=n.split("*");const d1=parseFloat(p[0]);const d2=p.length>1?parseFloat(p[1]):NaN;return{d1:isFinite(d1)?d1:0,d2:isFinite(d2)?d2:0};}
 function density(mat){return DENSITY[mat]!=null?DENSITY[mat]:(String(mat).startsWith("SUS")?7.93:7.85);}
 
@@ -412,7 +414,7 @@ async function loadRecords(){
     catch(e){MODE="local";}
   }
   // local（従来の localStorage 動作）
-  try{const raw=localStorage.getItem(LS_KEY);if(raw){records=JSON.parse(raw);}else{records=SEED.map((r,i)=>({id:i+1,...r}));saveRecords();}}
+  try{const raw=localStorage.getItem(LS_KEY);if(raw){records=JSON.parse(raw);records.forEach(r=>{r.spec=dispSpec(r.spec);});}else{records=SEED.map((r,i)=>({id:i+1,...r}));saveRecords();}}
   catch(e){canPersist=false;records=SEED.map((r,i)=>({id:i+1,...r}));}
 }
 function saveRecords(){if(MODE==="server")return;try{localStorage.setItem(LS_KEY,JSON.stringify(records));}catch(e){canPersist=false;}}
@@ -466,7 +468,7 @@ function fillSpec(sel,opts,blank){if(!sel)return;const cur=sel.value;const o=[..
 /* 検索・持ち出し用：在庫に実際にある規格だけ（材質・鋼種・板厚で絞る） */
 function stockSpecOptions(mat,koshu,thk){
   const seen=new Set(),out=[];
-  records.filter(r=>(!mat||r.mat===mat)&&(!koshu||r.koshu===koshu)&&(noThk(thk)||thkEq(r.thk,thk))).forEach(r=>{const v=String(r.spec||"").trim();const k=normSpecKey(v);if(v&&!seen.has(k)){seen.add(k);out.push(v);}});
+  records.filter(r=>(!mat||r.mat===mat)&&(!koshu||r.koshu===koshu)&&(noThk(thk)||thkEq(r.thk,thk))).forEach(r=>{const v=dispSpec(r.spec);const k=normSpecKey(v);if(v&&!seen.has(k)){seen.add(k);out.push(v);}});
   return out.sort(specSort);
 }
 const specMatch=(a,b)=>normSpecKey(a)===normSpecKey(b);
@@ -519,7 +521,8 @@ function specOptions(koshu,mat,thk){
   const useMaster=!e||KIKAKU_CUSTOM; /* 規格表がある組み合わせでは、既定の候補（Excel由来の数件）は出さない */
   const base=!useMaster?[]:(koshu&&KIKAKU_BY_KOSHU[koshu])?KIKAKU_BY_KOSHU[koshu]:(koshu?[]:[].concat(...Object.values(KIKAKU_BY_KOSHU)));
   const recs=records.filter(r=>(!koshu||r.koshu===koshu)&&(!mat||r.mat===mat)&&(noThk(thk)||thkEq(r.thk,thk))).map(r=>r.spec);
-  const all=uniqVals([...cat,...base,...recs]);
+  const seen=new Set(),all=[];
+  [...cat,...base,...recs].forEach(v=>{const d=dispSpec(v);const k=normSpecKey(d);if(d&&!seen.has(k)){seen.add(k);all.push(d);}});
   return (mat||koshu)?all.sort(specSort):all;
 }
 /* 表面仕上げの候補：規格表でその材質・鋼種（・板厚・規格）にある仕上げ＋在庫にある仕上げだけ。
@@ -907,7 +910,7 @@ function openModal(id){
   else{fillSelect($("#m_koshu"),[],"先に材質を選択");$("#m_koshu").disabled=true;}
   fillSelect($("#m_thk"),thkOptions(r.mat,r.koshu).map(String),"選択");$("#m_thk").value=(r.thk!==""&&r.thk!=null)?String(Number(r.thk)):"";
   delete $("#m_thk").dataset.opts;
-  $("#m_spec").innerHTML="";$("#m_spec").value="";delete $("#m_spec").dataset.opts;{const o=(r.mat&&r.koshu)?specOptions(r.koshu,r.mat,r.thk):[];if(r.spec&&!o.includes(r.spec))o.unshift(r.spec);fillSelect($("#m_spec"),o,(r.mat&&r.koshu)?"選択してください":"先に鋼種を選択");$("#m_spec").value=r.spec||"";$("#m_spec").dataset.opts=o.join("|")+"#"+((r.mat&&r.koshu)?"選択してください":"先に鋼種を選択");}
+  $("#m_spec").innerHTML="";$("#m_spec").value="";delete $("#m_spec").dataset.opts;{const o=(r.mat&&r.koshu)?specOptions(r.koshu,r.mat,r.thk):[];if(r.spec&&!o.includes(dispSpec(r.spec)))o.unshift(dispSpec(r.spec));fillSelect($("#m_spec"),o,(r.mat&&r.koshu)?"選択してください":"先に鋼種を選択");$("#m_spec").value=dispSpec(r.spec);$("#m_spec").dataset.opts=o.join("|")+"#"+((r.mat&&r.koshu)?"選択してください":"先に鋼種を選択");}
   $("#m_len").value=r.len!==""?r.len:"";
   fillSelect($("#m_fin"),(r.mat||r.koshu)?finOptions(r.mat,r.koshu,r.thk):finOptions("",""),"指定なし");$("#m_fin").value=r.fin||"";
   delete $("#m_fin").dataset.opts;
@@ -916,7 +919,7 @@ function openModal(id){
 }
 function closeModal(){$("#overlay").classList.remove("show");editId=null;}
 /* 保管場所は画面で選ばない（棚割りから自動）。編集時は今の場所を引き継ぐ */
-function readModal(){const cur=editId?records.find(x=>x.id===editId):null;return{mat:$("#m_mat").value,koshu:$("#m_koshu").value,thk:$("#m_thk").value,spec:$("#m_spec").value.trim(),len:$("#m_len").value.trim(),loc:cur?(cur.loc||""):"",fin:$("#m_fin").value};}
+function readModal(){const cur=editId?records.find(x=>x.id===editId):null;return{mat:$("#m_mat").value,koshu:$("#m_koshu").value,thk:$("#m_thk").value,spec:dispSpec($("#m_spec").value),len:$("#m_len").value.trim(),loc:cur?(cur.loc||""):"",fin:$("#m_fin").value};}
 function modalPreview(){const r=readModal();const c=compute(r);$("#pvArea").textContent=c.area==null?"—":fmtNum(c.area,1);$("#pvWeight").textContent=c.weight==null?"—":fmtKg(c.weight);$("#pvUnit").textContent=c.unit==null?"—":c.unit.toLocaleString();$("#pvCost").textContent=c.cost==null?"—":fmtYenP(c.cost);}
 async function saveModal(){
   const r=readModal();
@@ -1417,7 +1420,7 @@ function openNs(){
 }
 function closeNs(){$("#nsOverlay").classList.remove("show");}
 async function submitNs(){
-  const rec={mat:$("#ns_mat").value,koshu:$("#ns_koshu").value,thk:$("#ns_thk").value,spec:$("#ns_spec").value.trim(),len:$("#ns_len").value.trim(),loc:"",fin:$("#ns_fin").value};
+  const rec={mat:$("#ns_mat").value,koshu:$("#ns_koshu").value,thk:$("#ns_thk").value,spec:dispSpec($("#ns_spec").value),len:$("#ns_len").value.trim(),loc:"",fin:$("#ns_fin").value};
   const person=pickerValue("#nsPersonSel","#nsPerson");
   if(!rec.mat||!rec.koshu||rec.thk===""||!rec.spec||rec.len===""){toast(t("材質・鋼種・板厚・規格・長さは必須です"));return;}
   if(!(Number(rec.len)>0)){toast(t("残りの長さを入力してください"));$("#ns_len").focus();return;}
@@ -1919,7 +1922,7 @@ async function importCSV(text){
   const rows=[];
   for(let i=1;i<lines.length;i++){
     const c=parseCSVLine(lines[i]);if(c.length<5)continue;
-    const rec={mat:c[0].trim(),koshu:c[1].trim(),thk:Number(c[2]),spec:c[3].trim(),len:Number(c[4]),loc:(c[5]||"").trim(),fin:(c[6]||"").trim()};
+    const rec={mat:c[0].trim(),koshu:c[1].trim(),thk:Number(c[2]),spec:dispSpec(c[3]),len:Number(c[4]),loc:(c[5]||"").trim(),fin:(c[6]||"").trim()};
     if(!rec.mat||!rec.koshu||!rec.spec||!isFinite(rec.thk)||!isFinite(rec.len))continue;
     rows.push(rec);
   }

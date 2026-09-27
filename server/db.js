@@ -78,11 +78,13 @@ function num(v) {
   return Number.isFinite(n) ? n : null;
 }
 function str(v) { return v === null || v === undefined ? "" : String(v).trim(); }
+// 材料規格の表記統一：寸法の区切りは「×」（50*50・50x50・50＊50 → 50×50。Φ34 などはそのまま）
+function specStr(v) { return str(v).replace(/(\d)\s*[*＊xX✕×]\s*(?=\d)/g, "$1×"); }
 function normRec(r) {
   r = r || {};
   return {
     mat: str(r.mat), koshu: str(r.koshu), thk: num(r.thk),
-    spec: str(r.spec), len: num(r.len), loc: str(r.loc), fin: str(r.fin),
+    spec: specStr(r.spec), len: num(r.len), loc: str(r.loc), fin: str(r.fin),
   };
 }
 // 追加・取込に必要な最低限が揃っているか（材質・鋼種・規格＋板厚/長さが数値）
@@ -118,7 +120,7 @@ function logHistory(type, rec, extra) {
   const info = _insHist.run({
     ts: now(), type, person: str(e.person),
     mat: str(r.mat), koshu: str(r.koshu), thk: num(r.thk),
-    spec: str(r.spec), fin: str(r.fin), loc: str(r.loc),
+    spec: specStr(r.spec), fin: str(r.fin), loc: str(r.loc),
     len_before: e.len_before !== undefined ? num(e.len_before) : null,
     len_after: e.len_after !== undefined ? num(e.len_after) : null,
     qty: e.qty !== undefined ? num(e.qty) : null,
@@ -359,6 +361,9 @@ function getMastersVersion() {
   return r ? parseInt(r.value, 10) || 0 : 0;
 }
 function setMasters(obj) {
+  if (obj && obj.kikaku && typeof obj.kikaku === "object") { // 規格候補も「×」表記に統一
+    for (const k of Object.keys(obj.kikaku)) if (Array.isArray(obj.kikaku[k])) obj.kikaku[k] = [...new Set(obj.kikaku[k].map(specStr).filter(Boolean))];
+  }
   _metaUpsert.run("masters", JSON.stringify(obj ?? null));
   _metaUpsert.run("mastersVersion", String(getMastersVersion() + 1));
   bumpVersion(); // クライアントのポーリングに変更を知らせる
@@ -369,6 +374,60 @@ function setMasters(obj) {
 function getState() {
   return { records: getRecords(), version: getVersion(), mv: getMastersVersion() };
 }
+
+// ── 一度だけの移行：既存データの材料規格を「×」表記に統一（2026-09-27） ──
+//   在庫・履歴（スナップショット含む）・マスタの規格候補を書き換える。
+//   書き換える前に server/data/ に app.db のバックアップ（app-before-spec-x-日時.db）を作る。
+(function migrateSpecX() {
+  const KEY = "spec_x_v1";
+  if (db.prepare("SELECT value FROM meta WHERE key=?").get(KEY)) return;
+  const fixSnap = (j) => {
+    if (!j) return j;
+    try { const o = JSON.parse(j); if (o && typeof o === "object" && "spec" in o) { o.spec = specStr(o.spec); return JSON.stringify(o); } } catch (e) {}
+    return j;
+  };
+  const recs = db.prepare("SELECT id, spec FROM records").all().filter((r) => specStr(r.spec) !== (r.spec || ""));
+  const hist = db.prepare("SELECT id, spec, snap FROM history").all()
+    .filter((h) => specStr(h.spec) !== (h.spec || "") || fixSnap(h.snap) !== h.snap);
+  const mrow = db.prepare("SELECT value FROM meta WHERE key='masters'").get();
+  let mNew = null;
+  if (mrow && mrow.value) {
+    try {
+      const m = JSON.parse(mrow.value);
+      if (m && m.kikaku && typeof m.kikaku === "object") {
+        const before = JSON.stringify(m.kikaku);
+        for (const k of Object.keys(m.kikaku)) if (Array.isArray(m.kikaku[k])) m.kikaku[k] = [...new Set(m.kikaku[k].map(specStr).filter(Boolean))];
+        if (JSON.stringify(m.kikaku) !== before) mNew = JSON.stringify(m);
+      }
+    } catch (e) { /* 壊れたマスタは触らない */ }
+  }
+  if (recs.length || hist.length || mNew) {
+    try {
+      const d = new Date(), p2 = (n) => String(n).padStart(2, "0");
+      const stamp = `${d.getFullYear()}${p2(d.getMonth() + 1)}${p2(d.getDate())}-${p2(d.getHours())}${p2(d.getMinutes())}${p2(d.getSeconds())}`;
+      const bk = path.join(path.dirname(DB_PATH), `app-before-spec-x-${stamp}.db`);
+      db.prepare("VACUUM INTO ?").run(bk);
+      console.log("[移行] 規格の×統一の前にバックアップ:", bk);
+    } catch (e) {
+      console.error("[移行] バックアップに失敗したため、規格の×統一は行いません:", e.message);
+      return; // バックアップが無いまま書き換えない（次回起動時に再挑戦）
+    }
+  }
+  db.transaction(() => {
+    const u1 = db.prepare("UPDATE records SET spec=? WHERE id=?");
+    recs.forEach((r) => u1.run(specStr(r.spec), r.id));
+    const u2 = db.prepare("UPDATE history SET spec=?, snap=? WHERE id=?");
+    hist.forEach((h) => u2.run(specStr(h.spec), fixSnap(h.snap), h.id));
+    if (mNew) {
+      db.prepare("INSERT INTO meta (key, value) VALUES ('masters', ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value").run(mNew);
+      const mv = db.prepare("SELECT value FROM meta WHERE key='mastersVersion'").get();
+      db.prepare("INSERT INTO meta (key, value) VALUES ('mastersVersion', ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value").run(String((mv ? parseInt(mv.value, 10) || 0 : 0) + 1));
+    }
+    db.prepare("INSERT INTO meta (key, value) VALUES (?, ?)").run(KEY, String(now()));
+    if (recs.length || hist.length) bumpVersion();
+  })();
+  if (recs.length || hist.length || mNew) console.log(`[移行] 規格を×表記に統一：在庫${recs.length}件・履歴${hist.length}件${mNew ? "・マスタ規格候補" : ""}`);
+})();
 
 module.exports = {
   db, DB_PATH,
