@@ -661,7 +661,7 @@ const I18N_VI={
   "使い方":"Hướng dẫn",
   "検索条件":"Điều kiện tìm kiếm","材質":"Vật liệu","鋼種":"Loại thép","板厚 (mm)":"Độ dày (mm)","材料規格":"Quy cách",
   "長さ (mm)":"Chiều dài (mm)","表面仕上げ":"Hoàn thiện bề mặt","保管場所":"Vị trí kho","長さ":"Chiều dài","仕上げ":"Hoàn thiện",
-  "条件は組み合わせ可能。空欄はすべて対象。材料規格は部分一致で絞り込みます。":"Có thể kết hợp điều kiện. Để trống = tất cả. Quy cách tìm theo một phần.",
+  "条件は組み合わせ可能。空欄はすべて対象。材料規格は在庫にあるものから選びます。":"Có thể kết hợp điều kiện. Để trống = tất cả. Chọn quy cách từ hàng tồn kho.",
   "条件クリア":"Xóa điều kiện","ヒット件数":"Số kết quả","合計重量":"Tổng trọng lượng","合計金額":"Tổng tiền",
   "該当材料の総重量":"Tổng trọng lượng vật liệu","材料費の合計（税抜）":"Tổng chi phí (chưa thuế)","検索結果":"Kết quả tìm kiếm",
   "CSV出力":"Xuất CSV","更新":"Cập nhật","件":"mục","合計":"Tổng",
