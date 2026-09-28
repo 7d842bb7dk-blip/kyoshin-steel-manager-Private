@@ -386,7 +386,7 @@ async function detectMode(){
   if(location.protocol==="file:")return "local";
   try{
     const r=await fetch("/api/health",{cache:"no-store"});
-    if(r.ok){try{const j=await r.json();if(j&&j.base)qrBase=j.base;if(j&&j.httpsBase)httpsBase=j.httpsBase;if(j&&j.tls)tlsInfo=j.tls;}catch(e){}return "server";}
+    if(r.ok){try{const j=await r.json();if(j&&(j.qrBase||j.base))qrBase=j.qrBase||j.base;if(j&&j.httpsBase)httpsBase=j.httpsBase;if(j&&j.tls)tlsInfo=j.tls;}catch(e){}return "server";}
   }catch(e){}
   return "local";
 }

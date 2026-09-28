@@ -285,8 +285,15 @@ function tlsStatus() { // 管理者向けの状態表示用
     pending,
   };
 }
+// QRラベルに埋めるアドレス：正式な証明書（ドメイン）があれば、ネットワークの状態に関係なく常にドメイン。
+//   （有線LANが外れてWi-FiのIPになった時などに、そのIPで印刷されて後で開けなくなるのを防ぐ。2026-09-28）
+function qrLabelBase() {
+  const suffix = HTTPS_PORT === 443 ? "" : ":" + HTTPS_PORT;
+  if (httpsOn && leCtx && leDomain) return `https://${leDomain}${suffix}/`;
+  return canonicalBase();
+}
 app.get("/api/health", (req, res) =>
-  res.json({ ok: true, version: dbm.getVersion(), base: canonicalBase(),
+  res.json({ ok: true, version: dbm.getVersion(), base: canonicalBase(), qrBase: qrLabelBase(),
     httpsBase: httpsOn ? canonicalBase() : null, tls: tlsStatus() }));
 
 // ── Let's Encrypt 証明書の読み直し（取得ツールから呼ぶ。サーバー機の中からだけ受け付ける） ──
