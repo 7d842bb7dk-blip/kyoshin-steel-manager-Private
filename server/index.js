@@ -187,6 +187,46 @@ app.get("/api/history", (req, res) => {
   res.json({ items: dbm.getHistory(req.query.limit), version: dbm.getVersion() });
 });
 
+// ── 作業ログの修正・削除（管理者パスコード必須） ──
+const HIST_MSG = {
+  notfound: "記録が見つかりません（ほかの画面で消した可能性があります。「更新」を押してください）",
+  noperson: "名前を入れてください",
+  badts: "日時が正しくありません",
+  badlen: "長さが正しくありません",
+  nolen: "この記録は長さを直せません",
+  undone: "取り消し済みの記録は、長さを直せません",
+  old: "この機能を入れる前の記録なので、長さは直せません（在庫管理から手で直してください）",
+  toolong: "残りの長さが、使う前の長さより長くなっています",
+  later: "この在庫はその後にも記録があるため、長さは直せません（在庫管理から手で直してください）",
+  state: "在庫の長さが記録と合わないため、長さは直せません（在庫管理から手で直してください）",
+};
+function histAdmin(req, res) {
+  const pin = adminPin();
+  if (pin && (req.body || {}).pin === pin) return true;
+  res.status(403).json({ error: "パスコードが正しくありません" });
+  return false;
+}
+function histReply(res, r) {
+  if (r.ok) return res.json(r);
+  res.status(r.reason === "notfound" ? 404 : 409).json({ error: HIST_MSG[r.reason] || "できませんでした", reason: r.reason, version: r.version });
+}
+app.put("/api/history/:id", (req, res) => {
+  if (!histAdmin(req, res)) return;
+  const b = req.body || {};
+  try { histReply(res, dbm.editHistory(req.params.id, { person: b.person, ts: b.ts, note: b.note, len_after: b.len_after })); }
+  catch (e) { res.status(500).json({ error: `修正に失敗: ${e.message}` }); }
+});
+app.delete("/api/history/:id", (req, res) => {
+  if (!histAdmin(req, res)) return;
+  try { histReply(res, dbm.deleteHistory(req.params.id)); }
+  catch (e) { res.status(500).json({ error: `削除に失敗: ${e.message}` }); }
+});
+app.post("/api/history/:id/restore", (req, res) => {
+  if (!histAdmin(req, res)) return;
+  try { histReply(res, dbm.restoreHistory(req.params.id)); }
+  catch (e) { res.status(500).json({ error: `元に戻せませんでした: ${e.message}` }); }
+});
+
 // ── QR読み取り失敗の診断（失敗した写真＋端末情報を保存。原因調査用・最新20件のみ） ──
 const SCANFAIL_DIR = path.join(__dirname, "data", "scanfail");
 app.post("/api/scanfail", express.raw({ type: "application/octet-stream", limit: "25mb" }), (req, res) => {

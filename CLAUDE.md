@@ -108,6 +108,10 @@ dist/               単体ファイル版（直接編集しない。build.py の
   記録系APIは `hid`（history の id）を返す。history の `record_id`・`snap`（変更前の在庫）・`undone_at`・`undo_of`
   は取り消し用（2026-09-24〜の記録から入る）。全部持ち出し・削除の取り消しは**同じ在庫IDで復活**させること
   （QRラベルの `?co=` が在庫IDのため）。
+  作業ログの修正・削除（管理者パスコード `pin` 必須）：`PUT /api/history/:id`（名前・日時・メモ・`len_after`。
+  持ち出し/登録の長さを直すと在庫の長さも直す。その後の記録がある在庫は不可）、`DELETE /api/history/:id`
+  （`deleted_at` を付けるだけで在庫は変えない。一覧・CSV・鍵の状態・取り消しの判定から外れる）、
+  `POST /api/history/:id/restore`（削除を戻す）。修正した記録には `edited_at` が付く。
 - クライアントは二重モード：サーバー配信時は API、`file://`（単体版）では localStorage
   （在庫 `steel_mgr_records_v1`・履歴 `steel_mgr_history_v1`）に自動フォールバック。両対応を保つこと。
 - QRラベルは `?co=<在庫ID>` を開くと該当在庫の持ち出しモーダルが直接開く仕様。ID の意味を変えないこと。

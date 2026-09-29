@@ -601,13 +601,14 @@ function toast(msg,ms){const t=$("#toast");$("#toastMsg").textContent=msg;t.clas
  * 単体版（オフライン）では出さず、従来どおりのお知らせだけ */
 const UNDO_SHOW_SEC=15;
 let undoState=null;
-function offerUndo(hid,msg){
+/* fn を渡すと、「元に戻す」で記録の取り消しの代わりに fn を実行する（作業ログの削除を戻す等） */
+function offerUndo(hid,msg,fn){
   if(MODE!=="server"||!hid){toast(msg);return;}
   hideUndo();
   let left=UNDO_SHOW_SEC;
   $("#undoMsg").textContent=msg;
   $("#undoCount").textContent=left+t("秒");
-  undoState={hid,timer:setInterval(()=>{left--;$("#undoCount").textContent=left+t("秒");if(left<=0)hideUndo();},1000)};
+  undoState={hid,fn,timer:setInterval(()=>{left--;$("#undoCount").textContent=left+t("秒");if(left<=0)hideUndo();},1000)};
   $("#toast").classList.remove("show");
   $("#undoBar").classList.add("show");document.body.classList.add("undo-on");
 }
@@ -628,8 +629,8 @@ async function runUndo(hid,admin){
 }
 async function undoFromBar(){
   if(!undoState)return;
-  const hid=undoState.hid;hideUndo();
-  try{await runUndo(hid,false);toast(t("元に戻しました"));}
+  const hid=undoState.hid,fn=undoState.fn;hideUndo();
+  try{if(fn)await fn();else await runUndo(hid,false);toast(t("元に戻しました"));}
   catch(e){toast(t(e.message),6000);}
 }
 
@@ -1334,8 +1335,9 @@ function renderWorklog(){
       const keyUndone=!!(r.keyEv&&r.keyEv.undone_at);
       const noRec=r.key&&!keyUndone&&!r.items.some(i=>i.type!=="undo"&&!i.undone_at)&&!recent;
       const key=!r.key?'<span class="muted">鍵なし</span>'
-        :keyUndone?`<span class="wl-keyout wl-undone">${KEY_ICO}${fmtTime(r.key)} 持出</span><span class="wl-undone-tag">取り消し済み</span>`
-        :`<span class="wl-keyout">${KEY_ICO}${fmtTime(r.key)} 持出</span><button type="button" class="wl-undo" data-undo="${r.keyEv.id}" title="この鍵の記録を取り消す">元に戻す</button>`;
+        :(keyUndone?`<span class="wl-keyout wl-undone">${KEY_ICO}${fmtTime(r.key)} 持出</span><span class="wl-undone-tag">取り消し済み</span>`
+        :`<span class="wl-keyout">${KEY_ICO}${fmtTime(r.key)} 持出</span><button type="button" class="wl-undo" data-undo="${r.keyEv.id}" title="この鍵の記録を取り消す">元に戻す</button>`)
+        +wlEditedTag(r.keyEv)+wlEditBtn(r.keyEv);
       let items;
       if(!r.items.length)items=noRec?'<span class="wl-bad">使った材料の記録なし ⚠</span>':'<span class="muted">（作業中）</span>';
       else{
@@ -1348,6 +1350,7 @@ function renderWorklog(){
   }
   wrap.innerHTML=h;
   wrap.querySelectorAll("[data-undo]").forEach(b=>b.addEventListener("click",()=>undoFromLog(Number(b.dataset.undo))));
+  wrap.querySelectorAll("[data-wledit]").forEach(b=>b.addEventListener("click",()=>openWlEdit(Number(b.dataset.wledit))));
 }
 /* 作業ログからの取り消し（管理者）：何日前の記録でも、在庫をその記録の前の状態に戻す */
 async function undoFromLog(hid){
@@ -1375,12 +1378,19 @@ function worklogRows(evs){
 }
 function escH(s){return String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
 /* 作業ログの1項目：「材料（材質・鋼種・規格・板厚）＋ どれだけ」を1つの短い文にする */
-function wlItem(x){
-  if(x.type==="bulk")return `<span class="wl-item">CSVから一括取込 <b>${(x.qty||0).toLocaleString()}件</b></span>`;
-  const n=v=>Number(v).toLocaleString();
-  const what=(x.mat?`<span class="pill mat ${matCls(x.mat)}">${escH(x.mat)}</span>`:"")
+/* 材料の表示（材質・鋼種・規格・板厚） */
+function wlWhat(x){
+  return (x.mat?`<span class="pill mat ${matCls(x.mat)}">${escH(x.mat)}</span>`:"")
     +(x.koshu?`<span class="wl-k">${shapeIco(x.koshu)}${escH(x.koshu)}</span>`:"")
     +(x.spec?` <span class="tnum">${escH(x.spec)}</span>`:"")+(x.thk!=null&&x.thk!==""?` <span class="tnum muted">t${escH(x.thk)}</span>`:"");
+}
+/* 修正ボタン・修正済みの印（サーバー版の管理者だけ） */
+function wlEditBtn(x){return MODE==="server"&&x?`<button type="button" class="wl-undo wl-editbtn" data-wledit="${x.id}" title="この記録の名前・日時・長さ・メモを直す／記録を削除する">修正</button>`:"";}
+function wlEditedTag(x){return x&&x.edited_at?`<span class="wl-edited-tag" title="${fmtTs(x.edited_at)} に管理者が修正">修正済み</span>`:"";}
+function wlItem(x){
+  if(x.type==="bulk")return `<span class="wl-item">CSVから一括取込 <b>${(x.qty||0).toLocaleString()}件</b></span>${wlEditedTag(x)}${wlEditBtn(x)}`;
+  const n=v=>Number(v).toLocaleString();
+  const what=wlWhat(x);
   let act="";
   if(x.type==="checkout"){
     const b=x.len_before,a=Number(x.len_after)||0;
@@ -1388,19 +1398,111 @@ function wlItem(x){
   }else if(x.type==="add")act=`<b class="wl-add">＋${n(x.len_after||0)}mm 登録</b>${x.loc?`<span class="muted">→${escH(x.loc)}</span>`:""}`;
   else if(x.type==="edit")act='<b class="wl-edit">編集</b>'+((x.len_before!=null&&x.len_after!=null&&x.len_before!==x.len_after)?`<span class="muted">（${n(x.len_before)}→${n(x.len_after)}mm）</span>`:"");
   else if(x.type==="delete")act=`<b class="wl-del">削除</b>${x.len_before!=null?`<span class="muted">（${n(x.len_before)}mm）</span>`:""}`;
-  else if(x.type==="undo")return `<span class="wl-item wl-undoitem">↩ <b>${escH(x.note||"取り消し")}</b> ${what}</span>`;
+  else if(x.type==="undo")return `<span class="wl-item wl-undoitem">↩ <b>${escH(x.note||"取り消し")}</b> ${what}</span>${wlEditedTag(x)}${wlEditBtn(x)}`;
   else act=escH((HTYPE[x.type]||[x.type])[0]);
   const note=x.note?`<span class="muted wl-note">［${escH(x.note)}］</span>`:"";
-  if(x.undone_at)return `<span class="wl-item wl-undone">${what} ${act}${note}</span><span class="wl-undone-tag">取り消し済み</span>`;
+  if(x.undone_at)return `<span class="wl-item wl-undone">${what} ${act}${note}</span><span class="wl-undone-tag">取り消し済み</span>${wlEditedTag(x)}${wlEditBtn(x)}`;
   /* 取り消しボタン：この機能を入れた後の記録（在庫の番号を持つもの）だけ */
   const btn=(["checkout","add","edit","delete"].includes(x.type)&&x.record_id!=null)?`<button type="button" class="wl-undo" data-undo="${x.id}" title="この記録を取り消して元に戻す">元に戻す</button>`:"";
-  return `<span class="wl-item">${what} ${act}${note}</span>${btn}`;
+  return `<span class="wl-item">${what} ${act}${note}</span>${wlEditedTag(x)}${btn}${wlEditBtn(x)}`;
+}
+
+/* ===================== 作業ログの記録の修正・削除（管理者・サーバー版） =====================
+ * 修正：名前・日時・メモ。持ち出しは「残りの長さ」、登録は「登録した長さ」も直せて、在庫の長さも同じに直る
+ *       （その在庫にその後の記録が無いときだけ。サーバーが確かめる）
+ * 削除：作業ログから消す（在庫は変わらない）。直後は画面下の「元に戻す」で戻せる */
+let wlEditId=null;
+function toLocalInput(ts){const d=new Date(ts);const p=n=>String(n).padStart(2,"0");return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate())+"T"+p(d.getHours())+":"+p(d.getMinutes());}
+function wlLenMode(x){ /* 長さを直せるか：{show,label,editable,why} */
+  if(x.type==="checkout")return {show:true,label:"残りの長さ (mm)（全部使ったら 0）",editable:!x.undone_at&&x.record_id!=null,
+    why:x.undone_at?"取り消し済みの記録なので、長さは直せません。":x.record_id==null?"この機能を入れる前の記録なので、長さは直せません（在庫管理から直してください）。":""};
+  if(x.type==="add")return {show:true,label:"登録した長さ (mm)",editable:!x.undone_at&&x.record_id!=null,
+    why:x.undone_at?"取り消し済みの記録なので、長さは直せません。":x.record_id==null?"この機能を入れる前の記録なので、長さは直せません。":""};
+  return {show:false};
+}
+function openWlEdit(hid){
+  const x=history.find(e=>e.id===hid);if(!x)return;
+  wlEditId=hid;
+  const label=(HTYPE[x.type]||[x.type])[0];
+  const body=x.type==="keyout"?"鋼材倉庫の鍵を持ち出し":x.type==="bulk"?`CSVから一括取込 ${(x.qty||0).toLocaleString()}件`:wlWhat(x);
+  $("#wlEditWhat").innerHTML=`<span class="wl-edit-type">${escH(label)}</span>${body}${x.undone_at?'<span class="wl-undone-tag">取り消し済み</span>':""}`;
+  $("#we_person").value=x.person||"";
+  $("#we_people").innerHTML=personOptions().map(p=>`<option value="${escH(p)}"></option>`).join("");
+  $("#we_ts").value=toLocalInput(x.ts);$("#we_ts").dataset.orig=toLocalInput(x.ts);
+  $("#we_note").value=x.note||"";
+  const L=wlLenMode(x);
+  $("#we_lenWrap").style.display=L.show?"":"none";
+  let hint="";
+  if(L.show){
+    $("#we_lenLab").textContent=L.label;
+    $("#we_len").value=x.type==="checkout"?(Number(x.len_after)||0):(x.len_after!=null?x.len_after:"");
+    $("#we_len").disabled=!L.editable;
+    if(L.editable)hint=x.type==="checkout"
+      ?`使う前は <b>${x.len_before!=null?Number(x.len_before).toLocaleString():"—"} mm</b>。残りの長さを直すと、<b>在庫の長さも同じに直ります</b>（この在庫にその後の記録があるときは直せません）。`
+      :`登録した長さを直すと、<b>在庫の長さも同じに直ります</b>（この在庫にその後の記録があるときは直せません）。`;
+    else hint=L.why;
+  }
+  $("#wlEditHint").innerHTML=hint;$("#wlEditHint").style.display=hint?"":"none";
+  $("#wlEditOverlay").classList.add("show");
+  setTimeout(()=>$("#we_person").focus(),60);
+}
+function closeWlEdit(){$("#wlEditOverlay").classList.remove("show");wlEditId=null;}
+async function saveWlEdit(){
+  const x=history.find(e=>e.id===wlEditId);if(!x){closeWlEdit();return;}
+  const body={pin:ADMIN_PIN};
+  const person=$("#we_person").value.trim();
+  if(person!==(x.person||""))body.person=person;
+  if((x.type==="checkout"||x.type==="keyout")&&!person){toast("名前を入れてください");$("#we_person").focus();return;}
+  const tsv=$("#we_ts").value;
+  if(!tsv){toast("日時を入れてください");$("#we_ts").focus();return;}
+  if(tsv!==$("#we_ts").dataset.orig){const ts=new Date(tsv).getTime();if(!isFinite(ts)){toast("日時が正しくありません");return;}body.ts=ts;}
+  const note=$("#we_note").value.trim();
+  if(note!==(x.note||""))body.note=note;
+  const L=wlLenMode(x);
+  if(L.show&&L.editable){
+    const v=$("#we_len").value.trim();
+    if(v===""){toast("長さを入れてください");$("#we_len").focus();return;}
+    const nv=Number(v),ov=Number(x.len_after)||0;
+    if(!(nv>=0)||(x.type==="add"&&!(nv>0))){toast("長さが正しくありません");$("#we_len").focus();return;}
+    if(Math.abs(nv-ov)>=0.005){
+      const msg=x.type==="checkout"
+        ?`残りの長さを <b>${ov.toLocaleString()} → ${nv.toLocaleString()} mm</b> に直します。<br>在庫（No.${x.record_id}）の長さも <b>${nv>0?nv.toLocaleString()+" mm":"0（在庫から消える）"}</b> になります。`
+        :`登録した長さを <b>${ov.toLocaleString()} → ${nv.toLocaleString()} mm</b> に直します。<br>在庫（No.${x.record_id}）の長さも <b>${nv.toLocaleString()} mm</b> になります。`;
+      if(!await askConfirm({title:"在庫の長さも直します",bodyHtml:msg,yes:"直す",no:"戻る"}))return;
+      body.len_after=nv;
+    }
+  }
+  if(Object.keys(body).length===1){closeWlEdit();return;}
+  try{
+    const r=await apiSend("PUT","/api/history/"+x.id,body);
+    closeWlEdit();
+    if(r.stockChanged){try{await refresh();}catch(e){}}
+    await loadHistory();
+    toast(r.stockChanged?"記録と在庫の長さを直しました":"記録を直しました");
+  }catch(e){toast(e.message,6000);}
+}
+async function deleteWlEdit(){
+  const x=history.find(e=>e.id===wlEditId);if(!x){closeWlEdit();return;}
+  const label=(HTYPE[x.type]||[x.type])[0];
+  const what=x.type==="keyout"?"鋼材倉庫の鍵の持出":x.type==="bulk"?"CSV取込":[x.mat,x.koshu,x.spec,x.thk!=null&&x.thk!==""?"t"+x.thk:""].filter(Boolean).map(escH).join(" ");
+  const stockNote=(["checkout","add","edit","delete"].includes(x.type)&&!x.undone_at&&x.record_id!=null)
+    ?"<br>在庫も記録の前に戻したいときは、削除せずに「元に戻す」を使ってください。":"";
+  const ok=await askConfirm({title:"この記録を削除しますか？",
+    bodyHtml:`<b>${fmtTs(x.ts)}　${escH(x.person||"—")}</b><br>${escH(label)}：${what}<br><br>作業ログから消します。<b>在庫の数や長さは変わりません。</b>${stockNote}`,
+    yes:"削除する",no:"戻る"});
+  if(!ok)return;
+  try{
+    await apiSend("DELETE","/api/history/"+x.id,{pin:ADMIN_PIN});
+    closeWlEdit();
+    await loadHistory();
+    offerUndo(x.id,"記録を削除しました",async()=>{await apiSend("POST","/api/history/"+x.id+"/restore",{pin:ADMIN_PIN});await loadHistory();});
+  }catch(e){toast(e.message,6000);}
 }
 function exportWorklogCSV(){
   if(!history.length){toast("出力対象がありません");return;}
   const head=["日時","種別","名前","材質","鋼種","板厚(mm)","材料規格","表面仕上げ","保管場所","変更前長さ(mm)","変更後長さ(mm)","件数","メモ"];
   const lines=[head.join(",")];
-  history.forEach(x=>{const t=HTYPE[x.type]||[x.type];lines.push([fmtTs(x.ts),t[0],x.person||"",x.mat||"",x.koshu||"",x.thk==null?"":x.thk,x.spec||"",x.fin||"",x.loc||"",x.len_before==null?"":x.len_before,x.len_after==null?"":x.len_after,x.qty==null?"":x.qty,(x.undone_at?"【取り消し済み】":"")+(x.note||"")].map(csvCell).join(","));});
+  history.forEach(x=>{const t=HTYPE[x.type]||[x.type];lines.push([fmtTs(x.ts),t[0],x.person||"",x.mat||"",x.koshu||"",x.thk==null?"":x.thk,x.spec||"",x.fin||"",x.loc||"",x.len_before==null?"":x.len_before,x.len_after==null?"":x.len_after,x.qty==null?"":x.qty,(x.undone_at?"【取り消し済み】":"")+(x.edited_at?"【修正済み "+fmtTs(x.edited_at)+"】":"")+(x.note||"")].map(csvCell).join(","));});
   const blob=new Blob(["﻿"+lines.join("\r\n")],{type:"text/csv;charset=utf-8"});
   const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="作業ログ.csv";a.click();URL.revokeObjectURL(a.href);toast("作業ログ.csv を出力しました");
 }
@@ -2039,6 +2141,10 @@ async function init(){
   $("#keyPerson").addEventListener("keydown",e=>{if(e.key==="Enter")keyAction();});
   $("#btnWorklogRefresh").addEventListener("click",()=>{loadHistory();toast("作業ログを更新しました");});
   $("#btnExportWorklog").addEventListener("click",exportWorklogCSV);
+  $("#wlEditClose").addEventListener("click",closeWlEdit);
+  $("#wlEditCancel").addEventListener("click",closeWlEdit);
+  $("#wlEditSave").addEventListener("click",saveWlEdit);
+  $("#wlEditDelete").addEventListener("click",deleteWlEdit);
   /* 残材の新規登録（現場向け） */
   $("#btnNewStock").addEventListener("click",openNs);
   $("#nsClose").addEventListener("click",closeNs);$("#nsCancel").addEventListener("click",closeNs);
@@ -2105,7 +2211,7 @@ async function init(){
   }
   document.addEventListener("keydown",e=>{
     if(e.key==="Escape"&&$("#confirmOverlay").classList.contains("show")){$("#confirmNo").click();return;} /* 確認中は確認だけ閉じる */
-    if(e.key==="Escape"){closeModal();closePin();closeHelp();closeCo();closeQr();closeKey();closeNs();closeScanner();closeLocGuide();}
+    if(e.key==="Escape"){closeModal();closePin();closeHelp();closeCo();closeQr();closeKey();closeNs();closeScanner();closeLocGuide();closeWlEdit();}
     else if(e.key==="?"||e.key==="F1"){const t=(document.activeElement||{}).tagName;if(t!=="INPUT"&&t!=="SELECT"&&t!=="TEXTAREA"){e.preventDefault();openHelp();}}
   });
   $("#btnExportSearch").addEventListener("click",()=>{if(!lastSearch.length){toast("出力対象がありません");return;}exportCSV(lastSearch,"検索結果.csv");});

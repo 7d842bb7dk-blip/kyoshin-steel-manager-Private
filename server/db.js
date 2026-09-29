@@ -50,7 +50,9 @@ try { db.exec("ALTER TABLE records ADD COLUMN qr_printed_at INTEGER"); } catch (
 //   snap      … 変更前の在庫の中身（JSON）。全部持ち出し・削除を同じ番号で復活させるのに使う
 //   undone_at … この記録を取り消した日時
 //   undo_of   … 取り消しの記録が、どの記録を取り消したか
-for (const col of ["record_id INTEGER", "snap TEXT", "undone_at INTEGER", "undo_of INTEGER"]) {
+//   edited_at … 作業ログで管理者が修正した日時（2026-09-29〜）
+//   deleted_at … 作業ログで管理者が削除した日時（DBには残し、作業ログ・CSVには出さない）
+for (const col of ["record_id INTEGER", "snap TEXT", "undone_at INTEGER", "undo_of INTEGER", "edited_at INTEGER", "deleted_at INTEGER"]) {
   try { db.exec("ALTER TABLE history ADD COLUMN " + col); } catch (e) { /* 既にある */ }
 }
 
@@ -133,7 +135,7 @@ function logHistory(type, rec, extra) {
 }
 function getHistory(limit) {
   const n = Math.min(Math.max(parseInt(limit, 10) || 300, 1), 2000);
-  return db.prepare("SELECT * FROM history ORDER BY id DESC LIMIT ?").all(n);
+  return db.prepare("SELECT * FROM history WHERE deleted_at IS NULL ORDER BY id DESC LIMIT ?").all(n);
 }
 
 // ── 追加 / 更新 / 削除 ──
@@ -260,7 +262,7 @@ function seedIfEmpty() {
 
 // ── 鋼材倉庫の鍵（持出/返却は history に keyout/keyin として記録） ──
 function keyStatus() {
-  const r = db.prepare("SELECT * FROM history WHERE type IN ('keyout','keyin') AND undone_at IS NULL ORDER BY id DESC LIMIT 1").get();
+  const r = db.prepare("SELECT * FROM history WHERE type IN ('keyout','keyin') AND undone_at IS NULL AND deleted_at IS NULL ORDER BY id DESC LIMIT 1").get();
   if (!r || r.type === "keyin") return { out: false, person: r ? r.person : "", ts: r ? r.ts : null };
   return { out: true, person: r.person, ts: r.ts };
 }
@@ -288,22 +290,24 @@ function reinsertRec(s) {
   db.prepare(`INSERT INTO records (id, ${REC_COLS.join(", ")}) VALUES (@id, ${REC_COLS.map((c) => "@" + c).join(", ")})`)
     .run({ ...Object.fromEntries(REC_COLS.map((c) => [c, s[c] === undefined ? null : s[c]])), id: Number(s.id) });
 }
+const lenEq = (a, b) => Math.abs((Number(a) || 0) - (Number(b) || 0)) < 0.005;
+// 同じ在庫に、この記録より後の記録（取り消し済み・削除済み・取り消しの記録を除く）があるか
+function hasLaterRec(h) {
+  if (h.record_id == null) return false;
+  return !!db.prepare("SELECT id FROM history WHERE record_id=? AND id>? AND undone_at IS NULL AND deleted_at IS NULL AND type<>'undo' LIMIT 1")
+    .get(h.record_id, h.id);
+}
 const _undoTx = db.transaction((hid, person) => {
   const h = db.prepare("SELECT * FROM history WHERE id=?").get(Number(hid));
-  if (!h) return { ok: false, reason: "notfound" };
+  if (!h || h.deleted_at) return { ok: false, reason: "notfound" };
   if (h.undone_at) return { ok: false, reason: "already" };
   if (!UNDO_TYPES.has(h.type)) return { ok: false, reason: "unsupported" };
   if (h.type !== "keyout" && h.record_id == null) return { ok: false, reason: "old" };
   let snap = null;
   try { snap = h.snap ? JSON.parse(h.snap) : null; } catch (e) { snap = null; }
   if (["checkout", "edit", "delete"].includes(h.type) && !snap) return { ok: false, reason: "old" };
-  if (h.record_id != null) {
-    const later = db.prepare("SELECT id FROM history WHERE record_id=? AND id>? AND undone_at IS NULL AND type<>'undo' LIMIT 1")
-      .get(h.record_id, h.id);
-    if (later) return { ok: false, reason: "later" };
-  }
+  if (hasLaterRec(h)) return { ok: false, reason: "later" };
   const cur = h.record_id != null ? db.prepare("SELECT * FROM records WHERE id=?").get(h.record_id) : null;
-  const lenEq = (a, b) => Math.abs((Number(a) || 0) - (Number(b) || 0)) < 0.005;
   let after = null; // 取り消し後の在庫（記録用）
   if (h.type === "checkout") {
     if (Number(h.len_after) > 0) {
@@ -345,6 +349,77 @@ function undoHistory(hid, person, admin) {
   const res = _undoTx(hid, str(person) || (admin ? "管理者" : ""));
   if (!res.ok) return { ...res, version: getVersion() };
   return { ...res, version: bumpVersion() };
+}
+
+// ── 作業ログの修正・削除（管理者） ──
+//   修正：名前・日時・メモ。持ち出しは「残りの長さ」、登録は「登録した長さ」も直せて、在庫の長さも同じに直す
+//     （その在庫にその後の記録が無く、在庫の長さが記録と合うときだけ。合わないときは在庫管理から手で直す）
+//   削除：作業ログから消す（在庫は変えない。在庫も戻すときは先に「元に戻す」）。
+//     消した記録は DB に残すので、直後なら restoreHistory で元に戻せる
+const LEN_EDIT_TYPES = new Set(["checkout", "add"]);
+const _editHistTx = db.transaction((hid, b) => {
+  const h = db.prepare("SELECT * FROM history WHERE id=?").get(Number(hid));
+  if (!h || h.deleted_at) return { ok: false, reason: "notfound" };
+  const set = {};
+  if (b.person !== undefined) {
+    const p = str(b.person);
+    if (!p && (h.type === "checkout" || h.type === "keyout")) return { ok: false, reason: "noperson" };
+    if (p !== (h.person || "")) set.person = p;
+  }
+  if (b.ts !== undefined) {
+    const t = Number(b.ts);
+    if (!Number.isFinite(t) || t < Date.UTC(2020, 0, 1) || t > now() + 60 * 60 * 1000) return { ok: false, reason: "badts" };
+    if (Math.round(t) !== h.ts) set.ts = Math.round(t);
+  }
+  if (b.note !== undefined && str(b.note) !== (h.note || "")) set.note = str(b.note);
+  let stockChanged = false;
+  if (b.len_after !== undefined && b.len_after !== null && b.len_after !== "") {
+    const nv = num(b.len_after), ov = Number(h.len_after) || 0;
+    if (nv === null || nv < 0) return { ok: false, reason: "badlen" };
+    if (!lenEq(nv, ov)) {
+      if (!LEN_EDIT_TYPES.has(h.type)) return { ok: false, reason: "nolen" };
+      if (h.undone_at) return { ok: false, reason: "undone" };
+      if (h.record_id == null) return { ok: false, reason: "old" };
+      if (h.type === "add" && !(nv > 0)) return { ok: false, reason: "badlen" };
+      if (h.type === "checkout" && h.len_before != null && nv > Number(h.len_before) + 0.005) return { ok: false, reason: "toolong" };
+      if (hasLaterRec(h)) return { ok: false, reason: "later" };
+      const cur = db.prepare("SELECT * FROM records WHERE id=?").get(h.record_id);
+      if (ov > 0) {
+        if (!cur || !lenEq(cur.len, ov)) return { ok: false, reason: "state" };
+        if (nv > 0) db.prepare("UPDATE records SET len=?, updated_at=? WHERE id=?").run(nv, now(), cur.id);
+        else db.prepare("DELETE FROM records WHERE id=?").run(cur.id); // 残り0＝全部持ち出しに直す
+      } else {
+        // 全部持ち出しで在庫が無くなった記録に「残り」を入れる → 同じ番号で在庫を復活（QRラベルがそのまま使える）
+        if (cur) return { ok: false, reason: "state" };
+        let snap = null;
+        try { snap = h.snap ? JSON.parse(h.snap) : null; } catch (e) { snap = null; }
+        if (!snap) return { ok: false, reason: "old" };
+        reinsertRec({ ...snap, len: nv, updated_at: now() });
+      }
+      set.len_after = nv;
+      stockChanged = true;
+    }
+  }
+  if (!Object.keys(set).length) return { ok: true, changed: false, stockChanged: false };
+  set.edited_at = now();
+  db.prepare(`UPDATE history SET ${Object.keys(set).map((c) => c + "=@" + c).join(", ")} WHERE id=@id`).run({ ...set, id: h.id });
+  return { ok: true, changed: true, stockChanged };
+});
+function editHistory(hid, b) {
+  const r = _editHistTx(hid, b || {});
+  return { ...r, version: r.ok && r.changed ? bumpVersion() : getVersion() };
+}
+function deleteHistory(hid) {
+  const h = db.prepare("SELECT id, deleted_at FROM history WHERE id=?").get(Number(hid));
+  if (!h || h.deleted_at) return { ok: false, reason: "notfound", version: getVersion() };
+  db.prepare("UPDATE history SET deleted_at=? WHERE id=?").run(now(), h.id);
+  return { ok: true, version: bumpVersion() };
+}
+function restoreHistory(hid) {
+  const h = db.prepare("SELECT id, deleted_at FROM history WHERE id=?").get(Number(hid));
+  if (!h || !h.deleted_at) return { ok: false, reason: "notfound", version: getVersion() };
+  db.prepare("UPDATE history SET deleted_at=NULL WHERE id=?").run(h.id);
+  return { ok: true, version: bumpVersion() };
 }
 
 // ── マスタ設定（単価・比重・式割当の上書き。null=プログラムの既定値を使用） ──
@@ -436,6 +511,7 @@ module.exports = {
   addRecord, updateRecord, deleteRecord, bulkAdd,
   checkoutRecord, getHistory, markLabeled,
   keyStatus, keyEvent, undoHistory, UNDO_WINDOW_MS,
+  editHistory, deleteHistory, restoreHistory,
   getMasters, getMastersVersion, setMasters,
   seedIfEmpty, getState,
 };
