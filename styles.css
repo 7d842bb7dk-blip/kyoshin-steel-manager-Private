@@ -447,7 +447,7 @@ select.m-in{width:auto;max-width:100%;cursor:pointer}
 .lbl-qr{flex:0 0 auto}
 .lbl-qr svg{display:block;width:100%;height:100%}
 .lbl-txt{min-width:0;display:flex;flex-direction:column;justify-content:center;line-height:1.18;font-weight:700}
-.lbl-txt span{white-space:nowrap;overflow:hidden}
+.lbl-txt .lbl-ln{white-space:nowrap;overflow:hidden}
 .lbl-txt .lbl-mat{font-weight:900}
 .lbl-txt .lbl-id{font-family:Consolas,monospace;font-weight:700}
 
