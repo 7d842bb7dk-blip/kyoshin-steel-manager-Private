@@ -424,7 +424,7 @@ select.m-in{width:auto;max-width:100%;cursor:pointer}
   body.qr-printing{display:block;height:auto;overflow:visible;background:#fff}
   body.qr-printing #qrOverlay{position:static;display:block!important;background:#fff;padding:0}
   body.qr-printing .qr-modal{width:100%;max-width:none;box-shadow:none;border:none;border-radius:0}
-  body.qr-printing .modal-h,body.qr-printing .modal-foot,body.qr-printing .qr-note{display:none!important}
+  body.qr-printing .modal-h,body.qr-printing .modal-foot,body.qr-printing .qr-note,body.qr-printing .qr-paper{display:none!important}
   body.qr-printing .qr-sheet{max-height:none;overflow:visible;padding:0;grid-template-columns:repeat(2,1fr);gap:6mm}
   body.qr-printing .qr-label{padding:5mm 6mm;gap:5mm}
   body.qr-printing .qr-svg{width:34mm;height:34mm}
@@ -435,6 +435,10 @@ select.m-in{width:auto;max-width:100%;cursor:pointer}
 /* ============ シールプリンター（TD-4420DN 等）：1枚＝1ページで、ラベルの大きさぴったりに印刷 ============ */
 .qr-mode{display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--ink-soft);font-weight:700}
 .qr-mode select{padding:7px 9px;border:1px solid var(--line);border-radius:8px;font:inherit;font-weight:600;color:var(--ink);background:#fff}
+.qr-mode{white-space:nowrap}
+.qr-modal .modal-foot{flex-wrap:wrap}
+.qr-paper{padding:0 20px 12px;font-size:12.5px;font-weight:700;color:var(--accent)}
+.qr-paper:empty{display:none}
 #labelPrint{display:none}
 @media print{
   body.label-printing>*:not(#labelPrint){display:none!important}

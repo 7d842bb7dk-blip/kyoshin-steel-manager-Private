@@ -1702,18 +1702,26 @@ function closeQr(){$("#qrOverlay").classList.remove("show");}
  * ・材料に貼りっぱなしにするので、変わる情報（長さ・置き場所）は入れない（材質・鋼種・規格・板厚・仕上げ・番号だけ）
  * w×h＝横長に置いたときの横×縦（mm）、ex／ey＝左右／上下の縁の印刷できない幅（mm。この内側に収める）
  *   QL-800 はドライバーの値で、テープの幅方向が約1.5mm、送り方向（ラベルの長さ方向）が約3mm 印刷できない
+ * paper＝印刷画面（ドライバー）で選ぶ用紙サイズ。「印刷先」の横に表示する
  * ※ 縦長の用紙（例 29×90）でも、ブラウザーが向きを合わせて印刷する。値（キー）は保存しているので変えないこと */
 const LABEL_SIZES={
-  "ql-90x29":{w:90,h:29,dpi:300,ex:3.1,ey:1.6}, /* QL-800：DK-1201 宛名ラベル（本体に付属。90mmが送り方向） */
-  "ql-62x29":{w:62,h:29,dpi:300,ex:1.6,ey:3.1}, /* QL-800：DK-1209 小型宛名ラベル（29mmが送り方向） */
-  "ql-52x29":{w:52,h:29,dpi:300,ex:1.6,ey:3.1}, /* QL-800：DK-1226（29mmが送り方向） */
-  "ql-42x29":{w:42,h:29,dpi:300,ex:3.1,ey:1.6}, /* QL-800：DK-1215（42mmが送り方向） */
-  "50x30":{w:50,h:30,dpi:203,ex:1.2,ey:1.2},    /* TD-4420DN */
-  "40x30":{w:40,h:30,dpi:203,ex:1.2,ey:1.2},
-  "60x40":{w:60,h:40,dpi:203,ex:1.2,ey:1.2},
-  "50x25":{w:50,h:25,dpi:203,ex:1.2,ey:1.2},
-  "62x29":{w:62,h:29,dpi:203,ex:1.2,ey:1.2}
+  "ql-62c35":{w:62,h:35,dpi:300,ex:1.6,ey:3.1,paper:"62mm（ドライバーの長さ 35mm）"}, /* QL-800：62mm長尺テープ（DK-2205・付属の黒赤ロール等）を35mmずつ切る */
+  "ql-90x29":{w:90,h:29,dpi:300,ex:3.1,ey:1.6,paper:"29mm x 90mm"}, /* QL-800：DK-1201 宛名ラベル（90mmが送り方向） */
+  "ql-62x29":{w:62,h:29,dpi:300,ex:1.6,ey:3.1,paper:"62mm x 29mm"}, /* QL-800：DK-1209 小型宛名ラベル（29mmが送り方向） */
+  "ql-52x29":{w:52,h:29,dpi:300,ex:1.6,ey:3.1,paper:"52mm x 29mm"}, /* QL-800：DK-1226（29mmが送り方向） */
+  "ql-42x29":{w:42,h:29,dpi:300,ex:3.1,ey:1.6,paper:"29mm x 42mm"}, /* QL-800：DK-1215（42mmが送り方向） */
+  "50x30":{w:50,h:30,dpi:203,ex:1.2,ey:1.2,paper:"50×30mm"},    /* TD-4420DN */
+  "40x30":{w:40,h:30,dpi:203,ex:1.2,ey:1.2,paper:"40×30mm"},
+  "60x40":{w:60,h:40,dpi:203,ex:1.2,ey:1.2,paper:"60×40mm"},
+  "50x25":{w:50,h:25,dpi:203,ex:1.2,ey:1.2,paper:"50×25mm"},
+  "62x29":{w:62,h:29,dpi:203,ex:1.2,ey:1.2,paper:"62×29mm"}
 };
+/* 「印刷先」の横に、印刷画面で選ぶ用紙サイズを出す */
+function showQrPaper(){
+  const el=$("#qrPaper"),sel=$("#qrMode");if(!el||!sel)return;
+  const L=LABEL_SIZES[sel.value];
+  el.textContent=L?"印刷画面の用紙サイズ："+L.paper:"";
+}
 const LABEL_MODE_KEY="steel_mgr_label_mode";
 function qrSvgQuiet(text,quiet){ /* 余白（クワイエットゾーン）を指定できるQR SVG。ラベルの縁の白もあるので2モジュールで足りる */
   const m=QR.matrix(text,"Q"),n=m.length,q=quiet,S=n+q*2;let d="";
@@ -2055,7 +2063,8 @@ async function init(){
   $("#scanOverlay").addEventListener("click",e=>{if(e.target===$("#scanOverlay"))closeScanner();});
   $("#qrClose").addEventListener("click",closeQr);$("#qrCancel").addEventListener("click",closeQr);
   $("#qrPrint").addEventListener("click",printQr);
-  if($("#qrMode")){let m="a4";try{m=localStorage.getItem(LABEL_MODE_KEY)||"a4";}catch(e){}if([...$("#qrMode").options].some(o=>o.value===m))$("#qrMode").value=m;}
+  if($("#qrMode")){let m="a4";try{m=localStorage.getItem(LABEL_MODE_KEY)||"a4";}catch(e){}if([...$("#qrMode").options].some(o=>o.value===m))$("#qrMode").value=m;
+    $("#qrMode").addEventListener("change",showQrPaper);showQrPaper();}
   window.addEventListener("afterprint",()=>{
     const was=document.body.classList.contains("qr-printing")||document.body.classList.contains("label-printing");
     document.body.classList.remove("qr-printing");document.body.classList.remove("label-printing");
