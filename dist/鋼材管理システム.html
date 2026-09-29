@@ -13002,18 +13002,19 @@ function closeQr(){$("#qrOverlay").classList.remove("show");}
  * 1枚＝1ページで、ラベルの大きさ（@page）ぴったりに印刷する。プリンタードライバーの用紙サイズを同じ大きさにしておく。
  * ・QRはプリンターの点（QL-800＝300dpi、TD-4420DN＝203dpi）の整数倍の大きさにして、にじまず読みやすくする
  * ・材料に貼りっぱなしにするので、変わる情報（長さ・置き場所）は入れない（材質・鋼種・規格・板厚・仕上げ・番号だけ）
- * w×h＝横長に置いたときの横×縦（mm）、edge＝縁の印刷できない幅（mm。この内側に収める）
+ * w×h＝横長に置いたときの横×縦（mm）、ex／ey＝左右／上下の縁の印刷できない幅（mm。この内側に収める）
+ *   QL-800 はドライバーの値で、テープの幅方向が約1.5mm、送り方向（ラベルの長さ方向）が約3mm 印刷できない
  * ※ 縦長の用紙（例 29×90）でも、ブラウザーが向きを合わせて印刷する。値（キー）は保存しているので変えないこと */
 const LABEL_SIZES={
-  "ql-90x29":{w:90,h:29,dpi:300,edge:1.6}, /* QL-800：DK-1201 宛名ラベル（本体に付属） */
-  "ql-62x29":{w:62,h:29,dpi:300,edge:1.6}, /* QL-800：DK-1209 小型宛名ラベル */
-  "ql-52x29":{w:52,h:29,dpi:300,edge:1.6}, /* QL-800：DK-1226 */
-  "ql-42x29":{w:42,h:29,dpi:300,edge:1.6}, /* QL-800：DK-1215 */
-  "50x30":{w:50,h:30,dpi:203,edge:1.2},    /* TD-4420DN */
-  "40x30":{w:40,h:30,dpi:203,edge:1.2},
-  "60x40":{w:60,h:40,dpi:203,edge:1.2},
-  "50x25":{w:50,h:25,dpi:203,edge:1.2},
-  "62x29":{w:62,h:29,dpi:203,edge:1.2}
+  "ql-90x29":{w:90,h:29,dpi:300,ex:3.1,ey:1.6}, /* QL-800：DK-1201 宛名ラベル（本体に付属。90mmが送り方向） */
+  "ql-62x29":{w:62,h:29,dpi:300,ex:1.6,ey:3.1}, /* QL-800：DK-1209 小型宛名ラベル（29mmが送り方向） */
+  "ql-52x29":{w:52,h:29,dpi:300,ex:1.6,ey:3.1}, /* QL-800：DK-1226（29mmが送り方向） */
+  "ql-42x29":{w:42,h:29,dpi:300,ex:3.1,ey:1.6}, /* QL-800：DK-1215（42mmが送り方向） */
+  "50x30":{w:50,h:30,dpi:203,ex:1.2,ey:1.2},    /* TD-4420DN */
+  "40x30":{w:40,h:30,dpi:203,ex:1.2,ey:1.2},
+  "60x40":{w:60,h:40,dpi:203,ex:1.2,ey:1.2},
+  "50x25":{w:50,h:25,dpi:203,ex:1.2,ey:1.2},
+  "62x29":{w:62,h:29,dpi:203,ex:1.2,ey:1.2}
 };
 const LABEL_MODE_KEY="steel_mgr_label_mode";
 function qrSvgQuiet(text,quiet){ /* 余白（クワイエットゾーン）を指定できるQR SVG。ラベルの縁の白もあるので2モジュールで足りる */
@@ -13028,16 +13029,16 @@ function buildLabelPrint(list,L){
   st.textContent=`@media print{@page{size:${W}mm ${H}mm;margin:0}}`;
   let box=$("#labelPrint");
   if(!box){box=document.createElement("div");box.id="labelPrint";document.body.appendChild(box);}
-  const pad=Math.max(L.edge,H*0.05),gap=Math.max(1.2,W*0.03);
+  const px=Math.max(L.ex,H*0.05),py=Math.max(L.ey,H*0.05),gap=Math.max(1.2,W*0.03);
   let h="";
   for(const r of list){
     const {n,svg}=qrSvgQuiet(qrUrl(r.id),2);
-    const qMax=Math.min(H-pad*2,W*0.5);
+    const qMax=Math.min(H-py*2,W*0.5);
     const dots=Math.max(3,Math.floor(qMax/n/DOT)); /* 1モジュール＝整数ドット（最低3ドット） */
     const q=Math.min(qMax,dots*DOT*n);
-    const tw=W-q-pad*2-gap;
-    const fs=Math.max(1.8,Math.min(H*0.11,tw/8.5)); /* 文字の大きさ（mm） */
-    h+=`<div class="lbl" style="width:${W}mm;height:${H}mm;padding:${pad}mm;gap:${gap}mm">`
+    const tw=W-q-px*2-gap;
+    const fs=Math.max(1.8,Math.min(H*0.11,tw/8.5,(H-py*2)/6.2)); /* 文字の大きさ（mm）。5行が上下の縁の内側に収まるように */
+    h+=`<div class="lbl" style="width:${W}mm;height:${H}mm;padding:${py}mm ${px}mm;gap:${gap}mm">`
       +`<div class="lbl-qr" style="width:${q.toFixed(3)}mm;height:${q.toFixed(3)}mm">${svg}</div>`
       +`<div class="lbl-txt" style="width:${tw.toFixed(2)}mm;font-size:${fs.toFixed(2)}mm">`
       +`<span class="lbl-mat" style="font-size:${(fs*1.25).toFixed(2)}mm">${escH(r.mat)}</span>`
