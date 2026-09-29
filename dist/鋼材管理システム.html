@@ -943,7 +943,7 @@ tr.wl-warn td{background:var(--accent-soft)}
         <select id="qrMode" title="シールプリンターは、ドライバーの用紙サイズをセットしたラベルと同じ大きさにしておく">
           <option value="a4">A4用紙（切り取って貼る）</option>
           <optgroup label="ブラザー QL-800">
-            <option value="ql-62c35">QL-800 62mm長尺テープ（長さ35mm）</option>
+            <option value="ql-62c24">QL-800 62mm長尺テープ（長さ24mm）</option>
             <option value="ql-90x29">QL-800 29×90mm（DK-1201）</option>
             <option value="ql-62x29">QL-800 62×29mm（DK-1209）</option>
             <option value="ql-52x29">QL-800 52×29mm（DK-1226）</option>
@@ -13010,10 +13010,12 @@ function closeQr(){$("#qrOverlay").classList.remove("show");}
  * ・材料に貼りっぱなしにするので、変わる情報（長さ・置き場所）は入れない（材質・鋼種・規格・板厚・仕上げ・番号だけ）
  * w×h＝横長に置いたときの横×縦（mm）、ex／ey＝左右／上下の縁の印刷できない幅（mm。この内側に収める）
  *   QL-800 はドライバーの値で、テープの幅方向が約1.5mm、送り方向（ラベルの長さ方向）が約3mm 印刷できない
- * paper＝印刷画面（ドライバー）で選ぶ用紙サイズ。「印刷先」の横に表示する
+ * paper＝印刷画面（ドライバー）で選ぶ用紙サイズ。「印刷先」の下に表示する
+ * quiet＝QRのまわりの白（マス数。既定2）。縁の印刷できない白い部分も白として効くので、長尺テープは1にしてQRを大きくする
  * ※ 縦長の用紙（例 29×90）でも、ブラウザーが向きを合わせて印刷する。値（キー）は保存しているので変えないこと */
 const LABEL_SIZES={
-  "ql-62c35":{w:62,h:35,dpi:300,ex:1.6,ey:3.1,paper:"62mm（ドライバーの長さ 35mm）"}, /* QL-800：62mm長尺テープ（DK-2205・付属の黒赤ロール等）を35mmずつ切る */
+  /* QL-800：62mm長尺テープ（DK-2205・付属の黒赤ロール等）を、QRがぎりぎり入る 24mm ずつ切る（QR 約18mm＋上下の印刷できない縁 約3mm） */
+  "ql-62c24":{w:62,h:24,dpi:300,ex:1.6,ey:3.1,quiet:1,paper:"62mm（ドライバーの長さ 24mm）"},
   "ql-90x29":{w:90,h:29,dpi:300,ex:3.1,ey:1.6,paper:"29mm x 90mm"}, /* QL-800：DK-1201 宛名ラベル（90mmが送り方向） */
   "ql-62x29":{w:62,h:29,dpi:300,ex:1.6,ey:3.1,paper:"62mm x 29mm"}, /* QL-800：DK-1209 小型宛名ラベル（29mmが送り方向） */
   "ql-52x29":{w:52,h:29,dpi:300,ex:1.6,ey:3.1,paper:"52mm x 29mm"}, /* QL-800：DK-1226（29mmが送り方向） */
@@ -13046,7 +13048,7 @@ function buildLabelPrint(list,L){
   const px=Math.max(L.ex,H*0.05),py=Math.max(L.ey,H*0.05),gap=Math.max(1.2,W*0.03);
   let h="";
   for(const r of list){
-    const {n,svg}=qrSvgQuiet(qrUrl(r.id),2);
+    const {n,svg}=qrSvgQuiet(qrUrl(r.id),L.quiet!=null?L.quiet:2);
     const qMax=Math.min(H-py*2,W*0.5);
     const dots=Math.max(3,Math.floor(qMax/n/DOT)); /* 1モジュール＝整数ドット（最低3ドット） */
     const q=Math.min(qMax,dots*DOT*n);
@@ -13371,7 +13373,8 @@ async function init(){
   $("#scanOverlay").addEventListener("click",e=>{if(e.target===$("#scanOverlay"))closeScanner();});
   $("#qrClose").addEventListener("click",closeQr);$("#qrCancel").addEventListener("click",closeQr);
   $("#qrPrint").addEventListener("click",printQr);
-  if($("#qrMode")){let m="a4";try{m=localStorage.getItem(LABEL_MODE_KEY)||"a4";}catch(e){}if([...$("#qrMode").options].some(o=>o.value===m))$("#qrMode").value=m;
+  if($("#qrMode")){let m="a4";try{m=localStorage.getItem(LABEL_MODE_KEY)||"a4";}catch(e){}if(m==="ql-62c35")m="ql-62c24"; /* 1.24.6 の35mmは24mmに置き換え */
+    if([...$("#qrMode").options].some(o=>o.value===m))$("#qrMode").value=m;
     $("#qrMode").addEventListener("change",showQrPaper);showQrPaper();}
   window.addEventListener("afterprint",()=>{
     const was=document.body.classList.contains("qr-printing")||document.body.classList.contains("label-printing");
