@@ -935,13 +935,21 @@ tr.wl-warn td{background:var(--accent-soft)}
     <div class="modal-foot">
       <span class="help-foot-note" id="qrCount"></span>
       <label class="qr-mode">印刷先
-        <select id="qrMode" title="シールプリンター（TD-4420DN）はドライバーの用紙サイズを同じ大きさに設定しておく">
+        <select id="qrMode" title="シールプリンターは、ドライバーの用紙サイズをセットしたラベルと同じ大きさにしておく">
           <option value="a4">A4用紙（切り取って貼る）</option>
-          <option value="50x30">シールプリンター 50×30mm</option>
-          <option value="40x30">シールプリンター 40×30mm</option>
-          <option value="60x40">シールプリンター 60×40mm</option>
-          <option value="50x25">シールプリンター 50×25mm</option>
-          <option value="62x29">シールプリンター 62×29mm</option>
+          <optgroup label="ブラザー QL-800">
+            <option value="ql-90x29">QL-800 29×90mm（DK-1201）</option>
+            <option value="ql-62x29">QL-800 62×29mm（DK-1209）</option>
+            <option value="ql-52x29">QL-800 52×29mm（DK-1226）</option>
+            <option value="ql-42x29">QL-800 29×42mm（DK-1215）</option>
+          </optgroup>
+          <optgroup label="ブラザー TD-4420DN">
+            <option value="50x30">TD-4420DN 50×30mm</option>
+            <option value="40x30">TD-4420DN 40×30mm</option>
+            <option value="60x40">TD-4420DN 60×40mm</option>
+            <option value="50x25">TD-4420DN 50×25mm</option>
+            <option value="62x29">TD-4420DN 62×29mm</option>
+          </optgroup>
         </select>
       </label>
       <div style="margin-left:auto;display:flex;gap:9px">
@@ -12990,31 +12998,43 @@ function openQr(ids){
 }
 function closeQr(){$("#qrOverlay").classList.remove("show");}
 
-/* ===================== シールプリンター（ブラザー TD-4420DN 等）でのラベル印刷 =====================
+/* ===================== シールプリンター（ブラザー QL-800／TD-4420DN）でのラベル印刷 =====================
  * 1枚＝1ページで、ラベルの大きさ（@page）ぴったりに印刷する。プリンタードライバーの用紙サイズを同じ大きさにしておく。
- * ・QRは 203dpi の点（0.125mm）の整数倍の大きさにして、にじまず読みやすくする
- * ・材料に貼りっぱなしにするので、変わる情報（長さ・置き場所）は入れない（材質・鋼種・規格・板厚・仕上げ・番号だけ） */
-const LABEL_SIZES={"50x30":[50,30],"40x30":[40,30],"60x40":[60,40],"50x25":[50,25],"62x29":[62,29]};
+ * ・QRはプリンターの点（QL-800＝300dpi、TD-4420DN＝203dpi）の整数倍の大きさにして、にじまず読みやすくする
+ * ・材料に貼りっぱなしにするので、変わる情報（長さ・置き場所）は入れない（材質・鋼種・規格・板厚・仕上げ・番号だけ）
+ * w×h＝横長に置いたときの横×縦（mm）、edge＝縁の印刷できない幅（mm。この内側に収める）
+ * ※ 縦長の用紙（例 29×90）でも、ブラウザーが向きを合わせて印刷する。値（キー）は保存しているので変えないこと */
+const LABEL_SIZES={
+  "ql-90x29":{w:90,h:29,dpi:300,edge:1.6}, /* QL-800：DK-1201 宛名ラベル（本体に付属） */
+  "ql-62x29":{w:62,h:29,dpi:300,edge:1.6}, /* QL-800：DK-1209 小型宛名ラベル */
+  "ql-52x29":{w:52,h:29,dpi:300,edge:1.6}, /* QL-800：DK-1226 */
+  "ql-42x29":{w:42,h:29,dpi:300,edge:1.6}, /* QL-800：DK-1215 */
+  "50x30":{w:50,h:30,dpi:203,edge:1.2},    /* TD-4420DN */
+  "40x30":{w:40,h:30,dpi:203,edge:1.2},
+  "60x40":{w:60,h:40,dpi:203,edge:1.2},
+  "50x25":{w:50,h:25,dpi:203,edge:1.2},
+  "62x29":{w:62,h:29,dpi:203,edge:1.2}
+};
 const LABEL_MODE_KEY="steel_mgr_label_mode";
-const PRINTER_DOT_MM=25.4/203; /* TD-4420DN：203dpi */
 function qrSvgQuiet(text,quiet){ /* 余白（クワイエットゾーン）を指定できるQR SVG。ラベルの縁の白もあるので2モジュールで足りる */
   const m=QR.matrix(text,"Q"),n=m.length,q=quiet,S=n+q*2;let d="";
   for(let i=0;i<n;i++)for(let j=0;j<n;j++)if(m[i][j])d+="M"+(j+q)+" "+(i+q)+"h1v1h-1z";
   return {n:S,svg:'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 '+S+" "+S+'" shape-rendering="crispEdges"><rect width="'+S+'" height="'+S+'" fill="#fff"/><path d="'+d+'" fill="#000"/></svg>'};
 }
-function buildLabelPrint(list,W,H){
+function buildLabelPrint(list,L){
+  const W=L.w,H=L.h,DOT=25.4/L.dpi; /* DOT＝プリンターの点1つの大きさ（mm） */
   let st=$("#labelPageStyle");
   if(!st){st=document.createElement("style");st.id="labelPageStyle";document.head.appendChild(st);}
   st.textContent=`@media print{@page{size:${W}mm ${H}mm;margin:0}}`;
   let box=$("#labelPrint");
   if(!box){box=document.createElement("div");box.id="labelPrint";document.body.appendChild(box);}
-  const pad=Math.max(1.2,H*0.05),gap=Math.max(1.2,W*0.03);
+  const pad=Math.max(L.edge,H*0.05),gap=Math.max(1.2,W*0.03);
   let h="";
   for(const r of list){
     const {n,svg}=qrSvgQuiet(qrUrl(r.id),2);
     const qMax=Math.min(H-pad*2,W*0.5);
-    const dots=Math.max(3,Math.floor(qMax/n/PRINTER_DOT_MM)); /* 1モジュール＝整数ドット（最低3ドット） */
-    const q=Math.min(qMax,dots*PRINTER_DOT_MM*n);
+    const dots=Math.max(3,Math.floor(qMax/n/DOT)); /* 1モジュール＝整数ドット（最低3ドット） */
+    const q=Math.min(qMax,dots*DOT*n);
     const tw=W-q-pad*2-gap;
     const fs=Math.max(1.8,Math.min(H*0.11,tw/8.5)); /* 文字の大きさ（mm） */
     h+=`<div class="lbl" style="width:${W}mm;height:${H}mm;padding:${pad}mm;gap:${gap}mm">`
@@ -13033,8 +13053,7 @@ function printQr(){
   const mode=$("#qrMode")?$("#qrMode").value:"a4";
   try{localStorage.setItem(LABEL_MODE_KEY,mode);}catch(e){}
   if(!LABEL_SIZES[mode]||!qrTargetIds){document.body.classList.add("qr-printing");window.print();return;}
-  const [W,H]=LABEL_SIZES[mode];
-  buildLabelPrint(records.filter(r=>qrTargetIds.includes(r.id)),W,H);
+  buildLabelPrint(records.filter(r=>qrTargetIds.includes(r.id)),LABEL_SIZES[mode]);
   document.body.classList.add("label-printing");
   window.print();
 }
