@@ -13092,11 +13092,27 @@ function lblLayout(r,tw,th){
   }
   return best;
 }
-function printQr(){
+/* シールプリンターで最初に印刷するとき（印刷先を替えたときも）、印刷画面で選ぶ用紙サイズを確認してから印刷する。
+ * ブラウザーは前回の用紙サイズを覚えているので、ロールを替えても前の用紙のまま印刷されて
+ * 「用紙を送ることができませんでした」や余白だらけになるのを防ぐ（2026-09-29） */
+const LABEL_PAPER_OK_KEY="steel_mgr_label_paper_ok";
+async function printQr(){
   const mode=$("#qrMode")?$("#qrMode").value:"a4";
   try{localStorage.setItem(LABEL_MODE_KEY,mode);}catch(e){}
   if(!LABEL_SIZES[mode]||!qrTargetIds){document.body.classList.add("qr-printing");window.print();return;}
-  buildLabelPrint(records.filter(r=>qrTargetIds.includes(r.id)),LABEL_SIZES[mode]);
+  const L=LABEL_SIZES[mode];
+  let ok="";try{ok=localStorage.getItem(LABEL_PAPER_OK_KEY)||"";}catch(e){}
+  if(ok!==mode){
+    const go=await askConfirm({title:"印刷画面で用紙サイズを選んでください",
+      bodyHtml:`次に出る印刷画面で、<b>「その他の設定」→「用紙サイズ」</b>を<br>`
+        +`<b style="color:var(--accent);font-size:1.25em">${escH(L.paper.split("（")[0])}</b> にしてください。<br>`
+        +`<span class="help-foot-note">セットしたロールと用紙サイズが合っていないと、「用紙を送ることができませんでした」と出たり、余白だらけになります。`
+        +`ブラウザーが覚えるので、この確認は最初の1回だけです。</span>`,
+      yes:"わかった、印刷へ",no:"戻る"});
+    if(!go)return;
+    try{localStorage.setItem(LABEL_PAPER_OK_KEY,mode);}catch(e){}
+  }
+  buildLabelPrint(records.filter(r=>qrTargetIds.includes(r.id)),L);
   document.body.classList.add("label-printing");
   window.print();
 }
