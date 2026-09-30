@@ -125,6 +125,35 @@ app.post("/api/key", (req, res) => {
   res.json({ ok: true, hid: r.hid, status: r.status });
 });
 
+// ── 鋼材の予約：誰が・いつ・どの案件で使うか（誰でも予約・取り消しできる。一覧は /api/state に入る） ──
+app.post("/api/reservations", (req, res) => {
+  try {
+    const r = dbm.addReservation(req.body);
+    if (!r.ok) {
+      const msg = {
+        notfound: "該当の在庫が見つかりません（他の人が先に持ち出した可能性）",
+        noperson: "名前を入力してください",
+        nojob: "案件名を入力してください",
+        baddate: "使う日が正しくありません",
+        pastdate: "使う日が過ぎています（今日か、それより後の日を選んでください）",
+      }[r.reason] || "予約できませんでした";
+      return res.status(r.reason === "notfound" ? 404 : 400).json({ error: msg, reason: r.reason, version: r.version });
+    }
+    res.json(r);
+  } catch (e) {
+    res.status(500).json({ error: `予約に失敗: ${e.message}` });
+  }
+});
+app.delete("/api/reservations/:id", (req, res) => {
+  try {
+    const r = dbm.deleteReservation(req.params.id);
+    if (!r.ok) return res.status(404).json({ error: "予約が見つかりません（すでに取り消されています）", version: r.version });
+    res.json(r);
+  } catch (e) {
+    res.status(500).json({ error: `予約の取り消しに失敗: ${e.message}` });
+  }
+});
+
 // ── マスタ設定（単価・比重・式割当）：取得は誰でも、保存は管理者パスコード必須 ──
 function adminPin() {
   try {

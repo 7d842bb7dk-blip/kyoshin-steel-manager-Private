@@ -112,6 +112,9 @@ dist/               単体ファイル版（直接編集しない。build.py の
   持ち出し/登録の長さを直すと在庫の長さも直す。その後の記録がある在庫は不可）、`DELETE /api/history/:id`
   （`deleted_at` を付けるだけで在庫は変えない。一覧・CSV・鍵の状態・取り消しの判定から外れる）、
   `POST /api/history/:id/restore`（削除を戻す）。修正した記録には `edited_at` が付く。
+  鋼材の予約（誰でも可・設定なし）：`POST /api/reservations`（`record_id`・`person`・`date`=YYYY-MM-DD・`job`）、
+  `DELETE /api/reservations/:id`。一覧は `/api/state` の `reservations`（使う日が今日以降で、在庫が残っているものだけ）。
+  予約があっても持ち出しは止めない（画面に出すだけ）。本人が持ち出すとその予約は消える。
 - クライアントは二重モード：サーバー配信時は API、`file://`（単体版）では localStorage
   （在庫 `steel_mgr_records_v1`・履歴 `steel_mgr_history_v1`）に自動フォールバック。両対応を保つこと。
 - QRラベルは `?co=<在庫ID>` を開くと該当在庫の持ち出しモーダルが直接開く仕様。ID の意味を変えないこと。

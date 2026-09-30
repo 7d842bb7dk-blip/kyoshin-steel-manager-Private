@@ -380,6 +380,32 @@ main.content{flex:1;overflow:auto;padding:20px 22px 48px;background:var(--bg)}
 .co-btn{flex:0 0 auto;padding:12px 18px;font-size:13.5px}
 .co-btn svg{width:16px;height:16px}
 
+/* ============ 鋼材の予約（誰が・いつ・どの案件で使うか） ============ */
+.rsv-ico{width:13px;height:13px;flex:0 0 auto;vertical-align:-2px;margin-right:4px}
+.rsv-badge{display:inline-flex;align-items:center;font-size:11.5px;font-weight:800;color:#7a4300;background:#fff1d6;border:1px solid #f2d59b;
+  border-radius:999px;padding:2px 10px;white-space:nowrap;margin-right:6px}
+.rsv-more{margin-left:6px;color:var(--accent-d)}
+.rsv-btn{display:inline-flex;align-items:center;border:1px solid var(--line);background:#fff;color:var(--ink-soft);border-radius:999px;
+  padding:3px 11px;font-size:11.5px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap}
+.rsv-btn:hover{border-color:var(--accent);color:var(--accent-d)}
+.rsv-cell{white-space:nowrap}
+.co-line3{margin-top:7px;display:flex;flex-wrap:wrap;gap:5px}
+.co-acts{display:flex;flex-direction:column-reverse;align-items:stretch;gap:6px;flex:0 0 auto} /* 「持ち出す」の下に小さく「予約」 */
+.co-acts .rsv-btn{justify-content:center;padding:6px 12px;font-size:12px}
+.rsv-warn{background:#fff6e3;border:1px solid #f2d59b;border-radius:var(--r-sm);padding:10px 13px;font-size:13px;line-height:1.75;color:#6b3d00;margin-top:10px}
+.rsv-warn>b{display:flex;align-items:center}
+.rsv-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:2px 0}
+.rsv-del{border:1px solid #e6c4c0;background:#fff;color:var(--warn);border-radius:999px;padding:3px 11px;font-size:11.5px;font-weight:700;
+  cursor:pointer;font-family:inherit;white-space:nowrap}
+.rsv-del:hover{background:#fbecea}
+.rsv-today{font-size:11px;font-weight:800;color:#fff;background:var(--accent);border-radius:999px;padding:1px 9px}
+.tab-count{display:inline-block;min-width:18px;text-align:center;font-size:10.5px;font-weight:800;color:#fff;background:var(--accent);
+  border-radius:999px;padding:1px 5px;margin-left:-2px}
+.tab.active .tab-count{background:#fff;color:var(--accent-d)}
+#rsvList{padding:14px 18px 18px}
+.rsv-tbl .pill.mat{margin-right:5px}
+#coToRsv svg{width:15px;height:15px}
+
 .co-modal{width:480px;max-width:calc(100% - 32px)}
 .co-body{padding:18px 20px 8px}
 .co-item{background:var(--panel-2);border:1px solid var(--line-soft);border-radius:var(--r-sm);padding:11px 13px;
@@ -584,6 +610,9 @@ tr.wl-warn td{background:var(--accent-soft)}
   .co-list{grid-template-columns:1fr}
   .co-card{flex-wrap:wrap}
   .co-btn{width:100%;justify-content:center;padding:13px}
+  .co-acts{width:100%;flex-direction:row;align-items:center;gap:8px}
+  .co-acts .co-btn{width:auto;flex:1}
+  .co-acts .rsv-btn{padding:13px 15px;font-size:12.5px}
   .panel-h{flex-wrap:wrap;gap:8px}
   .kpis{grid-template-columns:1fr}
   .tbl-wrap{overflow-x:auto}
@@ -696,6 +725,10 @@ tr.wl-warn td{background:var(--accent-soft)}
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 7v10l7 3.1"/><path d="M14 17h8M18.5 13.5 22 17l-3.5 3.5"/></svg>
     <span data-i18n="持ち出し">持ち出し</span>
   </div>
+  <div class="tab server-only" data-view="reserve">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M3 9.5h18M8 3v3M16 3v3M8.5 14.5l2.3 2.3 4.7-4.7"/></svg>
+    <span data-i18n="予約">予約</span><span class="tab-count" id="rsvCount"></span>
+  </div>
   <div class="tab admin-only" data-view="inventory">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 7v10l9 4 9-4V7"/><path d="M12 11v10"/></svg>
     <span data-i18n="在庫管理">在庫管理</span>
@@ -784,6 +817,18 @@ tr.wl-warn td{background:var(--accent-soft)}
         </div>
       </div>
       <div class="co-list" id="coList"></div>
+    </section>
+
+    <!-- ====== RESERVE VIEW（鋼材の予約の一覧・全員。サーバー版のみ） ====== -->
+    <section class="view" id="view-reserve">
+      <div class="panel">
+        <div class="panel-h">
+          <h2><svg class="sec-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M3 9.5h18M8 3v3M16 3v3M8.5 14.5l2.3 2.3 4.7-4.7"/></svg><span data-i18n="予約の一覧">予約の一覧</span></h2>
+          <span class="tag">RESERVE</span>
+        </div>
+        <div class="wl-hint" data-i18n="だれが・いつ・どの案件で、どの材料を使う予定かの一覧です。予約するには「在庫検索」か「持ち出し」で、材料の「予約」ボタンを押してください。使う日を過ぎた予約は自動で消えます。">だれが・いつ・どの案件で、どの材料を使う予定かの一覧です。予約するには「在庫検索」か「持ち出し」で、材料の「予約」ボタンを押してください。使う日を過ぎた予約は自動で消えます。</div>
+        <div id="rsvList"></div>
+      </div>
     </section>
 
     <!-- ====== WORKLOG VIEW（作業ログ・管理者のみ） ====== -->
@@ -1106,6 +1151,7 @@ tr.wl-warn td{background:var(--accent-soft)}
     </div>
     <div class="co-body">
       <div class="co-item" id="coItem"></div>
+      <div class="rsv-warn" id="coRsv" style="display:none"></div>
       <div class="co-q">どれだけ使いますか？</div>
       <div class="co-modes">
         <button class="co-mode active" id="coModeAll"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 13l4 4L19 7"/></svg>全部 持ち出す</button>
@@ -1126,9 +1172,40 @@ tr.wl-warn td{background:var(--accent-soft)}
       </label>
     </div>
     <div class="modal-foot">
+      <button class="btn ghost server-only" id="coToRsv"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M3 9.5h18M8 3v3M16 3v3"/></svg><span data-i18n="予約する">予約する</span></button>
       <div style="display:flex;gap:9px;margin-left:auto">
         <button class="btn ghost" id="coCancel">キャンセル</button>
         <button class="btn primary" id="coSubmit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 13l4 4L19 7"/></svg>持ち出しを記録</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================== 鋼材の予約（誰が・いつ・どの案件で使うか） ============================== -->
+<div class="overlay" id="rsvOverlay">
+  <div class="modal co-modal">
+    <div class="modal-h">
+      <h3><svg class="sec-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M3 9.5h18M8 3v3M16 3v3M8.5 14.5l2.3 2.3 4.7-4.7"/></svg><span data-i18n="この材料を予約">この材料を予約</span></h3>
+      <button class="x" id="rsvClose"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </div>
+    <div class="co-body">
+      <div class="co-item" id="rsvItem"></div>
+      <div class="rsv-warn" id="rsvCur" style="display:none"></div>
+      <label class="co-lab"><span data-i18n="あなたの名前">あなたの名前</span><span class="req">*</span>
+        <select id="rsvPersonSel" class="co-input"></select>
+        <input type="text" id="rsvPerson" class="co-input" style="display:none;margin-top:7px" placeholder="例: 山田" autocomplete="off">
+      </label>
+      <label class="co-lab"><span data-i18n="使う日">使う日</span><span class="req">*</span>
+        <input type="date" id="rsvDate" class="co-input">
+      </label>
+      <label class="co-lab"><span data-i18n="案件名">案件名</span><span class="req">*</span>
+        <input type="text" id="rsvJob" class="co-input" list="dl_job" autocomplete="off" placeholder="例: ◯◯工場 手すり"><datalist id="dl_job"></datalist>
+      </label>
+    </div>
+    <div class="modal-foot">
+      <div style="display:flex;gap:9px;margin-left:auto">
+        <button class="btn ghost" id="rsvCancel" data-i18n="閉じる">閉じる</button>
+        <button class="btn primary" id="rsvSubmit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 13l4 4L19 7"/></svg><span data-i18n="予約する">予約する</span></button>
       </div>
     </div>
   </div>
@@ -1173,6 +1250,11 @@ tr.wl-warn td{background:var(--accent-soft)}
       <div class="help-sec">
         <div class="help-h"><span class="help-ic red"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 7v10l7 3.1"/><path d="M14 17h8M18.5 13.5 22 17l-3.5 3.5"/></svg></span>持ち出し</div>
         <p class="help-p">材料倉庫から材料を持ち出すときは、<b>その場でこの画面から記録</b>してください。使う材料の<b>「持ち出す」</b>ボタンを押し、<b>「全部 持ち出す」</b>か<b>「一部使った（残りを登録）」</b>を選びます。一部の場合は<b>使用後に残った長さを測って入力</b>すれば、使用量は自動計算されます。<b>自分の名前</b>を入れて記録完了。<br>材料の<b>QRラベル</b>をスマホで読み取ると、その材料の登録画面が直接開きます（ラベルは「在庫管理 → QRラベル」から印刷）。<br>また、<b>倉庫の鍵の置き場のQR</b>を読み取ると「鍵の持ち出し／返却」を記録できます。倉庫へ行くとき・鍵を返すときに読み取ってください。</p>
+      </div>
+
+      <div class="help-sec">
+        <div class="help-h"><span class="help-ic amber"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M3 9.5h18M8 3v3M16 3v3"/></svg></span>予約</div>
+        <p class="help-p">使う材料がほかの人とかぶらないように、<b>誰が・いつ・どの案件で使うか</b>を予約できます。在庫検索か持ち出しで、材料の<b>「予約」</b>ボタンを押し、<b>名前・使う日・案件名</b>を入れます。予約がある材料には印が付き、持ち出すときにも表示されます（持ち出しは止まりません）。予約の一覧と取り消しは、メニューの<b>「予約」</b>から。使う日を過ぎた予約は自動で消えます。</p>
       </div>
 
       <div class="help-sec">
@@ -11697,6 +11779,7 @@ const SEED=[
 ];
 const LS_KEY="steel_mgr_records_v1";
 let canPersist=true, records=[], editId=null;
+let reservations=[]; /* 鋼材の予約（サーバー版のみ）：{id,record_id,person,date:"YYYY-MM-DD",job} */
 
 /* --- サーバー共有 / ローカル の二重モード ---
  *  server : このページをサーバー(:3001)が配信。在庫は /api/* 経由で全PC共有。
@@ -11752,7 +11835,7 @@ function syncMasters(s){
 async function loadRecords(){
   MODE=await detectMode();
   if(MODE==="server"){
-    try{const s=await apiGET("/api/state");checkBoot(s);records=s.records||[];version=s.version||0;canPersist=true;return;}
+    try{const s=await apiGET("/api/state");checkBoot(s);records=s.records||[];reservations=s.reservations||[];version=s.version||0;canPersist=true;return;}
     catch(e){MODE="local";}
   }
   // local（従来の localStorage 動作）
@@ -11765,14 +11848,14 @@ const nextId=()=>records.reduce((m,r)=>Math.max(m,r.id),0)+1;
 // server: 最新状態を取り直して再描画（自分の変更後・ポーリング検知時）
 async function refresh(){
   if(MODE!=="server")return;
-  const s=await apiGET("/api/state");if(checkBoot(s))return;syncMasters(s);records=s.records||[];version=s.version||0;
-  renderInventory();runSearch();updateFoot();renderCheckout();
+  const s=await apiGET("/api/state");if(checkBoot(s))return;syncMasters(s);records=s.records||[];reservations=s.reservations||[];version=s.version||0;
+  renderInventory();runSearch();updateFoot();renderCheckout();renderReserve();
 }
 // server: 約5秒ごとに他PCの変更を取り込む
 function startPolling(){
   if(MODE!=="server"||pollTimer)return;
   pollTimer=setInterval(async()=>{
-    try{const s=await apiGET("/api/state?since="+version);if(checkBoot(s))return;syncMasters(s);if(s&&s.unchanged)return;records=s.records||[];version=s.version||0;renderInventory();runSearch();updateFoot();renderCheckout();}
+    try{const s=await apiGET("/api/state?since="+version);if(checkBoot(s))return;syncMasters(s);if(s&&s.unchanged)return;records=s.records||[];reservations=s.reservations||[];version=s.version||0;renderInventory();runSearch();updateFoot();renderCheckout();renderReserve();}
     catch(e){/* 一時的な通信断は無視（次回ポーリングで回復。再起動中もここに来る） */}
   },5000);
 }
@@ -12070,7 +12153,20 @@ const I18N_VI={
   "登録":"Đăng ký","編集":"Sửa","削除":"Xóa","CSV取込":"Nhập CSV","鍵 持出":"Mượn chìa khóa","鍵 返却":"Trả chìa khóa",
   " mm 使用":" mm đã dùng","（残り ":"（còn lại ","（全部）":"（toàn bộ）","内容変更":"Đã sửa"," 件 取込":" dòng đã nhập",
   "履歴はまだありません。「持ち出し」画面から記録すると、ここに残ります":"Chưa có lịch sử. Ghi nhận từ màn hình 「Lấy vật liệu」 sẽ hiện ở đây",
-  "履歴を更新しました":"Đã cập nhật lịch sử"
+  "履歴を更新しました":"Đã cập nhật lịch sử",
+  /* 鋼材の予約 */
+  "予約":"Đặt trước","予約する":"Đặt trước","予約の一覧":"Danh sách đặt trước","この材料を予約":"Đặt trước vật liệu này",
+  "だれが・いつ・どの案件で、どの材料を使う予定かの一覧です。予約するには「在庫検索」か「持ち出し」で、材料の「予約」ボタンを押してください。使う日を過ぎた予約は自動で消えます。":
+    "Danh sách ai sẽ dùng vật liệu nào, khi nào, cho công trình nào. Để đặt trước, hãy bấm nút 「Đặt trước」 của vật liệu ở màn hình 「Tìm kiếm tồn kho」 hoặc 「Lấy vật liệu」. Đặt trước đã quá ngày sử dụng sẽ tự động bị xóa.",
+  "使う日":"Ngày sử dụng","案件名":"Tên công trình","閉じる":"Đóng","今日":"Hôm nay","材料":"Vật liệu","取り消す":"Hủy",
+  "この材料は予約があります":"Vật liệu này đã có người đặt trước","すでに予約があります":"Đã có người đặt trước",
+  "使う日を入れてください":"Hãy nhập ngày sử dụng","使う日は、今日かそれより後の日にしてください":"Ngày sử dụng phải là hôm nay hoặc sau hôm nay",
+  "案件名を入れてください":"Hãy nhập tên công trình","案件名を入力してください":"Hãy nhập tên công trình",
+  "予約しました":"Đã đặt trước","この予約を取り消しますか？":"Hủy đặt trước này?","予約を取り消しました":"Đã hủy đặt trước",
+  "予約はまだありません":"Chưa có đặt trước nào","使う日が正しくありません":"Ngày sử dụng không đúng",
+  "使う日が過ぎています（今日か、それより後の日を選んでください）":"Ngày sử dụng đã qua (hãy chọn hôm nay hoặc sau hôm nay)",
+  "予約が見つかりません（すでに取り消されています）":"Không tìm thấy đặt trước (đã bị hủy)",
+  "例: ◯◯工場 手すり":"VD: Nhà máy ◯◯ - lan can"
 };
 function t(s){return LANG==="ja"?s:(I18N_VI[s]||s);}
 function applyLang(){
@@ -12094,19 +12190,20 @@ function applyLang(){
   document.querySelectorAll("#view-search .filter-hint,#view-checkout .filter-hint,#view-search .kpi-lab,#keyOverlay .key-note").forEach(el=>{el.textContent=t(el.textContent.trim());});
   document.querySelectorAll("#view-search .kpi-sub").forEach(el=>{if(el.id!=="kpiTotal")el.textContent=t(el.textContent.trim());});
   /* プレースホルダー */
-  [["#f_spec","部分一致 例: 50"],["#f_len","完全一致"],["#co_spec","部分一致 例: 50"],["#coUsed","例: 1500"],["#coNote","例: ◯◯案件で使用"],["#coPerson","例: 山田"],["#keyPerson","例: 山田"],["#ns_len","例: 2500"],["#nsPerson","例: 山田"]]
+  [["#rsvJob","例: ◯◯工場 手すり"],["#rsvPerson","例: 山田"],["#f_spec","部分一致 例: 50"],["#f_len","完全一致"],["#co_spec","部分一致 例: 50"],["#coUsed","例: 1500"],["#coNote","例: ◯◯案件で使用"],["#coPerson","例: 山田"],["#keyPerson","例: 山田"],["#ns_len","例: 2500"],["#nsPerson","例: 山田"]]
     .forEach(([s,k])=>{const el=$(s);if(el)el.placeholder=t(k);});
 }
 function toggleLang(){LANG=LANG==="ja"?"vi":"ja";try{localStorage.setItem(LANG_KEY,LANG);}catch(e){}location.reload();}
 
 /* ===================== ナビ ===================== */
-const PG={search:["在庫検索","SEARCH / INVENTORY LOOKUP"],checkout:["持ち出し","CHECKOUT / TAKE OUT"],worklog:["作業ログ","WORK LOG / DAILY MONITOR"],inventory:["在庫管理","INVENTORY / DATA MANAGEMENT"],calc:["重量・単価計算","CALCULATOR / WEIGHT & COST"],master:["マスタ参照","MASTER / REFERENCE DATA"]};
+const PG={search:["在庫検索","SEARCH / INVENTORY LOOKUP"],checkout:["持ち出し","CHECKOUT / TAKE OUT"],reserve:["予約","RESERVE / WHO USES WHAT, WHEN"],worklog:["作業ログ","WORK LOG / DAILY MONITOR"],inventory:["在庫管理","INVENTORY / DATA MANAGEMENT"],calc:["重量・単価計算","CALCULATOR / WEIGHT & COST"],master:["マスタ参照","MASTER / REFERENCE DATA"]};
 document.querySelectorAll(".tab").forEach(it=>it.addEventListener("click",()=>{
   document.querySelectorAll(".tab").forEach(n=>n.classList.remove("active"));it.classList.add("active");
   const v=it.dataset.view;document.querySelectorAll(".view").forEach(s=>s.classList.remove("active"));$("#view-"+v).classList.add("active");
   $("#pgTitle").textContent=PG[v][0];$("#pgCrumb").textContent=PG[v][1];
   if(v==="checkout")renderCheckout();
   if(v==="worklog")loadHistory();
+  if(v==="reserve")renderReserve();
 }));
 
 /* ===================== 管理者モード ===================== */
@@ -12188,10 +12285,12 @@ function runSearch(){
   $("#kpiCost").textContent=fmtYenP(tc);
   const wrap=$("#searchTable");
   if(!hits.length){wrap.innerHTML=emptyState(t("条件に一致する在庫がありません"));return;}
-  let h='<table class="dt"><thead><tr><th>'+t("材質")+'</th><th>'+t("鋼種")+'</th><th class="r">'+t("板厚")+'</th><th>'+t("材料規格")+'</th><th class="r">'+t("長さ")+'</th><th>'+t("保管場所")+'</th><th class="r">'+t("重量(kg)")+'</th><th>'+t("表面仕上げ")+'</th><th class="r">'+t("キロ単価")+'</th><th class="r">'+t("材料費")+'</th></tr></thead><tbody>';
-  hits.forEach(r=>{h+=`<tr><td><span class="pill mat ${matCls(r.mat)}">${IC.mat}${r.mat}</span></td><td>${shapeIco(r.koshu)}${r.koshu}</td><td class="r tnum">${r.thk}</td><td class="tnum">${r.spec}</td><td class="r tnum">${Number(r.len).toLocaleString()}</td><td><span class="pill loc">${IC.loc}${r.loc||"—"}</span></td><td class="r tnum">${fmtKg(r.weight)}</td><td><span class="pill fin">${IC.fin}${r.fin||"—"}</span></td><td class="r tnum">${r.unit==null?'<span class="muted">—</span>':r.unit.toLocaleString()}</td><td class="r tnum"><b>${fmtYen(r.cost)}</b></td></tr>`;});
-  h+=`</tbody><tfoot><tr class="tfoot"><td colspan="6">${t("合計")}（${hits.length}${t("件")}）</td><td class="r tnum">${fmtNum(tw,3)}</td><td></td><td></td><td class="r tnum">${fmtYenP(tc)}</td></tr></tfoot></table>`;
+  const RS=MODE==="server"; /* 予約の列（サーバー版のみ）：予約があれば「誰が・いつ・どの案件」、無ければ「予約」ボタン */
+  let h='<table class="dt"><thead><tr><th>'+t("材質")+'</th><th>'+t("鋼種")+'</th><th class="r">'+t("板厚")+'</th><th>'+t("材料規格")+'</th><th class="r">'+t("長さ")+'</th><th>'+t("保管場所")+'</th>'+(RS?'<th>'+t("予約")+'</th>':'')+'<th class="r">'+t("重量(kg)")+'</th><th>'+t("表面仕上げ")+'</th><th class="r">'+t("キロ単価")+'</th><th class="r">'+t("材料費")+'</th></tr></thead><tbody>';
+  hits.forEach(r=>{h+=`<tr><td><span class="pill mat ${matCls(r.mat)}">${IC.mat}${r.mat}</span></td><td>${shapeIco(r.koshu)}${r.koshu}</td><td class="r tnum">${r.thk}</td><td class="tnum">${r.spec}</td><td class="r tnum">${Number(r.len).toLocaleString()}</td><td><span class="pill loc">${IC.loc}${r.loc||"—"}</span></td>${RS?`<td class="rsv-cell">${rsvBadge(r.id)}${rsvBtn(r.id)}</td>`:""}<td class="r tnum">${fmtKg(r.weight)}</td><td><span class="pill fin">${IC.fin}${r.fin||"—"}</span></td><td class="r tnum">${r.unit==null?'<span class="muted">—</span>':r.unit.toLocaleString()}</td><td class="r tnum"><b>${fmtYen(r.cost)}</b></td></tr>`;});
+  h+=`</tbody><tfoot><tr class="tfoot"><td colspan="${RS?7:6}">${t("合計")}（${hits.length}${t("件")}）</td><td class="r tnum">${fmtNum(tw,3)}</td><td></td><td></td><td class="r tnum">${fmtYenP(tc)}</td></tr></tfoot></table>`;
   wrap.innerHTML=h;
+  bindRsvBtns(wrap);
 }
 function emptyState(msg){return`<div class="empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg><p>${msg}</p></div>`;}
 
@@ -12544,12 +12643,14 @@ function renderCheckout(){
       <div class="co-info">
         <div class="co-line1"><span class="pill mat ${matCls(r.mat)}">${IC.mat}${r.mat}</span><b>${r.koshu}</b><span class="co-spec">${r.spec} × t${r.thk}</span></div>
         <div class="co-line2">${t("長さ")} <b>${Number(r.len).toLocaleString()} mm</b>　${r.loc?'<span class="pill loc">'+IC.loc+r.loc+'</span>':""}　${r.fin?'<span class="pill fin">'+IC.fin+r.fin+'</span>':""}</div>
+        ${rsvOf(r.id).length?`<div class="co-line3">${rsvBadge(r.id,true)}</div>`:""}
       </div>
-      <button class="btn primary co-btn" data-co="${r.id}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 17h8M18.5 13.5 22 17l-3.5 3.5"/><path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 7v10l7 3.1"/></svg>${t("持ち出す")}</button>
+      <div class="co-acts">${rsvBtn(r.id)}<button class="btn primary co-btn" data-co="${r.id}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 17h8M18.5 13.5 22 17l-3.5 3.5"/><path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 7v10l7 3.1"/></svg>${t("持ち出す")}</button></div>
     </div>`;
   });
   wrap.innerHTML=h;
   wrap.querySelectorAll("[data-co]").forEach(b=>b.addEventListener("click",()=>openCo(+b.dataset.co)));
+  bindRsvBtns(wrap);
 }
 
 function openCo(id){
@@ -12557,10 +12658,105 @@ function openCo(id){
   coMode="all";applyCoMode();
   $("#coItem").innerHTML=`<span class="co-ic sm">${shapeSVG(coTarget.koshu)}</span><span class="pill mat ${matCls(coTarget.mat)}">${IC.mat}${coTarget.mat}</span><b>${coTarget.koshu}</b><span class="co-spec">${coTarget.spec} × t${coTarget.thk}</span><span class="co-len">${t("長さ")} ${Number(coTarget.len).toLocaleString()} mm</span>`;
   $("#coUsed").value="";$("#coRemain").textContent="";$("#coNote").value="";
+  /* 予約がある材料は、持ち出す前に気づけるように出す（止めはしない） */
+  const rs=rsvOf(id),box=$("#coRsv");
+  if(box){box.style.display=rs.length?"":"none";box.innerHTML=rs.length?`<b>${RSV_ICO}${escH(t("この材料は予約があります"))}</b>`+rs.map(v=>`<div>${escH(rsvText(v))}</div>`).join(""):"";}
   setupPersonPicker("#coPersonSel","#coPerson");
   $("#coOverlay").classList.add("show");
 }
 function closeCo(){$("#coOverlay").classList.remove("show");coTarget=null;}
+
+/* ===================== 鋼材の予約（誰が・いつ・どの案件で使うか） =====================
+ * 使う材料がバッティングしないように、材料ごとに「名前・使う日・案件名」を書いておく（サーバー版のみ）。
+ * 設定は無し。予約があっても持ち出しは止めず、在庫検索・持ち出し・QRの持ち出し画面に「予約あり」と出すだけ。
+ * 使う日を過ぎた予約は出さない。予約した本人がその材料を持ち出すと、その予約は消える（サーバー側） */
+const RSV_ICO='<svg class="rsv-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M3 9.5h18M8 3v3M16 3v3"/></svg>';
+function todayStr(){const d=new Date(),p=n=>String(n).padStart(2,"0");return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate());}
+function rsvOf(id){const td=todayStr();return reservations.filter(v=>v.record_id===id&&v.date>=td);}
+function fmtRsvDate(s){
+  const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(s);if(!m)return s;
+  const d=new Date(+m[1],+m[2]-1,+m[3]);
+  const w=(LANG==="vi"?["CN","T2","T3","T4","T5","T6","T7"]:["日","月","火","水","木","金","土"])[d.getDay()];
+  return (+m[2])+"/"+(+m[3])+"（"+w+"）";
+}
+function rsvText(v){return fmtRsvDate(v.date)+"　"+v.person+"　"+v.job;}
+/* 「予約あり」の印。full=true は全部の予約を並べる。それ以外は1件目＋残りの件数 */
+function rsvBadge(id,full){
+  const a=rsvOf(id);if(!a.length)return "";
+  if(full)return a.map(v=>`<span class="rsv-badge">${RSV_ICO}${escH(rsvText(v))}</span>`).join("");
+  return `<span class="rsv-badge" title="${escH(a.map(rsvText).join(" ／ "))}">${RSV_ICO}${escH(rsvText(a[0]))}${a.length>1?`<b class="rsv-more">+${a.length-1}</b>`:""}</span>`;
+}
+function rsvBtn(id){return MODE==="server"?`<button type="button" class="rsv-btn" data-rsv="${id}">${RSV_ICO}${escH(t("予約"))}</button>`:"";}
+function bindRsvBtns(root){root.querySelectorAll("[data-rsv]").forEach(b=>b.addEventListener("click",()=>openRsv(+b.dataset.rsv)));}
+let rsvTarget=null;
+function renderRsvCur(){ /* この材料に今入っている予約（取り消しボタン付き） */
+  const box=$("#rsvCur");if(!box||!rsvTarget)return;
+  const rs=rsvOf(rsvTarget.id);
+  box.style.display=rs.length?"":"none";
+  box.innerHTML=rs.length?`<b>${RSV_ICO}${escH(t("すでに予約があります"))}</b>`+rs.map(v=>`<div class="rsv-row"><span>${escH(rsvText(v))}</span><button type="button" class="rsv-del" data-rsvdel="${v.id}">${escH(t("取り消す"))}</button></div>`).join(""):"";
+  box.querySelectorAll("[data-rsvdel]").forEach(b=>b.addEventListener("click",()=>cancelRsv(+b.dataset.rsvdel)));
+}
+function openRsv(id){
+  if(MODE!=="server")return;
+  rsvTarget=records.find(x=>x.id===id);if(!rsvTarget)return;
+  const r=rsvTarget;
+  $("#rsvItem").innerHTML=`<span class="co-ic sm">${shapeSVG(r.koshu)}</span><span class="pill mat ${matCls(r.mat)}">${IC.mat}${escH(r.mat)}</span><b>${escH(r.koshu)}</b><span class="co-spec">${escH(r.spec)} × t${escH(r.thk)}</span><span class="co-len">${t("長さ")} ${Number(r.len).toLocaleString()} mm</span>`;
+  renderRsvCur();
+  setupPersonPicker("#rsvPersonSel","#rsvPerson");
+  $("#rsvDate").min=todayStr();$("#rsvDate").value=todayStr();
+  $("#rsvJob").value="";
+  $("#dl_job").innerHTML=uniqVals(reservations.map(v=>v.job)).map(j=>`<option value="${escH(j)}"></option>`).join("");
+  $("#rsvOverlay").classList.add("show");
+}
+function closeRsv(){$("#rsvOverlay").classList.remove("show");rsvTarget=null;}
+async function submitRsv(){
+  if(!rsvTarget)return;
+  const person=pickerValue("#rsvPersonSel","#rsvPerson"),date=$("#rsvDate").value,job=$("#rsvJob").value.trim();
+  if(!person){toast(t("名前を入力してください"));$("#rsvPersonSel").focus();return;}
+  if(!date){toast(t("使う日を入れてください"));$("#rsvDate").focus();return;}
+  if(date<todayStr()){toast(t("使う日は、今日かそれより後の日にしてください"));$("#rsvDate").focus();return;}
+  if(!job){toast(t("案件名を入れてください"));$("#rsvJob").focus();return;}
+  try{localStorage.setItem(PERSON_KEY,person);}catch(e){}
+  try{
+    await apiSend("POST","/api/reservations",{record_id:rsvTarget.id,person,date,job});
+    closeRsv();
+    try{await refresh();}catch(e){} /* 予約は済んでいる。画面更新の失敗は次のポーリングで回復 */
+    toast(t("予約しました"));
+  }catch(e){toast(t(e.message),6000);}
+}
+async function cancelRsv(id){
+  const v=reservations.find(x=>x.id===id);if(!v)return;
+  const r=records.find(x=>x.id===v.record_id);
+  const ok=await askConfirm({title:t("この予約を取り消しますか？"),
+    bodyHtml:`<b>${escH(rsvText(v))}</b>${r?`<br>${escH(r.mat)}　${escH(r.koshu)}　${escH(r.spec)}　t${escH(r.thk)}`:""}`,
+    yes:t("取り消す"),no:t("戻る")});
+  if(!ok)return;
+  try{await apiSend("DELETE","/api/reservations/"+id);toast(t("予約を取り消しました"));}
+  catch(e){toast(t(e.message),6000);}
+  try{await refresh();}catch(e){}
+  renderRsvCur();
+}
+/* 予約の一覧ページ：使う日の早い順に、日ごとにまとめる。メニューの「予約」に件数も出す */
+function renderReserve(){
+  const td=todayStr(),list=reservations.filter(v=>v.date>=td&&records.some(r=>r.id===v.record_id));
+  const cnt=$("#rsvCount");if(cnt){cnt.textContent=list.length?String(list.length):"";cnt.style.display=list.length?"":"none";}
+  const wrap=$("#rsvList");if(!wrap)return;
+  if(!list.length){wrap.innerHTML=emptyState(t("予約はまだありません"));return;}
+  const byDate=new Map();
+  for(const v of list){if(!byDate.has(v.date))byDate.set(v.date,[]);byDate.get(v.date).push(v);}
+  let h="";
+  for(const d of [...byDate.keys()].sort()){
+    h+=`<div class="wl-day"><div class="wl-date">${escH(fmtRsvDate(d))}${d===td?`<span class="rsv-today">${escH(t("今日"))}</span>`:""}<span class="wl-daycount">${byDate.get(d).length}${t("件")}</span></div>`;
+    h+=`<div class="tbl-wrap"><table class="dt rsv-tbl"><thead><tr><th>${t("名前")}</th><th>${t("案件名")}</th><th>${t("材料")}</th><th class="r">${t("長さ")}</th><th>${t("保管場所")}</th><th></th></tr></thead><tbody>`;
+    for(const v of byDate.get(d)){
+      const r=records.find(x=>x.id===v.record_id);
+      h+=`<tr><td><b>${escH(v.person)}</b></td><td>${escH(v.job)}</td><td><span class="pill mat ${matCls(r.mat)}">${IC.mat}${escH(r.mat)}</span>${shapeIco(r.koshu)}${escH(r.koshu)} <span class="tnum">${escH(r.spec)}</span> <span class="tnum muted">t${escH(r.thk)}</span></td><td class="r tnum">${Number(r.len).toLocaleString()}</td><td><span class="pill loc">${IC.loc}${escH(r.loc||"—")}</span></td><td class="r"><button type="button" class="rsv-del" data-rsvdel="${v.id}">${escH(t("取り消す"))}</button></td></tr>`;
+    }
+    h+="</tbody></table></div></div>";
+  }
+  wrap.innerHTML=h;
+  wrap.querySelectorAll("[data-rsvdel]").forEach(b=>b.addEventListener("click",()=>cancelRsv(+b.dataset.rsvdel)));
+}
 function applyCoMode(){
   $("#coModeAll").classList.toggle("active",coMode==="all");
   $("#coModePart").classList.toggle("active",coMode==="part");
@@ -13470,6 +13666,12 @@ async function init(){
   $("#overlay").addEventListener("click",e=>{if(e.target===$("#overlay"))closeModal();});
   $("#coClose").addEventListener("click",closeCo);$("#coCancel").addEventListener("click",closeCo);
   $("#coSubmit").addEventListener("click",submitCo);
+  /* 鋼材の予約（サーバー版のみ。単体版ではメニューとボタンを出さない） */
+  if(MODE!=="server")document.querySelectorAll(".server-only").forEach(e=>{e.style.display="none";});
+  $("#rsvClose").addEventListener("click",closeRsv);$("#rsvCancel").addEventListener("click",closeRsv);
+  $("#rsvSubmit").addEventListener("click",submitRsv);
+  $("#coToRsv").addEventListener("click",()=>{const id=coTarget&&coTarget.id;closeCo();if(id!=null)openRsv(id);});
+  renderReserve();
   $("#coModeAll").addEventListener("click",()=>{coMode="all";applyCoMode();});
   $("#coModePart").addEventListener("click",()=>{coMode="part";applyCoMode();});
   $("#coUsed").addEventListener("input",coUpdateRemain);
@@ -13553,7 +13755,7 @@ async function init(){
   }
   document.addEventListener("keydown",e=>{
     if(e.key==="Escape"&&$("#confirmOverlay").classList.contains("show")){$("#confirmNo").click();return;} /* 確認中は確認だけ閉じる */
-    if(e.key==="Escape"){closeModal();closePin();closeHelp();closeCo();closeQr();closeKey();closeNs();closeScanner();closeLocGuide();closeWlEdit();}
+    if(e.key==="Escape"){closeModal();closePin();closeHelp();closeCo();closeQr();closeKey();closeNs();closeScanner();closeLocGuide();closeWlEdit();closeRsv();}
     else if(e.key==="?"||e.key==="F1"){const t=(document.activeElement||{}).tagName;if(t!=="INPUT"&&t!=="SELECT"&&t!=="TEXTAREA"){e.preventDefault();openHelp();}}
   });
   $("#btnExportSearch").addEventListener("click",()=>{if(!lastSearch.length){toast("出力対象がありません");return;}exportCSV(lastSearch,"検索結果.csv");});

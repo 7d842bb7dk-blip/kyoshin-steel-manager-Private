@@ -373,6 +373,32 @@ main.content{flex:1;overflow:auto;padding:20px 22px 48px;background:var(--bg)}
 .co-btn{flex:0 0 auto;padding:12px 18px;font-size:13.5px}
 .co-btn svg{width:16px;height:16px}
 
+/* ============ 鋼材の予約（誰が・いつ・どの案件で使うか） ============ */
+.rsv-ico{width:13px;height:13px;flex:0 0 auto;vertical-align:-2px;margin-right:4px}
+.rsv-badge{display:inline-flex;align-items:center;font-size:11.5px;font-weight:800;color:#7a4300;background:#fff1d6;border:1px solid #f2d59b;
+  border-radius:999px;padding:2px 10px;white-space:nowrap;margin-right:6px}
+.rsv-more{margin-left:6px;color:var(--accent-d)}
+.rsv-btn{display:inline-flex;align-items:center;border:1px solid var(--line);background:#fff;color:var(--ink-soft);border-radius:999px;
+  padding:3px 11px;font-size:11.5px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap}
+.rsv-btn:hover{border-color:var(--accent);color:var(--accent-d)}
+.rsv-cell{white-space:nowrap}
+.co-line3{margin-top:7px;display:flex;flex-wrap:wrap;gap:5px}
+.co-acts{display:flex;flex-direction:column-reverse;align-items:stretch;gap:6px;flex:0 0 auto} /* 「持ち出す」の下に小さく「予約」 */
+.co-acts .rsv-btn{justify-content:center;padding:6px 12px;font-size:12px}
+.rsv-warn{background:#fff6e3;border:1px solid #f2d59b;border-radius:var(--r-sm);padding:10px 13px;font-size:13px;line-height:1.75;color:#6b3d00;margin-top:10px}
+.rsv-warn>b{display:flex;align-items:center}
+.rsv-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:2px 0}
+.rsv-del{border:1px solid #e6c4c0;background:#fff;color:var(--warn);border-radius:999px;padding:3px 11px;font-size:11.5px;font-weight:700;
+  cursor:pointer;font-family:inherit;white-space:nowrap}
+.rsv-del:hover{background:#fbecea}
+.rsv-today{font-size:11px;font-weight:800;color:#fff;background:var(--accent);border-radius:999px;padding:1px 9px}
+.tab-count{display:inline-block;min-width:18px;text-align:center;font-size:10.5px;font-weight:800;color:#fff;background:var(--accent);
+  border-radius:999px;padding:1px 5px;margin-left:-2px}
+.tab.active .tab-count{background:#fff;color:var(--accent-d)}
+#rsvList{padding:14px 18px 18px}
+.rsv-tbl .pill.mat{margin-right:5px}
+#coToRsv svg{width:15px;height:15px}
+
 .co-modal{width:480px;max-width:calc(100% - 32px)}
 .co-body{padding:18px 20px 8px}
 .co-item{background:var(--panel-2);border:1px solid var(--line-soft);border-radius:var(--r-sm);padding:11px 13px;
@@ -577,6 +603,9 @@ tr.wl-warn td{background:var(--accent-soft)}
   .co-list{grid-template-columns:1fr}
   .co-card{flex-wrap:wrap}
   .co-btn{width:100%;justify-content:center;padding:13px}
+  .co-acts{width:100%;flex-direction:row;align-items:center;gap:8px}
+  .co-acts .co-btn{width:auto;flex:1}
+  .co-acts .rsv-btn{padding:13px 15px;font-size:12.5px}
   .panel-h{flex-wrap:wrap;gap:8px}
   .kpis{grid-template-columns:1fr}
   .tbl-wrap{overflow-x:auto}

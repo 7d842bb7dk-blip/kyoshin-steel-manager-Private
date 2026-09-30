@@ -56,6 +56,10 @@
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 7v10l7 3.1"/><path d="M14 17h8M18.5 13.5 22 17l-3.5 3.5"/></svg>
     <span data-i18n="持ち出し">持ち出し</span>
   </div>
+  <div class="tab server-only" data-view="reserve">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M3 9.5h18M8 3v3M16 3v3M8.5 14.5l2.3 2.3 4.7-4.7"/></svg>
+    <span data-i18n="予約">予約</span><span class="tab-count" id="rsvCount"></span>
+  </div>
   <div class="tab admin-only" data-view="inventory">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 7v10l9 4 9-4V7"/><path d="M12 11v10"/></svg>
     <span data-i18n="在庫管理">在庫管理</span>
@@ -144,6 +148,18 @@
         </div>
       </div>
       <div class="co-list" id="coList"></div>
+    </section>
+
+    <!-- ====== RESERVE VIEW（鋼材の予約の一覧・全員。サーバー版のみ） ====== -->
+    <section class="view" id="view-reserve">
+      <div class="panel">
+        <div class="panel-h">
+          <h2><svg class="sec-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M3 9.5h18M8 3v3M16 3v3M8.5 14.5l2.3 2.3 4.7-4.7"/></svg><span data-i18n="予約の一覧">予約の一覧</span></h2>
+          <span class="tag">RESERVE</span>
+        </div>
+        <div class="wl-hint" data-i18n="だれが・いつ・どの案件で、どの材料を使う予定かの一覧です。予約するには「在庫検索」か「持ち出し」で、材料の「予約」ボタンを押してください。使う日を過ぎた予約は自動で消えます。">だれが・いつ・どの案件で、どの材料を使う予定かの一覧です。予約するには「在庫検索」か「持ち出し」で、材料の「予約」ボタンを押してください。使う日を過ぎた予約は自動で消えます。</div>
+        <div id="rsvList"></div>
+      </div>
     </section>
 
     <!-- ====== WORKLOG VIEW（作業ログ・管理者のみ） ====== -->
@@ -466,6 +482,7 @@
     </div>
     <div class="co-body">
       <div class="co-item" id="coItem"></div>
+      <div class="rsv-warn" id="coRsv" style="display:none"></div>
       <div class="co-q">どれだけ使いますか？</div>
       <div class="co-modes">
         <button class="co-mode active" id="coModeAll"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 13l4 4L19 7"/></svg>全部 持ち出す</button>
@@ -486,9 +503,40 @@
       </label>
     </div>
     <div class="modal-foot">
+      <button class="btn ghost server-only" id="coToRsv"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M3 9.5h18M8 3v3M16 3v3"/></svg><span data-i18n="予約する">予約する</span></button>
       <div style="display:flex;gap:9px;margin-left:auto">
         <button class="btn ghost" id="coCancel">キャンセル</button>
         <button class="btn primary" id="coSubmit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 13l4 4L19 7"/></svg>持ち出しを記録</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================== 鋼材の予約（誰が・いつ・どの案件で使うか） ============================== -->
+<div class="overlay" id="rsvOverlay">
+  <div class="modal co-modal">
+    <div class="modal-h">
+      <h3><svg class="sec-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M3 9.5h18M8 3v3M16 3v3M8.5 14.5l2.3 2.3 4.7-4.7"/></svg><span data-i18n="この材料を予約">この材料を予約</span></h3>
+      <button class="x" id="rsvClose"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </div>
+    <div class="co-body">
+      <div class="co-item" id="rsvItem"></div>
+      <div class="rsv-warn" id="rsvCur" style="display:none"></div>
+      <label class="co-lab"><span data-i18n="あなたの名前">あなたの名前</span><span class="req">*</span>
+        <select id="rsvPersonSel" class="co-input"></select>
+        <input type="text" id="rsvPerson" class="co-input" style="display:none;margin-top:7px" placeholder="例: 山田" autocomplete="off">
+      </label>
+      <label class="co-lab"><span data-i18n="使う日">使う日</span><span class="req">*</span>
+        <input type="date" id="rsvDate" class="co-input">
+      </label>
+      <label class="co-lab"><span data-i18n="案件名">案件名</span><span class="req">*</span>
+        <input type="text" id="rsvJob" class="co-input" list="dl_job" autocomplete="off" placeholder="例: ◯◯工場 手すり"><datalist id="dl_job"></datalist>
+      </label>
+    </div>
+    <div class="modal-foot">
+      <div style="display:flex;gap:9px;margin-left:auto">
+        <button class="btn ghost" id="rsvCancel" data-i18n="閉じる">閉じる</button>
+        <button class="btn primary" id="rsvSubmit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 13l4 4L19 7"/></svg><span data-i18n="予約する">予約する</span></button>
       </div>
     </div>
   </div>
@@ -533,6 +581,11 @@
       <div class="help-sec">
         <div class="help-h"><span class="help-ic red"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 7v10l7 3.1"/><path d="M14 17h8M18.5 13.5 22 17l-3.5 3.5"/></svg></span>持ち出し</div>
         <p class="help-p">材料倉庫から材料を持ち出すときは、<b>その場でこの画面から記録</b>してください。使う材料の<b>「持ち出す」</b>ボタンを押し、<b>「全部 持ち出す」</b>か<b>「一部使った（残りを登録）」</b>を選びます。一部の場合は<b>使用後に残った長さを測って入力</b>すれば、使用量は自動計算されます。<b>自分の名前</b>を入れて記録完了。<br>材料の<b>QRラベル</b>をスマホで読み取ると、その材料の登録画面が直接開きます（ラベルは「在庫管理 → QRラベル」から印刷）。<br>また、<b>倉庫の鍵の置き場のQR</b>を読み取ると「鍵の持ち出し／返却」を記録できます。倉庫へ行くとき・鍵を返すときに読み取ってください。</p>
+      </div>
+
+      <div class="help-sec">
+        <div class="help-h"><span class="help-ic amber"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M3 9.5h18M8 3v3M16 3v3"/></svg></span>予約</div>
+        <p class="help-p">使う材料がほかの人とかぶらないように、<b>誰が・いつ・どの案件で使うか</b>を予約できます。在庫検索か持ち出しで、材料の<b>「予約」</b>ボタンを押し、<b>名前・使う日・案件名</b>を入れます。予約がある材料には印が付き、持ち出すときにも表示されます（持ち出しは止まりません）。予約の一覧と取り消しは、メニューの<b>「予約」</b>から。使う日を過ぎた予約は自動で消えます。</p>
       </div>
 
       <div class="help-sec">

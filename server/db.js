@@ -55,6 +55,18 @@ try { db.exec("ALTER TABLE records ADD COLUMN qr_printed_at INTEGER"); } catch (
 for (const col of ["record_id INTEGER", "snap TEXT", "undone_at INTEGER", "undo_of INTEGER", "edited_at INTEGER", "deleted_at INTEGER"]) {
   try { db.exec("ALTER TABLE history ADD COLUMN " + col); } catch (e) { /* 既にある */ }
 }
+// 鋼材の予約（2026-09-30〜）：誰が・いつ・どの案件で、その材料を使う予定か
+db.exec(`
+  CREATE TABLE IF NOT EXISTS reservations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    record_id INTEGER NOT NULL,  -- 予約する在庫の番号
+    person TEXT NOT NULL,        -- 誰が
+    use_date TEXT NOT NULL,      -- いつ使う（YYYY-MM-DD）
+    job TEXT NOT NULL,           -- どの案件で
+    created_at INTEGER
+  );
+  CREATE INDEX IF NOT EXISTS idx_reservations_record ON reservations(record_id);
+`);
 
 const now = () => Date.now();
 
@@ -203,6 +215,8 @@ const _checkoutTx = db.transaction((id, usedLen, person, note, newLoc) => {
     db.prepare("UPDATE records SET len=?, updated_at=? WHERE id=?").run(remain, now(), r.id);
   }
   const hid = logHistory("checkout", r, { person, note: n, len_before: len, len_after: remain > 0 ? remain : 0, record_id: r.id, snap: r });
+  // 予約していた本人が持ち出したら、その人のこの材料の予約は済みとして消す
+  db.prepare("DELETE FROM reservations WHERE record_id=? AND person=?").run(r.id, person);
   return { ok: true, hid, removed: remain <= 0, remain: remain > 0 ? remain : 0, loc: remain > 0 ? (newLoc || r.loc) : null };
 });
 function checkoutRecord(id, opts) {
@@ -445,9 +459,50 @@ function setMasters(obj) {
   return { mv: getMastersVersion(), version: getVersion() };
 }
 
+// ── 鋼材の予約（使う材料がバッティングしないように、誰が・いつ・どの案件で使うかを材料ごとに書いておく） ──
+//   ・設定は無し。予約があっても持ち出しは止めない（画面に「予約あり」と出して気づけるようにするだけ）
+//   ・使う日を過ぎた予約は出さない（30日たったらDBからも消す）
+//   ・予約した本人がその材料を持ち出したら、その予約は消える（_checkoutTx）
+//   ・在庫が無くなった材料の予約は出さない（取り消しで在庫が同じ番号で戻れば、予約もまた出る）
+function todayStr(offsetDays) {
+  const d = new Date(Date.now() + (offsetDays || 0) * 86400000);
+  const p = (n) => String(n).padStart(2, "0");
+  return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate());
+}
+function getReservations() {
+  return db.prepare(`
+    SELECT v.id, v.record_id, v.person, v.use_date AS date, v.job
+    FROM reservations v JOIN records r ON r.id = v.record_id
+    WHERE v.use_date >= ? ORDER BY v.use_date, v.id`).all(todayStr());
+}
+function addReservation(b) {
+  b = b || {};
+  const rid = Number(b.record_id), person = str(b.person), date = str(b.date), job = str(b.job);
+  const fail = (reason) => ({ ok: false, reason, version: getVersion() });
+  if (!db.prepare("SELECT id FROM records WHERE id=?").get(rid)) return fail("notfound");
+  if (!person) return fail("noperson");
+  if (!job) return fail("nojob");
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
+  const dt = m ? new Date(+m[1], +m[2] - 1, +m[3]) : null;
+  if (!dt || dt.getMonth() !== +m[2] - 1 || dt.getDate() !== +m[3]) return fail("baddate");
+  if (date < todayStr()) return fail("pastdate");
+  db.prepare("DELETE FROM reservations WHERE use_date < ?").run(todayStr(-30));
+  // 同じ内容の予約がすでにあれば、二重には入れない
+  const dup = db.prepare("SELECT id FROM reservations WHERE record_id=? AND person=? AND use_date=? AND job=?").get(rid, person, date, job);
+  if (dup) return { ok: true, id: dup.id, version: getVersion() };
+  const info = db.prepare("INSERT INTO reservations (record_id, person, use_date, job, created_at) VALUES (?, ?, ?, ?, ?)")
+    .run(rid, person, date, job, now());
+  return { ok: true, id: Number(info.lastInsertRowid), version: bumpVersion() };
+}
+function deleteReservation(id) {
+  const info = db.prepare("DELETE FROM reservations WHERE id=?").run(Number(id));
+  if (!info.changes) return { ok: false, reason: "notfound", version: getVersion() };
+  return { ok: true, version: bumpVersion() };
+}
+
 // ── 全状態（差分ポーリングのベース） ──
 function getState() {
-  return { records: getRecords(), version: getVersion(), mv: getMastersVersion() };
+  return { records: getRecords(), reservations: getReservations(), version: getVersion(), mv: getMastersVersion() };
 }
 
 // ── 一度だけの移行：既存データの材料規格を「×」表記に統一（2026-09-27） ──
@@ -512,6 +567,7 @@ module.exports = {
   checkoutRecord, getHistory, markLabeled,
   keyStatus, keyEvent, undoHistory, UNDO_WINDOW_MS,
   editHistory, deleteHistory, restoreHistory,
+  getReservations, addReservation, deleteReservation,
   getMasters, getMastersVersion, setMasters,
   seedIfEmpty, getState,
 };
