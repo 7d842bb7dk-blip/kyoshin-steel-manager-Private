@@ -134,8 +134,8 @@ app.post("/api/reservations", (req, res) => {
         notfound: "該当の在庫が見つかりません（他の人が先に持ち出した可能性）",
         noperson: "名前を入力してください",
         nojob: "案件名を入力してください",
-        baddate: "使う日が正しくありません",
-        pastdate: "使う日が過ぎています（今日か、それより後の日を選んでください）",
+        baddate: "予約日が正しくありません",
+        pastdate: "予約日が過ぎています（今日か、それより後の日を選んでください）",
       }[r.reason] || "予約できませんでした";
       return res.status(r.reason === "notfound" ? 404 : 400).json({ error: msg, reason: r.reason, version: r.version });
     }

@@ -732,15 +732,15 @@ const I18N_VI={
   "履歴を更新しました":"Đã cập nhật lịch sử",
   /* 鋼材の予約 */
   "予約":"Đặt trước","予約する":"Đặt trước","予約の一覧":"Danh sách đặt trước","この材料を予約":"Đặt trước vật liệu này",
-  "だれが・いつ・どの案件で、どの材料を使う予定かの一覧です。予約するには「在庫検索」か「持ち出し」で、材料の「予約」ボタンを押してください。使う日を過ぎた予約は自動で消えます。":
-    "Danh sách ai sẽ dùng vật liệu nào, khi nào, cho công trình nào. Để đặt trước, hãy bấm nút 「Đặt trước」 của vật liệu ở màn hình 「Tìm kiếm tồn kho」 hoặc 「Lấy vật liệu」. Đặt trước đã quá ngày sử dụng sẽ tự động bị xóa.",
-  "使う日":"Ngày sử dụng","案件名":"Tên công trình","閉じる":"Đóng","今日":"Hôm nay","材料":"Vật liệu","取り消す":"Hủy",
+  "だれが・いつ・どの案件で、どの材料を使う予定かの一覧です。予約するには「在庫検索」か「持ち出し」で、材料の「予約」ボタンを押してください。予約日を過ぎた予約は自動で消えます。":
+    "Danh sách ai sẽ dùng vật liệu nào, khi nào, cho công trình nào. Để đặt trước, hãy bấm nút 「Đặt trước」 của vật liệu ở màn hình 「Tìm kiếm tồn kho」 hoặc 「Lấy vật liệu」. Đặt trước đã quá ngày đặt trước sẽ tự động bị xóa.",
+  "予約日":"Ngày đặt trước","案件名":"Tên công trình","閉じる":"Đóng","今日":"Hôm nay","材料":"Vật liệu","取り消す":"Hủy",
   "この材料は予約があります":"Vật liệu này đã có người đặt trước","すでに予約があります":"Đã có người đặt trước",
-  "使う日を入れてください":"Hãy nhập ngày sử dụng","使う日は、今日かそれより後の日にしてください":"Ngày sử dụng phải là hôm nay hoặc sau hôm nay",
+  "予約日を入れてください":"Hãy nhập ngày đặt trước","予約日は、今日かそれより後の日にしてください":"Ngày đặt trước phải là hôm nay hoặc sau hôm nay",
   "案件名を入れてください":"Hãy nhập tên công trình","案件名を入力してください":"Hãy nhập tên công trình",
   "予約しました":"Đã đặt trước","この予約を取り消しますか？":"Hủy đặt trước này?","予約を取り消しました":"Đã hủy đặt trước",
-  "予約はまだありません":"Chưa có đặt trước nào","使う日が正しくありません":"Ngày sử dụng không đúng",
-  "使う日が過ぎています（今日か、それより後の日を選んでください）":"Ngày sử dụng đã qua (hãy chọn hôm nay hoặc sau hôm nay)",
+  "予約はまだありません":"Chưa có đặt trước nào","予約日が正しくありません":"Ngày đặt trước không đúng",
+  "予約日が過ぎています（今日か、それより後の日を選んでください）":"Ngày đặt trước đã qua (hãy chọn hôm nay hoặc sau hôm nay)",
   "予約が見つかりません（すでに取り消されています）":"Không tìm thấy đặt trước (đã bị hủy)",
   "例: ◯◯工場 手すり":"VD: Nhà máy ◯◯ - lan can"
 };
@@ -1243,9 +1243,9 @@ function openCo(id){
 function closeCo(){$("#coOverlay").classList.remove("show");coTarget=null;}
 
 /* ===================== 鋼材の予約（誰が・いつ・どの案件で使うか） =====================
- * 使う材料がバッティングしないように、材料ごとに「名前・使う日・案件名」を書いておく（サーバー版のみ）。
+ * 使う材料がバッティングしないように、材料ごとに「名前・予約日・案件名」を書いておく（サーバー版のみ）。
  * 設定は無し。予約があっても持ち出しは止めず、在庫検索・持ち出し・QRの持ち出し画面に「予約あり」と出すだけ。
- * 使う日を過ぎた予約は出さない。予約した本人がその材料を持ち出すと、その予約は消える（サーバー側） */
+ * 予約日を過ぎた予約は出さない。予約した本人がその材料を持ち出すと、その予約は消える（サーバー側） */
 const RSV_ICO='<svg class="rsv-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M3 9.5h18M8 3v3M16 3v3"/></svg>';
 function todayStr(){const d=new Date(),p=n=>String(n).padStart(2,"0");return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate());}
 function rsvOf(id){const td=todayStr();return reservations.filter(v=>v.record_id===id&&v.date>=td);}
@@ -1289,8 +1289,8 @@ async function submitRsv(){
   if(!rsvTarget)return;
   const person=pickerValue("#rsvPersonSel","#rsvPerson"),date=$("#rsvDate").value,job=$("#rsvJob").value.trim();
   if(!person){toast(t("名前を入力してください"));$("#rsvPersonSel").focus();return;}
-  if(!date){toast(t("使う日を入れてください"));$("#rsvDate").focus();return;}
-  if(date<todayStr()){toast(t("使う日は、今日かそれより後の日にしてください"));$("#rsvDate").focus();return;}
+  if(!date){toast(t("予約日を入れてください"));$("#rsvDate").focus();return;}
+  if(date<todayStr()){toast(t("予約日は、今日かそれより後の日にしてください"));$("#rsvDate").focus();return;}
   if(!job){toast(t("案件名を入れてください"));$("#rsvJob").focus();return;}
   try{localStorage.setItem(PERSON_KEY,person);}catch(e){}
   try{
@@ -1312,7 +1312,7 @@ async function cancelRsv(id){
   try{await refresh();}catch(e){}
   renderRsvCur();
 }
-/* 予約の一覧ページ：使う日の早い順に、日ごとにまとめる。メニューの「予約」に件数も出す */
+/* 予約の一覧ページ：予約日の早い順に、日ごとにまとめる。メニューの「予約」に件数も出す */
 function renderReserve(){
   const td=todayStr(),list=reservations.filter(v=>v.date>=td&&records.some(r=>r.id===v.record_id));
   const cnt=$("#rsvCount");if(cnt){cnt.textContent=list.length?String(list.length):"";cnt.style.display=list.length?"":"none";}
