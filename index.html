@@ -190,6 +190,15 @@
             <button class="btn primary sm" id="btnNew"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>新規登録</button>
           </div>
         </div>
+        <!-- 絞り込みと、チェックした材料だけのQRラベル印刷（新規登録した材料は自動でチェックが入る） -->
+        <div class="inv-tools">
+          <input type="search" id="invFilter" class="inv-filter" autocomplete="off" placeholder="絞り込み（No.・材質・鋼種・規格・置き場所など。空白で区切ると全部を含むもの）">
+          <div class="inv-selbar" id="invSelBar" style="display:none">
+            <b id="invSelCount"></b>
+            <button class="btn primary sm" id="btnQrSel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3.5" y="3.5" width="6.5" height="6.5" rx="1"/><rect x="14" y="3.5" width="6.5" height="6.5" rx="1"/><rect x="3.5" y="14" width="6.5" height="6.5" rx="1"/><path d="M14 14h3v3h-3zM20.5 14v3M14 20.5h3M18.5 18.5h2v2h-2z"/></svg>選んだものをQRラベル印刷</button>
+            <button class="btn ghost sm" id="btnSelClear">選択を解除</button>
+          </div>
+        </div>
         <div class="tbl-wrap" id="invTable"></div>
       </div>
       <input type="file" id="fileInput" accept=".csv" style="display:none">
@@ -621,7 +630,7 @@
 
       <div class="help-sec">
         <div class="help-h"><span class="help-ic green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 7v10l9 4 9-4V7"/></svg></span>在庫管理</div>
-        <p class="help-p"><b>新規登録</b>で材料を追加します。各行の鉛筆アイコンで編集、ゴミ箱アイコンで削除。重量・キロ単価・材料費は入力内容から<b>自動計算</b>されます。<b>CSV取込</b>でまとめて追加、<b>CSV出力</b>で一覧を書き出せます（Excel で開けます）。</p>
+        <p class="help-p"><b>新規登録</b>で材料を追加します。各行の鉛筆アイコンで編集、ゴミ箱アイコンで削除。重量・キロ単価・材料費は入力内容から<b>自動計算</b>されます。<b>CSV取込</b>でまとめて追加、<b>CSV出力</b>で一覧を書き出せます（Excel で開けます）。<b>QRラベル</b>は、表の左のチェックを入れて<b>「選んだものをQRラベル印刷」</b>で、選んだ分だけ印刷できます（上の絞り込み欄で No.・材質・規格などから探せます）。<b>新規登録した材料は自動でチェックが入る</b>ので、登録してそのまま印刷→指示書に付けて回せます。</p>
       </div>
 
       <div class="help-sec">

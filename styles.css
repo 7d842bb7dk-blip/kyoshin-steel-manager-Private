@@ -424,6 +424,16 @@ main.content{flex:1;overflow:auto;padding:20px 22px 48px;background:var(--bg)}
 /* QRラベル印刷済みの目印（在庫管理） */
 .lab-ok{display:inline-block;background:#e2f3e9;color:#1e6b43;font-size:10.5px;font-weight:800;border-radius:999px;padding:2px 8px;white-space:nowrap}
 .lab-no{display:inline-block;background:#fde3e4;color:#bb1820;font-size:10.5px;font-weight:800;border-radius:999px;padding:2px 8px}
+/* 在庫管理：絞り込みと、チェックした材料だけのQRラベル印刷 */
+.inv-tools{position:sticky;top:0;z-index:4;display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 18px;
+  background:var(--panel);border-bottom:1px solid var(--line-soft)}
+.inv-filter{flex:1 1 320px;min-width:0;padding:8px 12px;border:1px solid var(--line);border-radius:9px;font:inherit;font-size:13px;background:#fff}
+.inv-selbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:var(--accent-soft);border:1px solid #f2b8bb;border-radius:999px;padding:4px 6px 4px 14px}
+.inv-selbar b{font-size:13px;color:var(--accent-d)}
+table.dt th.chk,table.dt td.chk{width:34px;text-align:center;padding-left:10px;padding-right:4px}
+table.dt td.chk input,table.dt th.chk input{width:17px;height:17px;cursor:pointer;accent-color:var(--accent)}
+table.dt tbody tr.sel{background:#fff4f4}
+table.dt tbody tr.sel:hover{background:#ffecec}
 
 /* 印刷レイアウト：2列・QR大きめ（スマホカメラで読みやすく） */
 

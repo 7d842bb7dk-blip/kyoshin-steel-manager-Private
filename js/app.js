@@ -875,17 +875,52 @@ function runSearch(){
 function emptyState(msg){return`<div class="empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg><p>${msg}</p></div>`;}
 
 /* ===================== 在庫ビュー ===================== */
+/* 在庫管理の表：チェックで選んだ材料だけQRラベルを印刷できる（サーバー版のみ）。絞り込み欄で探せる。
+ * 新規登録した材料は自動で選択に入る。印刷して「印刷済み」の目印を付けたら、その分は選択から外す */
+let invSel=new Set(), invFilter="";
+function invMatch(r,words){
+  if(!words.length)return true;
+  const s=("no."+r.id+" "+r.id+" "+r.mat+" "+r.koshu+" "+r.spec+" "+normSpec(r.spec)+" t"+r.thk+" "+(r.loc||"")+" "+(r.fin||"")).toLowerCase();
+  return words.every(w=>s.includes(w));
+}
+function updateInvSel(){
+  const bar=$("#invSelBar");if(!bar)return;
+  const n=invSel.size;
+  bar.style.display=n&&MODE==="server"?"":"none";
+  $("#invSelCount").textContent=n+" 件 選択中";
+  const all=$("#invChkAll");
+  if(all){
+    const vis=[...document.querySelectorAll("#invTable [data-sel]")];
+    const on=vis.filter(c=>c.checked).length;
+    all.checked=vis.length>0&&on===vis.length;all.indeterminate=on>0&&on<vis.length;
+  }
+}
 function renderInventory(){
   $("#invCount").textContent=records.length+" 件";
   $("#footCount").textContent=records.length+" 件";
   const wrap=$("#invTable");
   if(!records.length){wrap.innerHTML=emptyState("在庫データがありません。「新規登録」から追加してください");return;}
-  let h='<table class="dt"><thead><tr><th>材質</th><th>鋼種</th><th class="r">板厚</th><th>材料規格</th><th class="r">長さ</th><th>保管場所</th><th>仕上げ</th><th class="r">重量(kg)</th><th class="r">単価</th><th class="r">材料費</th><th>QR</th><th class="r">操作</th></tr></thead><tbody>';
-  records.forEach(r=>{const c=compute(r);h+=`<tr><td><span class="pill mat ${matCls(r.mat)}">${IC.mat}${r.mat}</span></td><td>${shapeIco(r.koshu)}${r.koshu}</td><td class="r tnum">${r.thk}</td><td class="tnum">${r.spec}</td><td class="r tnum">${Number(r.len).toLocaleString()}</td><td>${r.loc?'<span class="pill loc">'+IC.loc+r.loc+'</span>':'<span class="muted">—</span>'}</td><td><span class="pill fin">${IC.fin}${r.fin||"—"}</span></td><td class="r tnum">${fmtKg(c.weight)}</td><td class="r tnum">${c.unit==null?'<span class="muted">—</span>':c.unit.toLocaleString()}</td><td class="r tnum"><b>${fmtYen(c.cost)}</b></td><td>${r.qr?`<span class="lab-ok" title="ラベル印刷済み ${fmtTs(r.qr)}">✔済</span>`:'<span class="lab-no">未</span>'}</td><td class="r"><div class="row-acts">${MODE==="server"?`<button class="icobtn" data-qrone="${r.id}" title="QRラベルを印刷"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3.5" y="3.5" width="6.5" height="6.5" rx="1"/><rect x="14" y="3.5" width="6.5" height="6.5" rx="1"/><rect x="3.5" y="14" width="6.5" height="6.5" rx="1"/><path d="M14 14h3v3h-3zM20.5 14v3M14 20.5h3M18.5 18.5h2v2h-2z"/></svg></button>`:""}<button class="icobtn" data-edit="${r.id}" title="編集"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20h4L18.5 9.5a2.1 2.1 0 0 0-3-3L5 17v3z"/><path d="M13.5 6.5l3 3"/></svg></button><button class="icobtn del" data-del="${r.id}" title="削除"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg></button></div></td></tr>`;});
+  const ids=new Set(records.map(r=>r.id));[...invSel].forEach(id=>{if(!ids.has(id))invSel.delete(id);}); /* 無くなった在庫は選択から外す */
+  const words=invFilter.toLowerCase().split(/[\s　]+/).filter(Boolean);
+  const list=records.filter(r=>invMatch(r,words));
+  if(!list.length){wrap.innerHTML=emptyState("絞り込みに一致する在庫がありません");updateInvSel();return;}
+  const SEL=MODE==="server";
+  let h='<table class="dt"><thead><tr>'+(SEL?'<th class="chk"><input type="checkbox" id="invChkAll" title="表に出ている在庫をすべて選ぶ／外す"></th>':'')+'<th class="r">No.</th><th>材質</th><th>鋼種</th><th class="r">板厚</th><th>材料規格</th><th class="r">長さ</th><th>保管場所</th><th>仕上げ</th><th class="r">重量(kg)</th><th class="r">単価</th><th class="r">材料費</th><th>QR</th><th class="r">操作</th></tr></thead><tbody>';
+  list.forEach(r=>{const c=compute(r);const on=invSel.has(r.id);h+=`<tr${on?' class="sel"':""}>${SEL?`<td class="chk"><input type="checkbox" data-sel="${r.id}"${on?" checked":""}></td>`:""}<td class="r tnum muted">${r.id}</td><td><span class="pill mat ${matCls(r.mat)}">${IC.mat}${r.mat}</span></td><td>${shapeIco(r.koshu)}${r.koshu}</td><td class="r tnum">${r.thk}</td><td class="tnum">${r.spec}</td><td class="r tnum">${Number(r.len).toLocaleString()}</td><td>${r.loc?'<span class="pill loc">'+IC.loc+r.loc+'</span>':'<span class="muted">—</span>'}</td><td><span class="pill fin">${IC.fin}${r.fin||"—"}</span></td><td class="r tnum">${fmtKg(c.weight)}</td><td class="r tnum">${c.unit==null?'<span class="muted">—</span>':c.unit.toLocaleString()}</td><td class="r tnum"><b>${fmtYen(c.cost)}</b></td><td>${r.qr?`<span class="lab-ok" title="ラベル印刷済み ${fmtTs(r.qr)}">✔済</span>`:'<span class="lab-no">未</span>'}</td><td class="r"><div class="row-acts">${MODE==="server"?`<button class="icobtn" data-qrone="${r.id}" title="QRラベルを印刷"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3.5" y="3.5" width="6.5" height="6.5" rx="1"/><rect x="14" y="3.5" width="6.5" height="6.5" rx="1"/><rect x="3.5" y="14" width="6.5" height="6.5" rx="1"/><path d="M14 14h3v3h-3zM20.5 14v3M14 20.5h3M18.5 18.5h2v2h-2z"/></svg></button>`:""}<button class="icobtn" data-edit="${r.id}" title="編集"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20h4L18.5 9.5a2.1 2.1 0 0 0-3-3L5 17v3z"/><path d="M13.5 6.5l3 3"/></svg></button><button class="icobtn del" data-del="${r.id}" title="削除"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg></button></div></td></tr>`;});
   h+="</tbody></table>";wrap.innerHTML=h;
   wrap.querySelectorAll("[data-edit]").forEach(b=>b.addEventListener("click",()=>openModal(+b.dataset.edit)));
   wrap.querySelectorAll("[data-del]").forEach(b=>b.addEventListener("click",()=>delRecord(+b.dataset.del)));
   wrap.querySelectorAll("[data-qrone]").forEach(b=>b.addEventListener("click",()=>openQr([+b.dataset.qrone])));
+  wrap.querySelectorAll("[data-sel]").forEach(cb=>cb.addEventListener("change",()=>{
+    const id=+cb.dataset.sel;if(cb.checked)invSel.add(id);else invSel.delete(id);
+    cb.closest("tr").classList.toggle("sel",cb.checked);updateInvSel();
+  }));
+  const all=$("#invChkAll");
+  if(all)all.addEventListener("change",()=>{
+    wrap.querySelectorAll("[data-sel]").forEach(cb=>{cb.checked=all.checked;const id=+cb.dataset.sel;if(all.checked)invSel.add(id);else invSel.delete(id);cb.closest("tr").classList.toggle("sel",all.checked);});
+    updateInvSel();
+  });
+  updateInvSel();
 }
 async function delRecord(id){
   const r=records.find(x=>x.id===id);if(!r)return;
@@ -967,8 +1002,10 @@ async function saveModal(){
       if(wasEdit)j=await apiSend("PUT","/api/records/"+editId,rec);
       else j=await apiSend("POST","/api/records",rec);
     }catch(e){toast("保存に失敗しました: "+e.message);return;}
+    /* 新規登録した材料は、すぐQRラベルを印刷できるように「選択」に入れておく（プログラム室で登録→印刷→指示書へ） */
+    if(!wasEdit&&j&&j.id!=null)invSel.add(Number(j.id));
     try{await refresh();}catch(e){} /* 保存は済んでいる。画面更新の失敗は次のポーリングで回復 */
-    loadHistory();offerUndo(j&&j.hid,wasEdit?"在庫を更新しました":"在庫を登録しました");closeModal();
+    loadHistory();offerUndo(j&&j.hid,wasEdit?"在庫を更新しました":"在庫を登録しました（QRラベル印刷の選択に入れました）");closeModal();
     after();
     return;
   }
@@ -2078,6 +2115,7 @@ async function markPrinted(){
   if(!confirm(ids.length+" 件の在庫に「ラベル印刷済み ✔」の目印を付けますか？\n（印刷をキャンセルした場合は「キャンセル」を押してください）"))return;
   try{
     await apiSend("POST","/api/labeled",{ids});
+    ids.forEach(id=>invSel.delete(id)); /* 印刷が済んだ分は選択から外す */
     await refresh();
     toast(ids.length+" 件に印刷済みの目印を付けました");
   }catch(e){toast("目印の保存に失敗しました: "+e.message);}
@@ -2301,6 +2339,9 @@ async function init(){
   $("#coPerson").addEventListener("keydown",e=>{if(e.key==="Enter")submitCo();});
   $("#coOverlay").addEventListener("click",e=>{if(e.target===$("#coOverlay"))closeCo();});
   $("#btnQrAll").addEventListener("click",()=>openQr(records.map(r=>r.id)));
+  $("#btnQrSel").addEventListener("click",()=>{if(!invSel.size){toast("印刷する在庫にチェックを入れてください");return;}openQr([...invSel]);});
+  $("#btnSelClear").addEventListener("click",()=>{invSel.clear();renderInventory();});
+  {let tm=null;$("#invFilter").addEventListener("input",()=>{clearTimeout(tm);tm=setTimeout(()=>{invFilter=$("#invFilter").value.trim();renderInventory();},200);});}
   $("#btnQrKey").addEventListener("click",openKeyQr);
   $("#keyClose").addEventListener("click",closeKey);
   $("#btnKeyOut").addEventListener("click",keyAction);
