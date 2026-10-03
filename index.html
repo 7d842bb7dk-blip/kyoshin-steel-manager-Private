@@ -455,6 +455,32 @@
   </div>
 </div>
 
+<!-- ============================== 置き場所を選ぶ（棚の決まりが無い材料＝「武田・航に確認」になるときだけ） ============================== -->
+<div class="overlay" id="locPickOverlay">
+  <div class="modal co-modal">
+    <div class="modal-h">
+      <h3><svg class="sec-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-5.5 7-11a7 7 0 1 0-14 0c0 5.5 7 11 7 11z"/><circle cx="12" cy="10" r="2.3"/></svg><span data-i18n="置き場所を選んでください">置き場所を選んでください</span></h3>
+      <button class="x" id="locPickClose"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </div>
+    <div class="co-body">
+      <div class="co-item" id="locPickItem"></div>
+      <div class="lp-msg" data-i18n="この材料は置き場所の決まりがありません。置く棚を選んでください。">この材料は置き場所の決まりがありません。置く棚を選んでください。</div>
+      <div id="locPickSugWrap">
+        <div class="lp-h" data-i18n="同じ材料がある棚">同じ材料がある棚</div>
+        <div class="lp-grid" id="locPickSug"></div>
+      </div>
+      <div class="lp-h" data-i18n="ほかの棚から選ぶ">ほかの棚から選ぶ</div>
+      <div class="lp-other">
+        <select id="locPickSel" class="co-input"></select>
+        <button class="btn primary" id="locPickOk"><span data-i18n="この棚にする">この棚にする</span></button>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn ghost lp-skip" id="locPickSkip"><span data-i18n="わからない（武田・航に確認）">わからない（武田・航に確認）</span></button>
+    </div>
+  </div>
+</div>
+
 <!-- ============================== かざすだけQRスキャナー（HTTPS時のみ） ============================== -->
 <div class="overlay" id="scanOverlay">
   <div class="modal scan-modal">

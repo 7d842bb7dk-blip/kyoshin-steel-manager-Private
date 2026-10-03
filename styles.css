@@ -561,6 +561,17 @@ tr.wl-warn td{background:var(--accent-soft)}
 .loc-cur{font-size:12.5px;color:var(--ink-faint);margin-top:9px;min-height:1em}
 .loc-btns{display:flex;justify-content:center;gap:10px;margin-top:16px;flex-wrap:wrap}
 .loc-ok{min-width:160px;justify-content:center;font-size:16px;padding:12px 20px}
+/* 置き場所を選ぶ（棚の決まりが無い材料のときだけ） */
+.lp-msg{font-size:13px;color:var(--ink-soft);line-height:1.7;margin:12px 0 2px}
+.lp-h{font-size:12px;font-weight:800;color:var(--ink-soft);margin:14px 0 7px}
+.lp-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.lp-btn{font-family:var(--mono);font-size:20px;font-weight:800;padding:13px 6px;border-radius:12px;border:2px solid var(--accent);
+  background:#fff;color:var(--accent-d);cursor:pointer}
+.lp-btn:hover{background:var(--accent-soft)}
+.lp-other{display:flex;gap:8px;align-items:center}
+.lp-other select{flex:1;min-width:0}
+.lp-other .btn{flex:0 0 auto}
+.lp-skip{margin-right:auto}
 
 /* ─── かざすだけQRスキャナー ─── */
 .scan-modal{width:480px;max-width:96vw}

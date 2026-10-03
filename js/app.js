@@ -699,6 +699,10 @@ const I18N_VI={
   "在庫の状態が記録と合わないため戻せません（在庫管理から手で直してください）":"Không thể hoàn tác vì tồn kho đã thay đổi",
   "記録から時間がたったため、ここからは戻せません。管理者に連絡してください":"Đã quá thời gian để hoàn tác. Hãy liên hệ quản lý",
   "この材料は置き場所の決まりがありません。武田・航に確認してください":"Vật liệu này chưa có quy định vị trí cất. Hãy hỏi Takeda hoặc Wataru (武田・航)",
+  "置き場所を選んでください":"Hãy chọn vị trí cất",
+  "この材料は置き場所の決まりがありません。置く棚を選んでください。":"Vật liệu này chưa có quy định vị trí cất. Hãy chọn kệ để cất.",
+  "同じ材料がある棚":"Kệ có cùng loại vật liệu","ほかの棚から選ぶ":"Chọn kệ khác","この棚にする":"Chọn kệ này",
+  "わからない（武田・航に確認）":"Không biết (hỏi Takeda / Wataru)","棚を選ぶ":"Chọn kệ","棚を選んでください":"Hãy chọn kệ",
   "この在庫は見つかりません（すでに使い切った可能性があります）":"Không tìm thấy tồn kho này (có thể đã dùng hết)",
   "使う材料の「持ち出す」ボタンを押してください。空欄はすべて対象です。":"Nhấn nút 「Lấy ra」 của vật liệu cần dùng. Để trống = tất cả.",
   "持ち出す":"Lấy ra","条件に一致する在庫がありません":"Không có tồn kho phù hợp",
@@ -948,7 +952,9 @@ async function saveModal(){
    * 棚の決まりが無い材料（SS400等）は、新規なら空欄で登録して「武田・航に確認」を表示、編集なら今の場所のまま */
   const wasEdit=!!editId;
   const curLoc=r.loc;
-  const sug=suggestLoc({...rec,loc:curLoc});
+  let sug=suggestLoc({...rec,loc:curLoc});
+  /* 新規で棚の決まりが無い材料だけ、棚の候補から選んでもらう（わからなければ空欄。×なら保存しない） */
+  if(!wasEdit&&!sug){const v=await pickLoc(rec);if(v===null)return;sug=v||null;}
   const newLoc=sug&&(!wasEdit||sug!==curLoc)?sug:null;
   if(newLoc)rec.loc=newLoc;
   const after=()=>{
@@ -1411,6 +1417,45 @@ function showLocGuide(to,prevLoc){
 }
 function closeLocGuide(){$("#locOverlay").classList.remove("show");}
 
+/* ── 置き場所を選ぶ（棚の決まりが無い材料＝今まで「武田・航に確認」になっていたときだけ・2026-10-03） ──
+ * 同じ材料（材質・鋼種）が置いてある棚を「おすすめ」としてボタンで出し、ほかの棚は一覧から選べる。
+ * 「わからない」なら今までどおり空欄で登録して「武田・航に確認」を出す。×（戻る）なら登録しない。
+ * 選んだ棚／""（わからない）／null（戻る）を Promise で返す */
+function locCodeSort(a,b){
+  const m=s=>/^([A-Z]+)-(\d+)$/.exec(s),x=m(a),y=m(b);
+  if(x&&y)return x[1]===y[1]?(+x[2])-(+y[2]):x[1].localeCompare(y[1]);
+  if(x)return -1;if(y)return 1;return a.localeCompare(b,"ja");
+}
+function locPickOptions(rec){
+  /* おすすめ：同じ材質・鋼種の在庫がある棚（同じ規格がある棚を先に、次に件数の多い順。最大6） */
+  const sp=sizeKey(rec.spec),score={};
+  records.forEach(r=>{
+    if(!r.loc||r.mat!==rec.mat||r.koshu!==rec.koshu)return;
+    const s=score[r.loc]||(score[r.loc]={n:0,same:0});s.n++;if(sizeKey(r.spec)===sp)s.same++;
+  });
+  const sug=Object.keys(score).sort((a,b)=>score[b].same-score[a].same||score[b].n-score[a].n||locCodeSort(a,b)).slice(0,6);
+  /* ほかの棚：棚割りの棚と、在庫に使われている場所の全部 */
+  const all=[...new Set([...LOC_GUIDE.map(g=>g.loc),...records.map(r=>r.loc).filter(Boolean)])].sort(locCodeSort);
+  return {sug,all};
+}
+let locPickResolve=null;
+function pickLoc(rec){
+  return new Promise(resolve=>{
+    locPickResolve=resolve;
+    const {sug,all}=locPickOptions(rec);
+    $("#locPickItem").innerHTML=`<span class="co-ic sm">${shapeSVG(rec.koshu)}</span><span class="pill mat ${matCls(rec.mat)}">${IC.mat}${escH(rec.mat)}</span><b>${escH(rec.koshu)}</b><span class="co-spec">${escH(rec.spec)} × t${escH(rec.thk)}</span><span class="co-len">${t("長さ")} ${Number(rec.len).toLocaleString()} mm</span>`;
+    $("#locPickSugWrap").style.display=sug.length?"":"none";
+    $("#locPickSug").innerHTML=sug.map(l=>`<button type="button" class="lp-btn" data-loc="${escH(l)}">${escH(l)}</button>`).join("");
+    $("#locPickSug").querySelectorAll("[data-loc]").forEach(b=>{b.onclick=()=>donePickLoc(b.dataset.loc);});
+    fillSelect($("#locPickSel"),all,t("棚を選ぶ"));
+    $("#locPickOverlay").classList.add("show");
+  });
+}
+function donePickLoc(v){
+  $("#locPickOverlay").classList.remove("show");
+  const r=locPickResolve;locPickResolve=null;if(r)r(v);
+}
+
 /* ===================== 履歴の共通部品（作業ログで使用） ===================== */
 const HTYPE={checkout:["持ち出し","h-out"],add:["登録","h-in"],edit:["編集","h-edit"],delete:["削除","h-del"],bulk:["CSV取込","h-in"],keyout:["鍵 持出","h-out"],keyin:["鍵 返却","h-in"],undo:["取り消し","h-edit"]};
 function fmtTs(t){const d=new Date(t);const p=n=>String(n).padStart(2,"0");return d.getFullYear()+"/"+p(d.getMonth()+1)+"/"+p(d.getDate())+" "+p(d.getHours())+":"+p(d.getMinutes());}
@@ -1642,8 +1687,10 @@ async function submitNs(){
   if(!(Number(rec.len)>0)){toast(t("残りの長さを入力してください"));$("#ns_len").focus();return;}
   if(!person){toast(t("名前を入力してください"));$("#nsPersonSel").focus();return;}
   try{localStorage.setItem(PERSON_KEY,person);}catch(e){}
-  /* 置き場所は選ばせず、棚割りから自動で決める（決まりが無い材料は空欄＝武田・航が後で設定） */
-  const newLoc=suggestLoc({mat:rec.mat,koshu:rec.koshu,fin:rec.fin,spec:rec.spec,len:Number(rec.len),loc:""});
+  /* 置き場所は棚割りから自動で決める。決まりが無い材料だけ、棚の候補から選んでもらう
+   * （わからなければ空欄＝武田・航が後で設定。×なら登録しないで入力に戻る） */
+  let newLoc=suggestLoc({mat:rec.mat,koshu:rec.koshu,fin:rec.fin,spec:rec.spec,len:Number(rec.len),loc:""});
+  if(!newLoc){const v=await pickLoc(rec);if(v===null)return;newLoc=v||null;}
   if(newLoc)rec.loc=newLoc;
   const done=hid=>{
     offerUndo(hid,t("残材を登録しました"));closeNs();
@@ -2301,6 +2348,9 @@ async function init(){
   $("#scanFile").addEventListener("change",onScanPhoto);
   $("#scanClose").addEventListener("click",closeScanner);
   $("#locClose").addEventListener("click",closeLocGuide);
+  $("#locPickClose").addEventListener("click",()=>donePickLoc(null));
+  $("#locPickSkip").addEventListener("click",()=>donePickLoc(""));
+  $("#locPickOk").addEventListener("click",()=>{const v=$("#locPickSel").value;if(!v){toast(t("棚を選んでください"));$("#locPickSel").focus();return;}donePickLoc(v);});
   $("#undoBtn").addEventListener("click",undoFromBar);
   $("#locOverlay").addEventListener("click",e=>{if(e.target===$("#locOverlay"))closeLocGuide();});
   $("#scanTorch").addEventListener("click",toggleTorch);
@@ -2331,6 +2381,7 @@ async function init(){
   }
   document.addEventListener("keydown",e=>{
     if(e.key==="Escape"&&$("#confirmOverlay").classList.contains("show")){$("#confirmNo").click();return;} /* 確認中は確認だけ閉じる */
+    if(e.key==="Escape"&&$("#locPickOverlay").classList.contains("show")){donePickLoc(null);return;} /* 置き場所選びは、選び画面だけ閉じて入力に戻る */
     if(e.key==="Escape"){closeModal();closePin();closeHelp();closeCo();closeQr();closeKey();closeNs();closeScanner();closeLocGuide();closeWlEdit();closeRsv();}
     else if(e.key==="?"||e.key==="F1"){const t=(document.activeElement||{}).tagName;if(t!=="INPUT"&&t!=="SELECT"&&t!=="TEXTAREA"){e.preventDefault();openHelp();}}
   });
