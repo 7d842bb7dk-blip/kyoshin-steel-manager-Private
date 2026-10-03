@@ -405,6 +405,11 @@ main.content{flex:1;overflow:auto;padding:20px 22px 48px;background:var(--bg)}
 #rsvList{padding:14px 18px 18px}
 .rsv-tbl .pill.mat{margin-right:5px}
 #coToRsv svg{width:15px;height:15px}
+/* スマホ幅では「予約する」を下の段に回して、「持ち出しを記録」がはみ出さないようにする */
+.co-modal .modal-foot{flex-wrap:wrap}
+@media (max-width:480px){
+  #coToRsv{order:3;width:100%;justify-content:center;padding:9px 12px}
+}
 
 .co-modal{width:480px;max-width:calc(100% - 32px)}
 .co-body{padding:18px 20px 8px}

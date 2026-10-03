@@ -40,9 +40,31 @@
   .qrbox .u{font-family:Consolas,monospace;font-size:11pt;font-weight:700}
   .qrbox .d{font-size:8.5pt;color:var(--soft);margin-top:0.5mm}
 
-  /* 表紙の3部カード */
-  .toc{display:flex;flex-direction:column;gap:4mm;margin:4mm 0 5mm}
-  .toc-card{display:flex;align-items:center;gap:6mm;border:0.6mm solid var(--line);border-radius:5mm;padding:4mm 7mm;background:#fff}
+  /* 表紙の目次カード */
+  .toc{display:grid;grid-template-columns:1fr 1fr;gap:2.5mm;margin:3mm 0 4mm}
+  .toc-card{display:flex;align-items:center;gap:3.5mm;border:0.6mm solid var(--line);border-radius:4mm;padding:2.6mm 4mm;background:#fff;min-width:0}
+  .toc .toc-card:last-child{grid-column:1/-1}
+  .toc .toc-no{width:10mm;height:10mm;font-size:11pt}
+  .toc .toc-t{font-size:11.5pt}
+  .toc .toc-s{font-size:8.3pt;line-height:1.5}
+  .toc .toc-pg{font-size:9pt}
+  .toc .toc-thumb{width:11mm}
+  .toc-card.adm{background:#f7f8fa}
+  .toc-card.adm .toc-no{background:var(--ink)}
+  /* 流れ図（⑤） */
+  .flow{display:flex;gap:2.5mm;align-items:stretch;margin:2mm 0 4mm}
+  .flow-s{flex:1;min-width:0;border:0.6mm solid var(--line);border-radius:4mm;padding:3mm 3.2mm;background:#fff;position:relative}
+  .flow-s.field{background:#fff6f6;border-color:#f2b8bb}
+  .flow-s .w{font-size:8pt;font-weight:800;color:#fff;background:var(--ink);border-radius:999px;padding:0.4mm 2.6mm;display:inline-block;margin-bottom:1.6mm}
+  .flow-s.field .w{background:var(--red)}
+  .flow-s .h{font-size:10.5pt;font-weight:800;line-height:1.35;margin-bottom:1.4mm}
+  .flow-s .b{font-size:8.6pt;line-height:1.6;color:#333}
+  .flow-s .b b{color:var(--redD)}
+  .flow-a{flex:0 0 auto;align-self:center;color:var(--red);font-size:15pt;font-weight:800}
+  .admtag{display:inline-block;font-size:8pt;font-weight:800;color:#fff;background:var(--ink);border-radius:999px;padding:0.5mm 3mm;margin-left:3mm;vertical-align:2px}
+  .shotbox{border:0.6mm solid var(--line);border-radius:3mm;overflow:hidden;background:#fff}
+  .shotbox img{display:block;width:100%}
+  .cap{font-size:8.5pt;color:var(--soft);margin-top:1.5mm;line-height:1.5}
   .toc-no{width:13mm;height:13mm;border-radius:50%;background:var(--red);color:#fff;font-size:13pt;font-weight:800;display:flex;align-items:center;justify-content:center;flex:0 0 auto}
   .toc-body{flex:1}
   .toc-t{font-size:14pt;font-weight:800}
@@ -68,7 +90,7 @@
     <div style="font-size:8.5pt;color:var(--soft);flex:1;text-align:right;line-height:1.5">PC・スマホ共通<br>社内Wi-Fiのみ</div>
   </div>
 
-  <div style="font-size:12pt;font-weight:800">このマニュアルは、やりたいこと別の3部構成です</div>
+  <div style="font-size:12pt;font-weight:800">このマニュアルは、やりたいこと別になっています</div>
 
   <div class="toc">
     <div class="toc-card">
@@ -98,6 +120,24 @@
       </div>
       <div class="toc-pg">→ 5ページ</div>
     </div>
+    <div class="toc-card">
+      <div class="toc-no">4</div>
+      <div class="toc-thumb"><img src="shots/shot-rsv.png" alt=""></div>
+      <div class="toc-body">
+        <div class="toc-t">材料を予約する</div>
+        <div class="toc-s">使う材料がかぶらないように、<b>誰が・いつ・どの案件で</b>使うかを予約する／<span class="vi" style="white-space:nowrap">Đặt trước vật liệu</span></div>
+      </div>
+      <div class="toc-pg">→ 6ページ</div>
+    </div>
+    <div class="toc-card adm">
+      <div class="toc-no">5</div>
+      <div class="toc-thumb"><img src="shots/shot-co.png" alt=""></div>
+      <div class="toc-body">
+        <div class="toc-t">定尺から残材まで（プログラム室 → 指示書 → 現場）</div>
+        <div class="toc-s">プログラム室で登録してQRラベルを印刷 → 指示書で回す → 加工後に長さだけ更新。管理者向け（作業ログの修正）もここ</div>
+      </div>
+      <div class="toc-pg">→ 7〜8ページ</div>
+    </div>
   </div>
 
   <div style="display:flex;gap:6mm;align-items:flex-start">
@@ -120,7 +160,7 @@
     </div>
   </div>
 
-  <div class="foot"><span>鋼材在庫システム 使い方マニュアル</span><span>2026-09-24 ／ 1</span></div>
+  <div class="foot"><span>鋼材在庫システム 使い方マニュアル</span><span>2026-10-03 ／ 1</span></div>
 </div>
 
 <!-- ============ ① 在庫があるか確認する ============ -->
@@ -139,16 +179,16 @@
     </div>
     <div style="flex:1;min-width:0">
       <div class="pt"><div class="n">1</div><div><b>アプリを開く</b>（スマホは最初からこの画面）。ここが在庫の一覧です</div></div>
-      <div class="pt"><div class="n">2</div><div><b>材質・鋼種で絞り込む</b>。<b>「材料規格」</b>（一部だけでもOK 例：50）と<b>「板厚」</b>は別々に指定できます。板厚は、その材料に在庫がある厚さだけが出ます</div></div>
+      <div class="pt"><div class="n">2</div><div><b>材質・鋼種で絞り込む</b>。<b>「材料規格」</b>と<b>「板厚」</b>は一覧から選びます（別々に指定できます）。一覧には、<b>在庫にあるものだけ</b>が出ます</div></div>
       <div class="zbox" style="margin:2mm 0 4mm">
         <div class="zttl">【拡大】絞り込み欄（空欄はすべて対象）</div>
-        <img data-crop="shots/shot-checkout.png 20 780 710 420" src="shots/crop/shot-checkout_20_780_710_420.png" class="crop" alt="">
+        <img data-crop="shots/shot-checkout.png 20 770 710 445" src="shots/crop/shot-checkout_20_770_710_445.png" class="crop" alt="">
       </div>
       <div class="pt"><div class="n">3</div><div><b>カードを見る</b>。1枚 ＝ 材料1本。<b>長さ・置き場所（棚番号）・仕上げ</b>が分かります</div></div>
       <div class="zbox" style="margin:2mm 0 4mm">
         <div class="zttl">【拡大】在庫カードの見方</div>
-        <img data-crop="shots/shot-checkout.png 20 1240 710 285" src="shots/crop/shot-checkout_20_1240_710_285.png" class="crop" alt="">
-        <div style="font-size:9pt;color:var(--soft);margin-top:2mm">この材料は「SUS304の角パイプ 50*50・板厚t2、残り3,000mm、置き場所B-2」という意味です</div>
+        <img data-crop="shots/shot-checkout.png 20 1241 710 284" src="shots/crop/shot-checkout_20_1241_710_284.png" class="crop" alt="">
+        <div style="font-size:9pt;color:var(--soft);margin-top:2mm">この材料は「SUS304の角パイプ 50×50・板厚t2、長さ2,140mm、置き場所E-10、仕上げ未研」という意味です。左の<b>「予約」</b>は6ページ</div>
       </div>
       <div class="gnote"><b>PCも同じアドレスでOK。</b>「在庫検索」タブなら、もっと細かい絞り込みと合計重量・合計金額の集計ができます。</div>
     </div>
@@ -213,7 +253,7 @@
   <div style="display:flex;gap:7mm;align-items:flex-start">
     <div style="flex:1.15;min-width:0">
       <div class="pt"><div class="n">1</div><div><b>材料のQRにかざす</b>：赤い「QRを読み取る」を押すとカメラが起動。<b>ラベルを枠に入れるだけで自動で読み取り</b>、その材料の画面が開きます（シャッター不要）</div></div>
-      <div class="zbox" style="margin:2mm auto 3.5mm;width:62mm">
+      <div class="zbox" style="margin:2mm auto 3.5mm;width:48mm">
         <div class="zttl">【拡大】枠に入れるだけ</div>
         <img data-crop="shots/shot-scan.png 105 545 540 600" src="shots/crop/shot-scan_105_545_540_600.png" class="crop" alt="">
       </div>
@@ -221,10 +261,11 @@
       <div class="pt"><div class="n">3</div><div><b>残った長さを測って入力</b>：使用量は自動計算。<b>「持ち出しを記録」</b>で完了！</div></div>
       <div class="zbox" style="margin:2mm 0 3.5mm">
         <div class="zttl">【拡大】残りの長さ（mm）— 例：残り1.5mなら「1500」</div>
-        <img data-crop="shots/shot-co.png 95 755 565 255" src="shots/crop/shot-co_95_755_565_255.png" class="crop" alt="">
+        <img data-crop="shots/shot-co.png 95 688 560 286" src="shots/crop/shot-co_95_688_560_286.png" class="crop" alt="">
       </div>
       <div class="note"><b>入力するのは「使った長さ」ではなく「残った長さ」です。</b>登録しないと在庫と実物がズレて、次に使う人が困ります。使ったその場で必ず登録を（1回10秒）。</div>
       <div class="gnote" style="margin-top:3mm"><b>押し間違えたら：</b>記録の直後に画面の下に出る<b>「元に戻す」</b>を押す（15秒間）。気づくのが遅れたら武田・航へ（作業ログから戻せます）。「全部持ち出す」は確認が1回出ます。</div>
+      <div class="note" style="margin-top:3mm"><b>「この材料は予約があります」と出たら：</b>ほかの人が使う予定の材料です（6ページ）。予約した人に一声かけてから使ってください（持ち出し自体はできます）。</div>
     </div>
     <div class="phoneframe" style="width:56mm">
       <img src="shots/shot-co.png" alt="持ち出し登録画面">
@@ -253,19 +294,143 @@
       <div class="pt"><div class="n">1</div><div>持ち出し画面の<b>「＋ 残材を登録」</b>を押す</div></div>
       <div class="zbox" style="margin:2mm 0 4mm">
         <div class="zttl">【拡大】このボタン</div>
-        <img data-crop="shots/shot-checkout.png 15 479 720 178" src="shots/crop/shot-checkout_15_479_720_178.png" class="crop" alt="">
+        <img data-crop="shots/shot-checkout.png 12 454 726 194" src="shots/crop/shot-checkout_12_454_726_194.png" class="crop" alt="">
       </div>
-      <div class="pt"><div class="n">2</div><div><b>材料の情報を選ぶ</b>：材質 → 鋼種 → 板厚 → 材料規格（例：50*50）。選んだ材料に<b>実在する板厚・規格・仕上げだけ</b>が出ます。サニタリーパイプは規格を入れると<b>板厚が自動で入ります</b></div></div>
+      <div class="pt"><div class="n">2</div><div><b>材料の情報を選ぶ</b>：材質 → 鋼種 → 板厚 → 材料規格（例：50×50）。選んだ材料に<b>実在する板厚・規格・仕上げだけ</b>が出ます。サニタリーパイプは規格を入れると<b>板厚が自動で入ります</b></div></div>
       <div class="pt"><div class="n">3</div><div><b>残りの長さ(mm)</b>を測って入力</div></div>
       <div class="pt"><div class="n">4</div><div>名前を確認して<b>「登録する」</b>。<b>どこに直すか（例：C-2）が大きく出る</b>ので、その棚に置いて完了</div></div>
-      <div class="gnote" style="margin-top:2mm"><b>置き場所は選ばなくてOK。</b>登録すると自動で決まって表示されます。置き場所の決まりが無い材料（SS400など）は「<b>武田・航に確認してください</b>」と出ます。</div>
+      <div class="gnote" style="margin-top:2mm"><b>置き場所はふつう選ばなくてOK。</b>登録すると自動で決まって表示されます。</div>
     </div>
   </div>
 
-  <div style="font-size:11.5pt;font-weight:800;margin:4mm 0 2.5mm;border-left:1.2mm solid var(--red);padding-left:3mm">こまったときは（Q&amp;A）</div>
+  <div style="font-size:11.5pt;font-weight:800;margin:5mm 0 2.5mm;border-left:1.2mm solid var(--red);padding-left:3mm">置き場所の決まりが無い材料のときだけ 〜 棚を選ぶ</div>
+  <div style="display:flex;gap:7mm;align-items:flex-start">
+    <div class="zbox" style="width:62mm;flex:0 0 auto">
+      <div class="zttl">【拡大】置き場所を選ぶ画面</div>
+      <img data-crop="shots/shot-locpick.png 72 315 606 900" src="shots/crop/shot-locpick_72_315_606_900.png" class="crop" alt="">
+    </div>
+    <div style="flex:1;min-width:0">
+      <div style="font-size:10pt;line-height:1.7;margin-bottom:3mm">SS400 など、棚の決まりが無い材料を登録すると<b>「置き場所を選んでください」</b>が出ます。</div>
+      <div class="pt"><div class="n">1</div><div><b>「同じ材料がある棚」</b>のボタンを押す。同じ材料（材質・鋼種）がもう置いてある棚が、大きいボタンで出ます（同じ規格がある棚が先）</div></div>
+      <div class="pt"><div class="n">2</div><div>ほかの棚に置くときは、<b>「ほかの棚から選ぶ」</b>の一覧で棚を選んで<b>「この棚にする」</b></div></div>
+      <div class="pt"><div class="n">3</div><div>どこに置けばいいか分からないときは、<b>「わからない（武田・航に確認）」</b>。置き場所は空欄のまま登録されるので、武田・航に聞いてください</div></div>
+      <div class="note" style="margin-top:3mm">右上の <b>×</b> を押すと、登録はされずに入力画面に戻ります。選んだ棚は登録に入り、いつもの「〇〇になおしてください」が出ます。</div>
+    </div>
+  </div>
+
+  <div class="foot"><span>③ 新しい在庫を登録する</span><span>5</span></div>
+</div>
+
+<!-- ============ ④ 材料を予約する ============ -->
+<div class="page">
+  <div class="step-h">
+    <div class="step-no">4</div>
+    <div>
+      <div class="step-t">材料を予約する 〜 誰が・いつ・どの案件で使うか</div>
+      <div class="step-vi">Phần 4: Đặt trước vật liệu — ai, khi nào, cho công trình nào</div>
+    </div>
+  </div>
+
+  <div style="font-size:10.5pt;line-height:1.7;margin-bottom:3mm">使う材料がほかの人とかぶらないように、<b>使う予定の材料に「予約」</b>を入れておけます。入れるのは<b>名前・予約日・案件名の3つだけ</b>です。</div>
+
+  <div style="display:flex;gap:6mm;align-items:flex-start">
+    <div class="phoneframe" style="width:44mm">
+      <img src="shots/shot-rsv.png" alt="この材料を予約 画面">
+    </div>
+    <div style="flex:1;min-width:0">
+      <div class="pt"><div class="n">1</div><div>使う材料の<b>「予約」</b>ボタンを押す（スマホは持ち出し画面のカード、PCは「在庫検索」の表）</div></div>
+      <div class="pt"><div class="n">2</div><div><b>名前・予約日・案件名</b>を入れて<b>「予約する」</b>（案件名は前に入れたものが候補に出ます）</div></div>
+      <div class="pt"><div class="n">3</div><div>予約した材料には<b>黄色い「予約」の印</b>（予約日・名前・案件名）が付きます</div></div>
+      <div class="zbox" style="margin:2mm 0 0">
+        <div class="zttl">【拡大】予約が入っている材料</div>
+        <img data-crop="shots/shot-rsvcard.png 12 883 726 361" src="shots/crop/shot-rsvcard_12_883_726_361.png" class="crop" alt="">
+      </div>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:6mm;align-items:flex-start;margin-top:4mm">
+    <div style="flex:1;min-width:0">
+      <div class="pt"><div class="n">4</div><div>ほかの人がその材料を持ち出そうとすると、<b>「この材料は予約があります」</b>と出ます。持ち出し自体は止まりません。<b>予約した人に一声かけてください</b></div></div>
+      <div class="gnote" style="margin-top:2mm"><b>予約は自動で消えます。</b>予約した本人がその材料を持ち出したとき（使ったとき）と、予約日を過ぎたとき。取り消すときは、材料の「予約」ボタン（入っている予約の横の<b>「取り消す」</b>）か、PCの「予約」メニューから。</div>
+    </div>
+    <div class="zbox" style="width:62mm;flex:0 0 auto">
+      <div class="zttl">【拡大】持ち出すときの表示</div>
+      <img data-crop="shots/shot-co-rsv.png 104 285 542 392" src="shots/crop/shot-co-rsv_104_285_542_392.png" class="crop" alt="">
+    </div>
+  </div>
+
+  <div style="font-size:11.5pt;font-weight:800;margin:4mm 0 2.5mm;border-left:1.2mm solid var(--red);padding-left:3mm">予約の一覧（PCのメニュー「予約」）</div>
+  <div style="display:flex;gap:5mm;align-items:flex-start">
+    <div class="shotbox" style="width:128mm;flex:0 0 auto"><img data-crop="shots/shot-rsvlist.png 33 341 1854 712" src="shots/crop/shot-rsvlist_33_341_1854_712.png" class="crop" alt=""></div>
+    <div class="cap" style="flex:1;margin-top:0;font-size:9pt">誰が・いつ・どの案件で・どの材料を使う予定かが、<b>予約日の早い順</b>に出ます。ここから「取り消す」もできます。メニューの「予約」の横の数字は、いま入っている予約の数です。<br><br>スマホは持ち出し画面だけのかんたん表示なので、一覧はPCで見てください。</div>
+  </div>
+
+  <div class="foot"><span>④ 材料を予約する</span><span>6</span></div>
+</div>
+
+<!-- ============ ⑤ 定尺から残材まで（プログラム室 → 指示書 → 現場） ============ -->
+<div class="page">
+  <div class="step-h">
+    <div class="step-no">5</div>
+    <div>
+      <div class="step-t">定尺から残材まで 〜 プログラム室 → 指示書 → 現場</div>
+      <div class="step-vi">Phần 5: Từ thanh nguyên đến phần thừa — phòng lập trình → phiếu chỉ thị → xưởng</div>
+    </div>
+  </div>
+
+  <div style="font-size:10pt;line-height:1.7;margin-bottom:2mm">QRラベル（シール）とプリンターは<b>プログラム室だけ</b>に置きます。ラベルには長さを印刷していないので、定尺のときに貼るラベルが、切ったあとの残材にもそのまま使えます。</div>
+
+  <div class="flow">
+    <div class="flow-s"><span class="w">プログラム室</span><div class="h">① 新規登録</div><div class="b">プログラムを作るときに、使う定尺を<b>在庫管理 →「新規登録」</b>（管理者モード）。登録した材料には<b>自動でチェック</b>が入る</div></div>
+    <div class="flow-a">→</div>
+    <div class="flow-s"><span class="w">プログラム室</span><div class="h">② QRラベル印刷</div><div class="b"><b>「選んだものをQRラベル印刷」</b>。印刷先は「QL-800 62mm長尺テープ（長さ24mm）」、印刷画面の用紙サイズは<b>「62mm」</b></div></div>
+    <div class="flow-a">→</div>
+    <div class="flow-s"><span class="w">プログラム室</span><div class="h">③ 指示書に付けて回す</div><div class="b">ラベルは<b>台紙からはがさずに</b>テープやクリップで指示書に留める（あとで鋼材にきれいに貼れる）</div></div>
+    <div class="flow-a">→</div>
+    <div class="flow-s field"><span class="w">現場</span><div class="h">④ 長さだけ更新して片付け</div><div class="b">レーザー加工後、指示書のQRを読む →<b>「一部使った（残りを登録）」</b>→ 測った残りの長さ → 置き場所が出る → <b>ラベルを鋼材に貼って</b>その棚へ。残りが出なければ「全部持ち出す」</div></div>
+  </div>
+
+  <div style="font-size:11.5pt;font-weight:800;margin:3mm 0 2.5mm;border-left:1.2mm solid var(--red);padding-left:3mm">選んだ材料だけQRラベルを印刷する<span class="admtag">管理者・PC</span></div>
+  <div class="shotbox"><img data-crop="shots/shot-inv.png 33 341 1854 650" src="shots/crop/shot-inv_33_341_1854_650.png" class="crop" alt=""></div>
+  <div style="display:flex;gap:6mm;margin-top:3mm">
+    <div style="flex:1;min-width:0">
+      <div class="pt"><div class="n">1</div><div>管理者モードで<b>「在庫管理」</b>を開き、印刷したい材料の左の<b>チェック</b>を入れる（新規登録した材料は最初から入っています）</div></div>
+      <div class="pt"><div class="n">2</div><div>多いときは上の<b>絞り込み欄</b>で探す（No.・材質・規格・置き場所など。例「sus304 角パイプ 50×50」）。見出しのチェックで、表に出ている分をまとめて選べます</div></div>
+    </div>
+    <div style="flex:1;min-width:0">
+      <div class="pt"><div class="n">3</div><div><b>「選んだものをQRラベル印刷」</b>→ 印刷先を選んで「印刷」。初めての印刷先のときは、印刷画面で選ぶ用紙サイズの確認が出ます</div></div>
+      <div class="pt"><div class="n">4</div><div>印刷後の「印刷済みの目印を付けますか？」で <b>OK</b>。QR欄が「✔済」になり、チェックは外れます</div></div>
+    </div>
+  </div>
+  <div class="note" style="margin-top:2mm">「QRラベル」ボタン（全部）・各行のQRボタン（1件）・「未印刷のみ」も、これまでどおり使えます。ラベルプリンター（QL-800）の設定は <b>docs/ラベルプリンター設定手順（QL-800）.txt</b> を見てください。</div>
+
+  <div class="foot"><span>⑤ 定尺から残材まで（プログラム室 → 指示書 → 現場）</span><span>7</span></div>
+</div>
+
+<!-- ============ 管理者向け：作業ログの修正・削除 ／ Q&A ============ -->
+<div class="page">
+  <div class="step-h">
+    <div class="step-no" style="background:var(--ink)">管</div>
+    <div>
+      <div class="step-t">管理者向け 〜 作業ログの修正・削除 ／ こまったときは</div>
+      <div class="step-vi">Dành cho quản lý: sửa / xóa nhật ký công việc ・ Hỏi đáp</div>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:6mm;align-items:flex-start">
+    <div class="shotbox" style="width:88mm;flex:0 0 auto"><img data-crop="shots/shot-wledit.png 540 243 840 654" src="shots/crop/shot-wledit_540_243_840_654.png" class="crop" alt=""></div>
+    <div style="flex:1;min-width:0">
+      <div style="font-size:10pt;line-height:1.7;margin-bottom:2.5mm">管理者モードの<b>「作業ログ」</b>で、各記録（鍵の持出も）の横の<b>「修正」</b>を押すと、この画面が出ます。</div>
+      <div class="pt"><div class="n">1</div><div><b>修正</b>：名前・日時・メモ。持ち出しは「残りの長さ」、登録は「登録した長さ」も直せて、<b>在庫の長さも同じに直ります</b>（直す前に確認が出ます）</div></div>
+      <div class="pt"><div class="n">2</div><div><b>削除</b>：「この記録を削除」で作業ログから消す。<b>在庫は変わりません</b>（在庫も戻すときは「元に戻す」）。消した直後は画面の下の「元に戻す」で戻せます</div></div>
+      <div class="note" style="margin-top:2mm">その材料に<b>あとの記録がある</b>ときは、長さは直せません（名前・日時・メモは直せます）。直した記録には「修正済み」の印が付きます。</div>
+    </div>
+  </div>
+
+  <div style="font-size:11.5pt;font-weight:800;margin:5mm 0 2.5mm;border-left:1.2mm solid var(--red);padding-left:3mm">こまったときは（Q&amp;A）</div>
   <table style="width:100%;border-collapse:collapse;font-size:9pt;line-height:1.55">
     <tr>
-      <td style="border:1px solid var(--line);background:var(--bg);padding:2mm 3mm;width:38%;font-weight:700">ページが開かない・「保護されていません」と出る</td>
+      <td style="border:1px solid var(--line);background:var(--bg);padding:2mm 3mm;width:36%;font-weight:700">ページが開かない・「保護されていません」と出る</td>
       <td style="border:1px solid var(--line);padding:2mm 3mm">スマホが<b>社内Wi-Fi</b>につながっているか確認。アドレスが <b style="font-family:Consolas,monospace">https://kouzaizaiko.wataru419.com/</b> になっているか確認（表紙のQRやホーム画面から開けば自動でこうなります）。</td>
     </tr>
     <tr>
@@ -277,6 +442,18 @@
       <td style="border:1px solid var(--line);padding:2mm 3mm">その材料は使い切り済みとして記録されています。ラベルを剥がして捨て、事務所に一声かけてください。</td>
     </tr>
     <tr>
+      <td style="border:1px solid var(--line);background:var(--bg);padding:2mm 3mm;font-weight:700">「この材料は予約があります」と出る</td>
+      <td style="border:1px solid var(--line);padding:2mm 3mm">ほかの人が使う予定の材料です。予約した人に一声かけてから使ってください。急ぎのときは持ち出せます（止まりません）。</td>
+    </tr>
+    <tr>
+      <td style="border:1px solid var(--line);background:var(--bg);padding:2mm 3mm;font-weight:700">「置き場所を選んでください」と出た</td>
+      <td style="border:1px solid var(--line);padding:2mm 3mm">棚の決まりが無い材料です。「同じ材料がある棚」から選ぶか、一覧から選ぶ。分からなければ「わからない（武田・航に確認）」（5ページ）。</td>
+    </tr>
+    <tr>
+      <td style="border:1px solid var(--line);background:var(--bg);padding:2mm 3mm;font-weight:700">ラベル印刷で「用紙を送ることができませんでした」</td>
+      <td style="border:1px solid var(--line);padding:2mm 3mm">印刷画面の「その他の設定」→ 用紙サイズを<b>「62mm」</b>にする（前の用紙サイズが残っていると出ます）。ロールのカバーを開け閉めしてから、もう一度印刷。</td>
+    </tr>
+    <tr>
       <td style="border:1px solid var(--line);background:var(--bg);padding:2mm 3mm;font-weight:700">名前の選択肢に自分がいない</td>
       <td style="border:1px solid var(--line);padding:2mm 3mm">「（名前を直接入力）」を選んで入力し、管理者（辻本）まで連絡してください。</td>
     </tr>
@@ -286,7 +463,7 @@
     </tr>
   </table>
 
-  <div class="foot"><span>③ 新しい在庫を登録する ・ Q&amp;A</span><span>5</span></div>
+  <div class="foot"><span>管理者向け（作業ログの修正・削除） ・ Q&amp;A</span><span>8</span></div>
 </div>
 
 </body>
