@@ -1,0 +1,15 @@
+{
+  "name": "鋼材管理システム",
+  "short_name": "鋼材在庫",
+  "description": "Kyo-shin 鋼材の在庫検索・持ち出し・残材登録",
+  "lang": "ja",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#df1f26",
+  "icons": [
+    { "src": "/assets/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/assets/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}
