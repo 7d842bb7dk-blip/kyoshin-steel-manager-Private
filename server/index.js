@@ -23,6 +23,60 @@ const app = express();
 const PORT = parseInt(process.env.PORT || "3001", 10);
 const HOST = process.env.HOST || "0.0.0.0";
 
+// ── 同じPCの別システムを名前で振り分けて 80/443 で出す（2026-10-07 工程表システム用に追加） ──
+//   server/data/vhosts.json: [{"host":"koteihyo.wataru419.com","target":"http://127.0.0.1:3003","cert":"…fullchain.pem","key":"…key.pem"}]
+//   名前が一致した時だけ中継する（鋼材の動きは変えない）。証明書は SNI で名前ごとに出す。1分ごとに読み直す（証明書の更新も拾う）。
+//   x-forwarded-for は相手のIPで上書きする（相手が付けてきた値は信用しない）
+const http = require("node:http");
+const VHOSTS_PATH = path.join(__dirname, "data", "vhosts.json");
+let vhosts = new Map();
+let vhostsSig = "";
+function loadVhosts() {
+  try {
+    let list = [];
+    try { list = JSON.parse(fs.readFileSync(VHOSTS_PATH, "utf8")); } catch (e) { list = []; }
+    if (!Array.isArray(list)) list = [];
+    const sig = JSON.stringify(list) + list.map((v) => { try { return fs.statSync(v.cert).mtimeMs; } catch (e) { return 0; } }).join(",");
+    if (sig === vhostsSig) return;
+    vhostsSig = sig;
+    const m = new Map();
+    for (const v of list) {
+      if (!v || !v.host || !v.target) continue;
+      const host = String(v.host).toLowerCase();
+      let ctx = null;
+      try {
+        if (v.cert && v.key && fs.existsSync(v.cert) && fs.existsSync(v.key)) {
+          const info = acme.certInfo(v.cert, host);
+          if (info && info.matches && !info.expired) ctx = tls.createSecureContext({ key: fs.readFileSync(v.key), cert: fs.readFileSync(v.cert) });
+        }
+      } catch (e) { console.error(`[vhost] ${host} の証明書の読み込みに失敗:`, e.message); }
+      m.set(host, { host, target: new URL(v.target), ctx });
+      console.log(`[vhost] ${host} → ${v.target}（証明書${ctx ? "あり" : "なし"}）`);
+    }
+    vhosts = m;
+  } catch (e) { console.error("[vhost] 読み込みに失敗:", e.message); }
+}
+loadVhosts();
+setInterval(loadVhosts, 60000);
+app.use((req, res, next) => {
+  const v = vhosts.get(String(req.hostname || "").toLowerCase());
+  if (!v) return next();
+  if (!req.secure && v.ctx && httpsOn && HTTPS_PORT === 443) return res.redirect(302, `https://${v.host}${req.originalUrl}`);
+  const headers = { ...req.headers,
+    "x-forwarded-for": String(req.socket.remoteAddress || "").replace(/^::ffff:/, ""),
+    "x-forwarded-proto": req.secure ? "https" : "http",
+    "x-forwarded-host": req.get("host") || v.host };
+  const up = http.request({ hostname: v.target.hostname, port: v.target.port || 80, method: req.method, path: req.originalUrl, headers }, (r) => {
+    res.writeHead(r.statusCode, r.headers);
+    r.pipe(res);
+  });
+  up.on("error", (e) => {
+    if (!res.headersSent) res.status(502).type("text/plain; charset=utf-8").send(`${v.host} のサーバーにつながりません（${e.message}）`);
+    else res.destroy();
+  });
+  req.pipe(up);
+});
+
 app.use(express.json({ limit: "8mb" }));
 
 // ── アドレスの一本化：正式アドレス（canonicalBase）以外で開いたページは正式アドレスへ転送 ──
@@ -502,7 +556,11 @@ process.on("unhandledRejection", (e) => console.error("[steel-manager] 未処理
 function startHttps(tlsOpts, port) {
   const s = https.createServer({
     ...tlsOpts,
-    SNICallback: (name, cb) => cb(null, (leCtx && String(name).toLowerCase() === leDomain) ? leCtx : undefined),
+    SNICallback: (name, cb) => {
+      const n = String(name).toLowerCase(), v = vhosts.get(n);
+      if (v && v.ctx) return cb(null, v.ctx);
+      cb(null, (leCtx && n === leDomain) ? leCtx : undefined);
+    },
   }, app);
   s.on("error", (e) => {
     if (port === 443) {
