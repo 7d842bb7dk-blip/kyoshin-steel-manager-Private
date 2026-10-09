@@ -445,6 +445,8 @@ main.content{flex:1;overflow:auto;padding:20px 22px 48px;background:var(--bg)}
 .inv-tools{position:sticky;top:0;z-index:4;display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 18px;
   background:var(--panel);border-bottom:1px solid var(--line-soft)}
 .inv-filter{flex:1 1 320px;min-width:0;padding:8px 12px;border:1px solid var(--line);border-radius:9px;font:inherit;font-size:13px;background:#fff}
+.inv-loc{flex:0 0 auto;width:auto;max-width:260px;padding:8px 10px;border:1px solid var(--line);border-radius:9px;font:inherit;font-size:13px;font-weight:700;background:#fff;color:var(--ink)}
+#btnQrLoc{flex:0 0 auto;white-space:nowrap}
 .inv-selbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:var(--accent-soft);border:1px solid #f2b8bb;border-radius:999px;padding:4px 6px 4px 14px}
 .inv-selbar b{font-size:13px;color:var(--accent-d)}
 table.dt th.chk,table.dt td.chk{width:34px;text-align:center;padding-left:10px;padding-right:4px}
@@ -895,6 +897,9 @@ tr.wl-warn td{background:var(--accent-soft)}
         </div>
         <!-- 絞り込みと、チェックした材料だけのQRラベル印刷（新規登録した材料は自動でチェックが入る） -->
         <div class="inv-tools">
+          <!-- 置き場所で絞り込む（A-1 だけ等）。選ぶと、その置き場所のラベルをまとめて印刷するボタンが出る -->
+          <select id="invLoc" class="inv-loc" title="置き場所で絞り込む"></select>
+          <button class="btn primary sm" id="btnQrLoc" style="display:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3.5" y="3.5" width="6.5" height="6.5" rx="1"/><rect x="14" y="3.5" width="6.5" height="6.5" rx="1"/><rect x="3.5" y="14" width="6.5" height="6.5" rx="1"/><path d="M14 14h3v3h-3zM20.5 14v3M14 20.5h3M18.5 18.5h2v2h-2z"/></svg><span id="btnQrLocTxt"></span></button>
           <input type="search" id="invFilter" class="inv-filter" autocomplete="off" placeholder="絞り込み（No.・材質・鋼種・規格・置き場所など。空白で区切ると全部を含むもの）">
           <div class="inv-selbar" id="invSelBar" style="display:none">
             <b id="invSelCount"></b>
@@ -12371,6 +12376,29 @@ function emptyState(msg){return`<div class="empty"><svg viewBox="0 0 24 24" fill
 /* 在庫管理の表：チェックで選んだ材料だけQRラベルを印刷できる（サーバー版のみ）。絞り込み欄で探せる。
  * 新規登録した材料は自動で選択に入る。印刷して「印刷済み」の目印を付けたら、その分は選択から外す */
 let invSel=new Set(), invFilter="";
+/* 置き場所の絞り込み（""＝すべて、"__none"＝置き場所なし）。選ぶとその置き場所のラベルをまとめて印刷できる */
+let invLoc="";
+const INV_NOLOC="__none";
+function refreshInvLoc(){
+  const sel=$("#invLoc");if(!sel)return;
+  const cnt={};let none=0;
+  records.forEach(r=>{const l=String(r.loc||"").trim();if(l)cnt[l]=(cnt[l]||0)+1;else none++;});
+  const locs=Object.keys(cnt).sort(locCodeSort);
+  if(invLoc&&invLoc!==INV_NOLOC&&!cnt[invLoc])invLoc=""; /* その置き場所の在庫が無くなったら「すべて」に戻す */
+  if(invLoc===INV_NOLOC&&!none)invLoc="";
+  const opts=[["",`すべての置き場所（${records.length}件）`],...locs.map(l=>[l,`${l}（${cnt[l]}件）`]),...(none?[[INV_NOLOC,`置き場所なし（${none}件）`]]:[])];
+  const key=opts.map(o=>o.join("=")).join("|");
+  if(sel.dataset.opts!==key){
+    sel.innerHTML=opts.map(([v,t])=>`<option value="${escH(v)}">${escH(t)}</option>`).join("");
+    sel.dataset.opts=key;
+  }
+  sel.value=invLoc;
+}
+function invLocMatch(r){
+  if(!invLoc)return true;
+  const l=String(r.loc||"").trim();
+  return invLoc===INV_NOLOC?!l:l===invLoc;
+}
 function invMatch(r,words){
   if(!words.length)return true;
   const s=("no."+r.id+" "+r.id+" "+r.mat+" "+r.koshu+" "+r.spec+" "+normSpec(r.spec)+" t"+r.thk+" "+(r.loc||"")+" "+(r.fin||"")).toLowerCase();
@@ -12394,8 +12422,16 @@ function renderInventory(){
   const wrap=$("#invTable");
   if(!records.length){wrap.innerHTML=emptyState("在庫データがありません。「新規登録」から追加してください");return;}
   const ids=new Set(records.map(r=>r.id));[...invSel].forEach(id=>{if(!ids.has(id))invSel.delete(id);}); /* 無くなった在庫は選択から外す */
+  refreshInvLoc();
   const words=invFilter.toLowerCase().split(/[\s　]+/).filter(Boolean);
-  const list=records.filter(r=>invMatch(r,words));
+  const list=records.filter(r=>invLocMatch(r)&&invMatch(r,words));
+  /* 置き場所を選んでいるときは「〇〇のQRラベルを印刷（N枚）」を出す（表に出ている分を印刷） */
+  const qb=$("#btnQrLoc");
+  if(qb){
+    const on=!!invLoc&&MODE==="server"&&list.length>0;
+    qb.style.display=on?"":"none";
+    if(on){$("#btnQrLocTxt").textContent=(invLoc===INV_NOLOC?"置き場所なし":invLoc)+" のQRラベルを印刷（"+list.length+"枚）";qb.dataset.ids=list.map(r=>r.id).join(",");}
+  }
   if(!list.length){wrap.innerHTML=emptyState("絞り込みに一致する在庫がありません");updateInvSel();return;}
   const SEL=MODE==="server";
   let h='<table class="dt"><thead><tr>'+(SEL?'<th class="chk"><input type="checkbox" id="invChkAll" title="表に出ている在庫をすべて選ぶ／外す"></th>':'')+'<th class="r">No.</th><th>材質</th><th>鋼種</th><th class="r">板厚</th><th>材料規格</th><th class="r">長さ</th><th>保管場所</th><th>仕上げ</th><th class="r">重量(kg)</th><th class="r">単価</th><th class="r">材料費</th><th>QR</th><th class="r">操作</th></tr></thead><tbody>';
@@ -13487,7 +13523,9 @@ function qrServerBase(){return(qrBase||location.origin+"/").replace(/\/+$/,"")+"
 function qrUrl(id){return qrServerBase()+"?co="+id;}
 let qrTargetIds=null; /* いま印刷モーダルに出している在庫ID（鍵QRのときはnull） */
 function openQr(ids){
-  const list=records.filter(r=>ids.includes(r.id));
+  /* 置き場所ごとにまとまって出るように、置き場所（A-1, A-2 … 空欄は最後）→ 番号 の順に並べる */
+  const lk=r=>String(r.loc||"").trim();
+  const list=records.filter(r=>ids.includes(r.id)).sort((a,b)=>{const x=lk(a),y=lk(b);if(x!==y){if(!x)return 1;if(!y)return -1;return locCodeSort(x,y);}return a.id-b.id;});
   if(!list.length){toast("印刷対象の在庫がありません");return;}
   qrTargetIds=list.map(r=>r.id);
   const unprinted=records.filter(r=>!r.qr).length;
@@ -13849,6 +13887,8 @@ async function init(){
   $("#btnQrSel").addEventListener("click",()=>{if(!invSel.size){toast("印刷する在庫にチェックを入れてください");return;}openQr([...invSel]);});
   $("#btnSelClear").addEventListener("click",()=>{invSel.clear();renderInventory();});
   {let tm=null;$("#invFilter").addEventListener("input",()=>{clearTimeout(tm);tm=setTimeout(()=>{invFilter=$("#invFilter").value.trim();renderInventory();},200);});}
+  $("#invLoc").addEventListener("change",()=>{invLoc=$("#invLoc").value;renderInventory();});
+  $("#btnQrLoc").addEventListener("click",()=>{const ids=($("#btnQrLoc").dataset.ids||"").split(",").filter(Boolean).map(Number);if(!ids.length)return;openQr(ids);});
   $("#btnQrKey").addEventListener("click",openKeyQr);
   $("#keyClose").addEventListener("click",closeKey);
   $("#btnKeyOut").addEventListener("click",keyAction);
@@ -13914,7 +13954,9 @@ async function init(){
     if(was)setTimeout(markPrinted,300);
   });
   $("#qrOnlyNew").addEventListener("click",()=>{
-    const ids=records.filter(r=>!r.qr).map(r=>r.id);
+    /* いま出しているラベル（置き場所・選択で絞った分）の中の未印刷だけ。鍵QRのときは在庫全体の未印刷 */
+    const base=qrTargetIds&&qrTargetIds.length?records.filter(r=>qrTargetIds.includes(r.id)):records;
+    const ids=base.filter(r=>!r.qr).map(r=>r.id);
     if(!ids.length){toast("未印刷の在庫はありません（すべて印刷済み）");return;}
     openQr(ids);
   });

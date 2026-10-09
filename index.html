@@ -197,6 +197,9 @@
         </div>
         <!-- 絞り込みと、チェックした材料だけのQRラベル印刷（新規登録した材料は自動でチェックが入る） -->
         <div class="inv-tools">
+          <!-- 置き場所で絞り込む（A-1 だけ等）。選ぶと、その置き場所のラベルをまとめて印刷するボタンが出る -->
+          <select id="invLoc" class="inv-loc" title="置き場所で絞り込む"></select>
+          <button class="btn primary sm" id="btnQrLoc" style="display:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3.5" y="3.5" width="6.5" height="6.5" rx="1"/><rect x="14" y="3.5" width="6.5" height="6.5" rx="1"/><rect x="3.5" y="14" width="6.5" height="6.5" rx="1"/><path d="M14 14h3v3h-3zM20.5 14v3M14 20.5h3M18.5 18.5h2v2h-2z"/></svg><span id="btnQrLocTxt"></span></button>
           <input type="search" id="invFilter" class="inv-filter" autocomplete="off" placeholder="絞り込み（No.・材質・鋼種・規格・置き場所など。空白で区切ると全部を含むもの）">
           <div class="inv-selbar" id="invSelBar" style="display:none">
             <b id="invSelCount"></b>
