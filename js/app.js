@@ -879,7 +879,7 @@ function emptyState(msg){return`<div class="empty"><svg viewBox="0 0 24 24" fill
  * 新規登録した材料は自動で選択に入る。印刷して「印刷済み」の目印を付けたら、その分は選択から外す */
 let invSel=new Set(), invFilter="";
 /* 置き場所の絞り込み（""＝すべて、"__none"＝置き場所なし）。選ぶとその置き場所のラベルをまとめて印刷できる */
-let invLoc="";
+let invLoc="", invShownIds=null; /* invShownIds＝在庫管理の表に今出ている在庫の番号（「QRラベル」で使う） */
 const INV_NOLOC="__none";
 function refreshInvLoc(){
   const sel=$("#invLoc");if(!sel)return;
@@ -927,12 +927,14 @@ function renderInventory(){
   refreshInvLoc();
   const words=invFilter.toLowerCase().split(/[\s　]+/).filter(Boolean);
   const list=records.filter(r=>invLocMatch(r)&&invMatch(r,words));
-  /* 置き場所を選んでいるときは「〇〇のQRラベルを印刷（N枚）」を出す（表に出ている分を印刷） */
-  const qb=$("#btnQrLoc");
-  if(qb){
-    const on=!!invLoc&&MODE==="server"&&list.length>0;
-    qb.style.display=on?"":"none";
-    if(on){$("#btnQrLocTxt").textContent=(invLoc===INV_NOLOC?"置き場所なし":invLoc)+" のQRラベルを印刷（"+list.length+"枚）";qb.dataset.ids=list.map(r=>r.id).join(",");}
+  /* 置き場所・絞り込み欄で絞っているときは、右上の「QRラベル」は表に出ている分だけを印刷する（ボタンに置き場所と枚数を出す） */
+  invShownIds=list.map(r=>r.id);
+  const filtered=!!invLoc||words.length>0;
+  const qt=$("#btnQrAllTxt");
+  if(qt){
+    qt.textContent=filtered?"QRラベル（"+(invLoc?(invLoc===INV_NOLOC?"置き場所なし":invLoc)+"・":"")+list.length+"枚）":"QRラベル";
+    $("#btnQrAll").classList.toggle("primary",filtered&&list.length>0);
+    $("#btnQrAll").title=filtered?"表に出ている在庫のQRラベルを印刷":"すべての在庫のQRラベルを印刷";
   }
   if(!list.length){wrap.innerHTML=emptyState("絞り込みに一致する在庫がありません");updateInvSel();return;}
   const SEL=MODE==="server";
@@ -2385,13 +2387,17 @@ async function init(){
   $("#coUsed").addEventListener("input",coUpdateRemain);
   $("#coPerson").addEventListener("keydown",e=>{if(e.key==="Enter")submitCo();});
   $("#coOverlay").addEventListener("click",e=>{if(e.target===$("#coOverlay"))closeCo();});
-  $("#btnQrAll").addEventListener("click",()=>openQr(records.map(r=>r.id)));
+  /* 「QRラベル」：置き場所・絞り込み欄で絞っていれば表に出ている分だけ、絞っていなければ全部 */
+  $("#btnQrAll").addEventListener("click",()=>{
+    const filtered=!!invLoc||!!invFilter;
+    const ids=filtered&&invShownIds?invShownIds:records.map(r=>r.id);
+    if(!ids.length){toast("表に出ている在庫がありません");return;}
+    openQr(ids);
+  });
   $("#btnQrSel").addEventListener("click",()=>{if(!invSel.size){toast("印刷する在庫にチェックを入れてください");return;}openQr([...invSel]);});
   $("#btnSelClear").addEventListener("click",()=>{invSel.clear();renderInventory();});
   {let tm=null;$("#invFilter").addEventListener("input",()=>{clearTimeout(tm);tm=setTimeout(()=>{invFilter=$("#invFilter").value.trim();renderInventory();},200);});}
-  $("#invLoc").addEventListener("change",()=>{invLoc=$("#invLoc").value;renderInventory();});
-  $("#btnQrLoc").addEventListener("click",()=>{const ids=($("#btnQrLoc").dataset.ids||"").split(",").filter(Boolean).map(Number);if(!ids.length)return;openQr(ids);});
-  $("#btnQrKey").addEventListener("click",openKeyQr);
+  $("#invLoc").addEventListener("change",()=>{invLoc=$("#invLoc").value;renderInventory();});  $("#btnQrKey").addEventListener("click",openKeyQr);
   $("#keyClose").addEventListener("click",closeKey);
   $("#btnKeyOut").addEventListener("click",keyAction);
   $("#keyOverlay").addEventListener("click",e=>{if(e.target===$("#keyOverlay"))closeKey();});
