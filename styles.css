@@ -548,6 +548,9 @@ select.m-in{width:auto;max-width:100%;cursor:pointer}
 .wl-edit{color:#8a6100;margin-left:4px}
 .wl-del{color:var(--ink-soft);margin-left:4px}
 .wl-note{font-size:11.5px;margin-left:3px}
+/* 残りを戻した棚（登録は置いた棚） */
+.wl-back{display:inline-flex;align-items:center;gap:4px;margin-left:6px;font-size:11px;font-weight:700;color:var(--ink-soft);white-space:nowrap}
+.wl-back .pill.loc{font-size:11.5px}
 tr.wl-warn td{background:var(--accent-soft)}
 
 /* ============ スマホ対応（倉庫でスマホ/タブレットから使う） ============ */

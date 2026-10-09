@@ -560,6 +560,9 @@ select.m-in{width:auto;max-width:100%;cursor:pointer}
 .wl-edit{color:#8a6100;margin-left:4px}
 .wl-del{color:var(--ink-soft);margin-left:4px}
 .wl-note{font-size:11.5px;margin-left:3px}
+/* 残りを戻した棚（登録は置いた棚） */
+.wl-back{display:inline-flex;align-items:center;gap:4px;margin-left:6px;font-size:11px;font-weight:700;color:var(--ink-soft);white-space:nowrap}
+.wl-back .pill.loc{font-size:11.5px}
 tr.wl-warn td{background:var(--accent-soft)}
 
 /* ============ スマホ対応（倉庫でスマホ/タブレットから使う） ============ */
@@ -13073,6 +13076,19 @@ function wlWhat(x){
 /* 修正ボタン・修正済みの印（サーバー版の管理者だけ） */
 function wlEditBtn(x){return MODE==="server"&&x?`<button type="button" class="wl-undo wl-editbtn" data-wledit="${x.id}" title="この記録の名前・日時・長さ・メモを直す／記録を削除する">修正</button>`:"";}
 function wlEditedTag(x){return x&&x.edited_at?`<span class="wl-edited-tag" title="${fmtTs(x.edited_at)} に管理者が修正">修正済み</span>`:"";}
+/* 残りを戻した棚（登録は置いた棚）。2026-10-09〜の持ち出しは記録（loc_after）にある。
+ * それより前は、自動で付いたメモ「保管場所 A-1→E-5」の行き先か、持ち出す前の棚（動かしていない）から割り出す */
+function wlBackLoc(x){
+  if(x.type==="add")return x.loc||"";
+  if(x.type!=="checkout"||!(Number(x.len_after)>0))return "";
+  if(x.loc_after)return x.loc_after;
+  const m=/保管場所\s*\S*?→\s*([^\s/]+)/.exec(x.note||"");
+  return m?m[1]:(x.loc||"");
+}
+function wlBackHtml(x,label){
+  const l=wlBackLoc(x);
+  return l?`<span class="wl-back" title="${label}">${escH(label)} <span class="pill loc">${IC.loc}${escH(l)}</span></span>`:"";
+}
 function wlItem(x){
   if(x.type==="bulk")return `<span class="wl-item">CSVから一括取込 <b>${(x.qty||0).toLocaleString()}件</b></span>${wlEditedTag(x)}${wlEditBtn(x)}`;
   const n=v=>Number(v).toLocaleString();
@@ -13080,8 +13096,9 @@ function wlItem(x){
   let act="";
   if(x.type==="checkout"){
     const b=x.len_before,a=Number(x.len_after)||0;
-    act=b==null?'<b class="wl-use">使用</b>':`<b class="wl-use">${n(Math.round((b-a)*100)/100)}mm 使用</b><span class="muted">${a>0?"（残り "+n(a)+"）":"（全部）"}</span>`;
-  }else if(x.type==="add")act=`<b class="wl-add">＋${n(x.len_after||0)}mm 登録</b>${x.loc?`<span class="muted">→${escH(x.loc)}</span>`:""}`;
+    act=(b==null?'<b class="wl-use">使用</b>':`<b class="wl-use">${n(Math.round((b-a)*100)/100)}mm 使用</b><span class="muted">${a>0?"（残り "+n(a)+"）":"（全部）"}</span>`)
+      +wlBackHtml(x,"戻し先");
+  }else if(x.type==="add")act=`<b class="wl-add">＋${n(x.len_after||0)}mm 登録</b>`+wlBackHtml(x,"置き場");
   else if(x.type==="edit")act='<b class="wl-edit">編集</b>'+((x.len_before!=null&&x.len_after!=null&&x.len_before!==x.len_after)?`<span class="muted">（${n(x.len_before)}→${n(x.len_after)}mm）</span>`:"");
   else if(x.type==="delete")act=`<b class="wl-del">削除</b>${x.len_before!=null?`<span class="muted">（${n(x.len_before)}mm）</span>`:""}`;
   else if(x.type==="undo")return `<span class="wl-item wl-undoitem">↩ <b>${escH(x.note||"取り消し")}</b> ${what}</span>${wlEditedTag(x)}${wlEditBtn(x)}`;
@@ -13186,9 +13203,9 @@ async function deleteWlEdit(){
 }
 function exportWorklogCSV(){
   if(!history.length){toast("出力対象がありません");return;}
-  const head=["日時","種別","名前","材質","鋼種","板厚(mm)","材料規格","表面仕上げ","保管場所","変更前長さ(mm)","変更後長さ(mm)","件数","メモ"];
+  const head=["日時","種別","名前","材質","鋼種","板厚(mm)","材料規格","表面仕上げ","保管場所","戻した棚（残り・登録の置き場）","変更前長さ(mm)","変更後長さ(mm)","件数","メモ"];
   const lines=[head.join(",")];
-  history.forEach(x=>{const t=HTYPE[x.type]||[x.type];lines.push([fmtTs(x.ts),t[0],x.person||"",x.mat||"",x.koshu||"",x.thk==null?"":x.thk,x.spec||"",x.fin||"",x.loc||"",x.len_before==null?"":x.len_before,x.len_after==null?"":x.len_after,x.qty==null?"":x.qty,(x.undone_at?"【取り消し済み】":"")+(x.edited_at?"【修正済み "+fmtTs(x.edited_at)+"】":"")+(x.note||"")].map(csvCell).join(","));});
+  history.forEach(x=>{const t=HTYPE[x.type]||[x.type];lines.push([fmtTs(x.ts),t[0],x.person||"",x.mat||"",x.koshu||"",x.thk==null?"":x.thk,x.spec||"",x.fin||"",x.loc||"",wlBackLoc(x),x.len_before==null?"":x.len_before,x.len_after==null?"":x.len_after,x.qty==null?"":x.qty,(x.undone_at?"【取り消し済み】":"")+(x.edited_at?"【修正済み "+fmtTs(x.edited_at)+"】":"")+(x.note||"")].map(csvCell).join(","));});
   const blob=new Blob(["﻿"+lines.join("\r\n")],{type:"text/csv;charset=utf-8"});
   const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="作業ログ.csv";a.click();URL.revokeObjectURL(a.href);toast("作業ログ.csv を出力しました");
 }

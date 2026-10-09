@@ -52,7 +52,8 @@ try { db.exec("ALTER TABLE records ADD COLUMN qr_printed_at INTEGER"); } catch (
 //   undo_of   … 取り消しの記録が、どの記録を取り消したか
 //   edited_at … 作業ログで管理者が修正した日時（2026-09-29〜）
 //   deleted_at … 作業ログで管理者が削除した日時（DBには残し、作業ログ・CSVには出さない）
-for (const col of ["record_id INTEGER", "snap TEXT", "undone_at INTEGER", "undo_of INTEGER", "edited_at INTEGER", "deleted_at INTEGER"]) {
+//   loc_after … 持ち出しで残りを戻した棚（2026-10-09〜。loc は持ち出す前の棚。全部使ったときは空）
+for (const col of ["record_id INTEGER", "snap TEXT", "undone_at INTEGER", "undo_of INTEGER", "edited_at INTEGER", "deleted_at INTEGER", "loc_after TEXT"]) {
   try { db.exec("ALTER TABLE history ADD COLUMN " + col); } catch (e) { /* 既にある */ }
 }
 // 鋼材の予約（2026-09-30〜）：誰が・いつ・どの案件で、その材料を使う予定か
@@ -124,8 +125,8 @@ function getRecordCount() {
 
 // ── 入出庫履歴 ──
 const _insHist = db.prepare(`
-  INSERT INTO history (ts, type, person, mat, koshu, thk, spec, fin, loc, len_before, len_after, qty, note, record_id, snap, undo_of)
-  VALUES (@ts, @type, @person, @mat, @koshu, @thk, @spec, @fin, @loc, @len_before, @len_after, @qty, @note, @record_id, @snap, @undo_of)
+  INSERT INTO history (ts, type, person, mat, koshu, thk, spec, fin, loc, len_before, len_after, qty, note, record_id, snap, undo_of, loc_after)
+  VALUES (@ts, @type, @person, @mat, @koshu, @thk, @spec, @fin, @loc, @len_before, @len_after, @qty, @note, @record_id, @snap, @undo_of, @loc_after)
 `);
 // 記録を1件追加し、その記録の番号（history.id）を返す
 function logHistory(type, rec, extra) {
@@ -142,6 +143,7 @@ function logHistory(type, rec, extra) {
     record_id: e.record_id != null ? Number(e.record_id) : null,
     snap: e.snap ? JSON.stringify(e.snap) : null,
     undo_of: e.undo_of != null ? Number(e.undo_of) : null,
+    loc_after: e.loc_after != null && str(e.loc_after) !== "" ? str(e.loc_after) : null,
   });
   return Number(info.lastInsertRowid);
 }
@@ -214,7 +216,8 @@ const _checkoutTx = db.transaction((id, usedLen, person, note, newLoc) => {
   } else {
     db.prepare("UPDATE records SET len=?, updated_at=? WHERE id=?").run(remain, now(), r.id);
   }
-  const hid = logHistory("checkout", r, { person, note: n, len_before: len, len_after: remain > 0 ? remain : 0, record_id: r.id, snap: r });
+  const hid = logHistory("checkout", r, { person, note: n, len_before: len, len_after: remain > 0 ? remain : 0, record_id: r.id, snap: r,
+    loc_after: remain > 0 ? (newLoc || r.loc) : null }); // 残りを戻した棚（作業ログに出す）
   // 予約していた本人が持ち出したら、その人のこの材料の予約は済みとして消す
   db.prepare("DELETE FROM reservations WHERE record_id=? AND person=?").run(r.id, person);
   return { ok: true, hid, removed: remain <= 0, remain: remain > 0 ? remain : 0, loc: remain > 0 ? (newLoc || r.loc) : null };
@@ -398,10 +401,12 @@ const _editHistTx = db.transaction((hid, b) => {
       if (h.type === "checkout" && h.len_before != null && nv > Number(h.len_before) + 0.005) return { ok: false, reason: "toolong" };
       if (hasLaterRec(h)) return { ok: false, reason: "later" };
       const cur = db.prepare("SELECT * FROM records WHERE id=?").get(h.record_id);
+      let locAfter = null; // 直したあと、残りがある棚（持ち出しの「戻した棚」用）
       if (ov > 0) {
         if (!cur || !lenEq(cur.len, ov)) return { ok: false, reason: "state" };
         if (nv > 0) db.prepare("UPDATE records SET len=?, updated_at=? WHERE id=?").run(nv, now(), cur.id);
         else db.prepare("DELETE FROM records WHERE id=?").run(cur.id); // 残り0＝全部持ち出しに直す
+        locAfter = nv > 0 ? cur.loc : null;
       } else {
         // 全部持ち出しで在庫が無くなった記録に「残り」を入れる → 同じ番号で在庫を復活（QRラベルがそのまま使える）
         if (cur) return { ok: false, reason: "state" };
@@ -409,8 +414,10 @@ const _editHistTx = db.transaction((hid, b) => {
         try { snap = h.snap ? JSON.parse(h.snap) : null; } catch (e) { snap = null; }
         if (!snap) return { ok: false, reason: "old" };
         reinsertRec({ ...snap, len: nv, updated_at: now() });
+        locAfter = snap.loc;
       }
       set.len_after = nv;
+      if (h.type === "checkout") set.loc_after = locAfter || null;
       stockChanged = true;
     }
   }
