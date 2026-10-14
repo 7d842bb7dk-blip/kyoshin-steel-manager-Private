@@ -292,11 +292,12 @@ function keyEvent(action, person) {
 }
 
 // ── 取り消し（元に戻す） ──
-//   持ち出し・登録・編集・削除・鍵の持出 を1件ずつ、記録する前の状態に戻す。
+//   持ち出し・登録・編集・削除・鍵の持出／返却 を1件ずつ、記録する前の状態に戻す。
 //   ・全部持ち出し／削除した在庫は「同じ番号」で復活させる（貼ってあるQRラベルがそのまま使える）
 //   ・同じ在庫にその後の記録がある／在庫の状態が記録と合わない ときは戻さない（他の人の作業を壊さない）
 //   ・取り消したことも作業ログに「取り消し」として残す
-const UNDO_TYPES = new Set(["checkout", "add", "edit", "delete", "keyout"]);
+const UNDO_TYPES = new Set(["checkout", "add", "edit", "delete", "keyout", "keyin"]);
+const isKeyType = (t) => t === "keyout" || t === "keyin";
 const REC_COLS = ["mat", "koshu", "thk", "spec", "len", "loc", "fin", "updated_at", "qr_printed_at"];
 function restoreRec(id, s) { // QRラベル印刷済みの目印は今の状態のまま（在庫の中身だけ戻す）
   const cols = REC_COLS.filter((c) => c !== "qr_printed_at");
@@ -319,7 +320,7 @@ const _undoTx = db.transaction((hid, person) => {
   if (!h || h.deleted_at) return { ok: false, reason: "notfound" };
   if (h.undone_at) return { ok: false, reason: "already" };
   if (!UNDO_TYPES.has(h.type)) return { ok: false, reason: "unsupported" };
-  if (h.type !== "keyout" && h.record_id == null) return { ok: false, reason: "old" };
+  if (!isKeyType(h.type) && h.record_id == null) return { ok: false, reason: "old" };
   let snap = null;
   try { snap = h.snap ? JSON.parse(h.snap) : null; } catch (e) { snap = null; }
   if (["checkout", "edit", "delete"].includes(h.type) && !snap) return { ok: false, reason: "old" };
@@ -349,11 +350,11 @@ const _undoTx = db.transaction((hid, person) => {
     after = snap;
   }
   db.prepare("UPDATE history SET undone_at=? WHERE id=?").run(now(), h.id);
-  const TYPE_JA = { checkout: "持ち出し", add: "登録", edit: "編集", delete: "削除", keyout: "鍵の持出" };
-  const uid = logHistory("undo", h.type === "keyout" ? {} : (after || h), {
+  const TYPE_JA = { checkout: "持ち出し", add: "登録", edit: "編集", delete: "削除", keyout: "鍵の持出", keyin: "鍵の返却" };
+  const uid = logHistory("undo", isKeyType(h.type) ? {} : (after || h), {
     person, undo_of: h.id, record_id: h.record_id,
-    len_before: h.type === "keyout" ? undefined : h.len_after,
-    len_after: h.type === "keyout" ? undefined : (h.type === "add" ? null : (after ? after.len : null)),
+    len_before: isKeyType(h.type) ? undefined : h.len_after,
+    len_after: isKeyType(h.type) ? undefined : (h.type === "add" ? null : (after ? after.len : null)),
     note: `取り消し：${TYPE_JA[h.type]}（${h.person || "—"}）`,
   });
   return { ok: true, uid, type: h.type, record_id: h.record_id, ts: h.ts };
@@ -380,7 +381,7 @@ const _editHistTx = db.transaction((hid, b) => {
   const set = {};
   if (b.person !== undefined) {
     const p = str(b.person);
-    if (!p && (h.type === "checkout" || h.type === "keyout")) return { ok: false, reason: "noperson" };
+    if (!p && (h.type === "checkout" || isKeyType(h.type))) return { ok: false, reason: "noperson" };
     if (p !== (h.person || "")) set.person = p;
   }
   if (b.ts !== undefined) {

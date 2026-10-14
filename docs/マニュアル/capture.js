@@ -5,6 +5,7 @@
 //            PORT=3095 HOST=127.0.0.1 HTTPS_PORT=3495 HTTP80=0 AUTO_UPDATE_SEC=0 node server/index.js
 //   2) node capture-demo.js   … 見本の予約・材料をテスト用サーバーに入れる
 //   3) node capture.js shots  … shots/ に撮影（rects.json に部品の位置も出る）
+//        一部だけ撮り直す：ONLY=shot-key,shot-keyret node capture.js shots（別の番号のサーバーは APP_URL=http://127.0.0.1:3097/）
 //   4) python crops.py        … 拡大図（shots/crop/）を作り直す → HTML を Edge で PDF にする
 // ─────────────────────────────────────────────────────────────
 // マニュアル用スクリーンショットを、本物の画面から自動で撮る（Edge ヘッドレス＋DevTools プロトコル）
@@ -16,7 +17,8 @@ const fs = require("fs"), path = require("path");
 const OUT = path.resolve(process.argv[2] || "manshots");
 fs.mkdirSync(OUT, { recursive: true });
 const EDGE = "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe";
-const PORT = 9333, APP = "http://127.0.0.1:3095/";
+const PORT = 9333, APP = process.env.APP_URL || "http://127.0.0.1:3095/";
+const ONLY = (process.env.ONLY || "").split(",").filter(Boolean);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const day = (n) => { const d = new Date(Date.now() + n * 86400000), p = (x) => String(x).padStart(2, "0"); return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate()); };
 
@@ -79,6 +81,13 @@ const SHOTS = [
       invSel=new Set([...document.querySelectorAll("#invTable [data-sel]")].slice(0,3).map(c=>+c.dataset.sel)); renderInventory(); await new Promise(r=>setTimeout(r,150));
       document.scrollingElement.scrollTop=0;
       ({panel:__rect("#view-inventory .panel",0), tools:__rect("#view-inventory .panel-h",0), bar:__rect(".inv-tools",0)})` },
+  // 鋼材倉庫の鍵：鍵がある（借りる）／持ち出し中（返す）。状態は撮影用に固定する
+  { name: "shot-key", vp: MOBILE, js: `
+      await openKey(); keyState={out:false,person:"",ts:null}; renderKeyStatus(); __set("#keyPersonSel","山田 太郎");
+      ({modal:__rect("#keyOverlay .modal",0)})` },
+  { name: "shot-keyret", vp: MOBILE, js: `
+      await openKey(); keyState={out:true,person:"山田 太郎",ts:new Date(new Date().setHours(10,15,0,0)).getTime()}; renderKeyStatus(); __set("#keyPersonSel","山田 太郎");
+      ({modal:__rect("#keyOverlay .modal",0)})` },
   { name: "shot-wledit", vp: DESK, js: `
       isAdmin=true; applyAdmin(); document.querySelector('.tab[data-view="worklog"]').click(); await new Promise(r=>setTimeout(r,900));
       const x=history.find(e=>e.type==="checkout"&&!e.undone_at&&e.record_id!=null)||history.find(e=>e.type==="checkout");
@@ -105,7 +114,9 @@ const SHOTS = [
   };
   await send("Page.enable"); await send("Runtime.enable");
   const rects = {};
-  for (const s of SHOTS) {
+  let rectsOld = {};
+  try { rectsOld = JSON.parse(fs.readFileSync(path.join(OUT, "rects.json"), "utf8")); } catch (e) {}
+  for (const s of SHOTS.filter((x) => !ONLY.length || ONLY.includes(x.name))) {
     await send("Emulation.setDeviceMetricsOverride", s.vp);
     await send("Emulation.setUserAgentOverride", { userAgent: s.vp.mobile ? "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0 Mobile Safari/537.36" : "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0 Safari/537.36 Edg/129.0" });
     await send("Page.navigate", { url: APP });
@@ -122,6 +133,6 @@ const SHOTS = [
     fs.writeFileSync(path.join(OUT, s.name + ".png"), Buffer.from(shot.data, "base64"));
     console.log("撮影:", s.name, JSON.stringify(rects[s.name]));
   }
-  fs.writeFileSync(path.join(OUT, "rects.json"), JSON.stringify(rects, null, 1));
+  fs.writeFileSync(path.join(OUT, "rects.json"), JSON.stringify({ ...rectsOld, ...rects }, null, 1));
   ws.close(); edge.kill();
 })().catch((e) => { console.log("ERR", e.message); process.exit(1); });
