@@ -253,6 +253,18 @@ function locCategory(mat,koshu){
 function sizeKey(s){
   return normSpec(s).split("*").map(x=>{const v=x.trim(),n=Number(v);return v!==""&&isFinite(n)?String(n):v;}).join("*");
 }
+/* 棚の列（アルファベット）。"A-3" → "A"（棚番号の形でなければ ""） */
+function locLetter(loc){const m=/^([A-Z]+)-\d/.exec(String(loc||"").trim());return m?m[1]:"";}
+/* 同じ鋼種（棚割りの区分：アングル・角パイプ・丸パイプ…）の在庫が、どの列に何本あるか（その材料自身は数えない） */
+function locLetterCount(cat,exceptId){
+  const m={};
+  (typeof records!=="undefined"&&records?records:[]).forEach(r=>{
+    if(exceptId!=null&&r.id===exceptId)return;
+    const L=locLetter(r.loc);if(!L||locCategory(r.mat,r.koshu)!==cat)return;
+    m[L]=(m[L]||0)+1;
+  });
+  return m;
+}
 /* 置き場所の判定。該当する棚が無い・寸法が棚の表に無いときは null（＝今の場所のまま・案内なし） */
 function suggestLoc(rec){
   const cat=locCategory(rec.mat,rec.koshu);
@@ -284,8 +296,11 @@ function suggestLoc(rec){
   /* 今の棚が条件（仕上げ・寸法・長さ）を満たしていれば動かさない */
   const cur=String(rec.loc||"").trim();
   if(cands.some(c=>c.g.loc===cur&&c.dist===0))return cur;
-  /* 長さが近い棚 → 寸法指定のある棚 → 長さの幅が狭い棚 の順 */
-  cands.sort((a,b)=>(a.dist-b.dist)||(b.specific-a.specific)||(a.width-b.width));
+  /* 長さが入る棚 →（入る棚がいくつかあれば）同じ鋼種が多い列（アルファベット）の棚 → 長さが近い棚 → 寸法指定のある棚 → 長さの幅が狭い棚 の順。
+   * 同じ鋼種をできるだけ同じアルファベットの棚に固めていく（2026-10-22）。今ある在庫は動かさない（上の「今の棚」のとおり） */
+  const lc=locLetterCount(cat,rec.id);
+  cands.forEach(c=>{c.home=lc[locLetter(c.g.loc)]||0;});
+  cands.sort((a,b)=>((a.dist>0)-(b.dist>0))||(a.dist===0&&b.dist===0?b.home-a.home:0)||(a.dist-b.dist)||(b.specific-a.specific)||(a.width-b.width));
   return cands[0].g.loc;
 }
 
@@ -1515,13 +1530,19 @@ function locCodeSort(a,b){
   if(x)return -1;if(y)return 1;return a.localeCompare(b,"ja");
 }
 function locPickOptions(rec){
-  /* おすすめ：同じ材質・鋼種の在庫がある棚（同じ規格がある棚を先に、次に件数の多い順。最大6） */
-  const sp=sizeKey(rec.spec),score={};
+  /* おすすめ：同じ材質・鋼種の在庫がある棚。同じ鋼種が多い列（アルファベット）の棚を先に（同じ鋼種を同じ列に固める・2026-10-22）、
+   * 次に同じ規格がある棚、件数の多い順。最大6。同じ材質・鋼種が無いときは、同じ鋼種（材質違い）がある棚 */
+  const sp=sizeKey(rec.spec),score={},kind={},letter={};
   records.forEach(r=>{
-    if(!r.loc||r.mat!==rec.mat||r.koshu!==rec.koshu)return;
+    if(!r.loc||r.koshu!==rec.koshu)return;
+    const L=locLetter(r.loc);if(L)letter[L]=(letter[L]||0)+1;
+    kind[r.loc]=(kind[r.loc]||0)+1;
+    if(r.mat!==rec.mat)return;
     const s=score[r.loc]||(score[r.loc]={n:0,same:0});s.n++;if(sizeKey(r.spec)===sp)s.same++;
   });
-  const sug=Object.keys(score).sort((a,b)=>score[b].same-score[a].same||score[b].n-score[a].n||locCodeSort(a,b)).slice(0,6);
+  if(!Object.keys(score).length)Object.keys(kind).forEach(k=>{score[k]={n:0,same:0};});
+  const lt=k=>letter[locLetter(k)]||0;
+  const sug=Object.keys(score).sort((a,b)=>lt(b)-lt(a)||score[b].same-score[a].same||score[b].n-score[a].n||(kind[b]||0)-(kind[a]||0)||locCodeSort(a,b)).slice(0,6);
   /* ほかの棚：棚割りの棚と、在庫に使われている場所の全部 */
   const all=[...new Set([...LOC_GUIDE.map(g=>g.loc),...records.map(r=>r.loc).filter(Boolean)])].sort(locCodeSort);
   return {sug,all};

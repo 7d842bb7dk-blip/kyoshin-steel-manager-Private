@@ -132,7 +132,7 @@ const html = `<!DOCTYPE html>
   .sico{width:7mm;height:7mm;color:var(--red)}
   .sico svg{width:100%;height:100%}
   .stt{font-weight:800;font-size:9.5pt;margin-top:1mm}
-  .std{font-size:7.8pt;color:var(--soft);line-height:1.5;margin-top:.8mm}
+  .std{font-size:7.6pt;color:var(--soft);line-height:1.5;margin-top:.8mm}
   .info{display:flex;gap:3mm;margin-bottom:4mm}
   .legend,.norule{border-radius:3mm;padding:2.5mm 3.5mm;font-size:8pt;line-height:1.7}
   .legend{flex:0 0 80mm;background:var(--bg);border:0.4mm solid var(--line)}
@@ -175,7 +175,7 @@ const html = `<!DOCTYPE html>
 <div class="steps">
 ${STEP(1, "材質と鋼種で決まる", "SUS（ステンレス）とアルミに棚の決まりがあります。下の表の鋼種ごとに見る", ICO.mat)}
 ${STEP(2, "仕上げ・寸法が合う棚", "仕上げ（未研・#400・HL…）と寸法が合う棚だけが候補。片#400・両#400 は #400 の棚", ICO.fin)}
-${STEP(3, "長さが入る棚", "長さが範囲に入る棚。どの棚にも入らないときは、範囲が一番近い棚", ICO.len)}
+${STEP(3, "長さが入る棚", "長さが範囲に入る棚。いくつかあれば<b>同じ鋼種が多いアルファベットの棚</b>（同じ鋼種を同じ列に固める）。どこにも入らなければ範囲が一番近い棚", ICO.len)}
 ${STEP(4, "今の棚が合えばそのまま", "今の棚が条件に合っていれば動かさない（直す必要なし）", ICO.stay)}
 </div>
 
