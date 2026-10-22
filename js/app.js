@@ -738,6 +738,7 @@ const I18N_VI={
   "履歴はまだありません。「持ち出し」画面から記録すると、ここに残ります":"Chưa có lịch sử. Ghi nhận từ màn hình 「Lấy vật liệu」 sẽ hiện ở đây",
   "履歴を更新しました":"Đã cập nhật lịch sử",
   /* 鋼材の予約 */
+  "だれが・いつ・どの材料を使う予定か":"Ai sẽ dùng vật liệu nào, khi nào","持ち出し画面に戻る":"Quay lại màn hình lấy vật liệu",
   "予約":"Đặt trước","予約する":"Đặt trước","予約の一覧":"Danh sách đặt trước","この材料を予約":"Đặt trước vật liệu này",
   "この材料の持ち出し画面を開く":"Mở màn hình lấy vật liệu này",
   "だれが・いつ・どの案件で、どの材料を使う予定かの一覧です。「持ち出す」を押すと、その材料の持ち出し画面がすぐ開きます。予約するには「在庫検索」か「持ち出し」で、材料の「予約」ボタンを押してください。予約日を過ぎた予約は自動で消えます。":
@@ -1396,6 +1397,7 @@ async function cancelRsv(id){
 function renderReserve(){
   const td=todayStr(),list=reservations.filter(v=>v.date>=td&&records.some(r=>r.id===v.record_id));
   const cnt=$("#rsvCount");if(cnt){cnt.textContent=list.length?String(list.length):"";cnt.style.display=list.length?"":"none";}
+  const mc=$("#rsvMobCount");if(mc){mc.textContent=list.length+t("件");mc.style.display=list.length?"":"none";}
   const wrap=$("#rsvList");if(!wrap)return;
   if(!list.length){wrap.innerHTML=emptyState(t("予約はまだありません"));return;}
   const byDate=new Map();
@@ -1406,7 +1408,7 @@ function renderReserve(){
     h+=`<div class="tbl-wrap"><table class="dt rsv-tbl"><thead><tr><th>${t("名前")}</th><th>${t("案件名")}</th><th>${t("材料")}</th><th class="r">${t("長さ")}</th><th>${t("保管場所")}</th><th></th></tr></thead><tbody>`;
     for(const v of byDate.get(d)){
       const r=records.find(x=>x.id===v.record_id);
-      h+=`<tr><td><b>${escH(v.person)}</b></td><td>${escH(v.job)}</td><td><span class="pill mat ${matCls(r.mat)}">${IC.mat}${escH(r.mat)}</span>${shapeIco(r.koshu)}${escH(r.koshu)} <span class="tnum">${escH(r.spec)}</span> <span class="tnum muted">t${escH(r.thk)}</span></td><td class="r tnum">${Number(r.len).toLocaleString()}</td><td><span class="pill loc">${IC.loc}${escH(r.loc||"—")}</span></td><td class="r rsv-acts"><button type="button" class="rsv-go" data-rsvgo="${v.id}" title="${escH(t("この材料の持ち出し画面を開く"))}">${CO_ICO}${escH(t("持ち出す"))}</button><button type="button" class="rsv-del" data-rsvdel="${v.id}">${escH(t("取り消す"))}</button></td></tr>`;
+      h+=`<tr><td class="rsv-name"><b>${escH(v.person)}</b></td><td class="rsv-job">${escH(v.job)}</td><td class="rsv-mat"><span class="pill mat ${matCls(r.mat)}">${IC.mat}${escH(r.mat)}</span>${shapeIco(r.koshu)}${escH(r.koshu)} <span class="tnum">${escH(r.spec)}</span> <span class="tnum muted">t${escH(r.thk)}</span></td><td class="r tnum rsv-len">${Number(r.len).toLocaleString()}</td><td class="rsv-loc"><span class="pill loc">${IC.loc}${escH(r.loc||"—")}</span></td><td class="r rsv-acts"><button type="button" class="rsv-go" data-rsvgo="${v.id}" title="${escH(t("この材料の持ち出し画面を開く"))}">${CO_ICO}${escH(t("持ち出す"))}</button><button type="button" class="rsv-del" data-rsvdel="${v.id}">${escH(t("取り消す"))}</button></td></tr>`;
     }
     h+="</tbody></table></div></div>";
   }
@@ -2482,6 +2484,10 @@ async function init(){
   $("#btnSelClear").addEventListener("click",()=>{invSel.clear();renderInventory();});
   {let tm=null;$("#invFilter").addEventListener("input",()=>{clearTimeout(tm);tm=setTimeout(()=>{invFilter=$("#invFilter").value.trim();renderInventory();},200);});}
   $("#invLoc").addEventListener("change",()=>{invLoc=$("#invLoc").value;renderInventory();});  $("#btnQrKey").addEventListener("click",openKeyQr);
+  /* スマホ：持ち出し画面 ⇔ 予約の一覧（タブは隠れているので、タブを押したのと同じ動きにする） */
+  const goView=v=>{const tb=document.querySelector('.tab[data-view="'+v+'"]');if(tb)tb.click();window.scrollTo(0,0);};
+  $("#btnRsvList").addEventListener("click",()=>goView("reserve"));
+  $("#rsvBack").addEventListener("click",()=>goView("checkout"));
   $("#keyClose").addEventListener("click",closeKey);
   $("#btnKeyOut").addEventListener("click",()=>keyAction("out"));
   $("#btnKeyIn").addEventListener("click",()=>keyAction("in"));

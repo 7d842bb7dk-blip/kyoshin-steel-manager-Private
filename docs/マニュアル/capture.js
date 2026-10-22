@@ -75,6 +75,14 @@ const SHOTS = [
       document.querySelector('.tab[data-view="reserve"]').click(); await new Promise(r=>setTimeout(r,250));
       document.scrollingElement.scrollTop=0;
       ({tab:__rect('.tab[data-view="reserve"]',6), list:__rect("#view-reserve .panel",0)})` },
+  // スマホ：持ち出し画面の「予約の一覧」ボタン → 予約の一覧（カード表示）
+  { name: "shot-rsvmobbtn", vp: MOBILE, js: `
+      document.querySelector('.tab[data-view="checkout"]').click(); await new Promise(r=>setTimeout(r,250)); document.scrollingElement.scrollTop=0;
+      ({btn:__rect("#btnRsvList",4)})` },
+  { name: "shot-rsvmob", vp: MOBILE, js: `
+      document.querySelector('.tab[data-view="checkout"]').click(); await new Promise(r=>setTimeout(r,200));
+      document.querySelector("#btnRsvList").click(); await new Promise(r=>setTimeout(r,300));
+      ({list:__rect("#rsvList",0), back:__rect("#rsvBack",4)})` },
   { name: "shot-inv", vp: DESK, js: `
       isAdmin=true; applyAdmin(); document.querySelector('.tab[data-view="inventory"]').click(); await new Promise(r=>setTimeout(r,300));
       __set("#invFilter","sus304 角パイプ 50×50"); invFilter="sus304 角パイプ 50×50"; renderInventory(); await new Promise(r=>setTimeout(r,200));

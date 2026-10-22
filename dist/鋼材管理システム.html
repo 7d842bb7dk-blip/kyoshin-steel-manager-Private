@@ -409,6 +409,39 @@ main.content{flex:1;overflow:auto;padding:20px 22px 48px;background:var(--bg)}
   padding:3px 12px;font-size:11.5px;font-weight:800;cursor:pointer;font-family:inherit;white-space:nowrap;margin-right:6px;vertical-align:middle}
 .rsv-go:hover{background:var(--accent-d);border-color:var(--accent-d)}
 .rsv-go svg{width:13px;height:13px}
+/* スマホ：持ち出し画面の「予約の一覧」ボタンと、一覧から戻るボタン（PCはメニューの「予約」を使うので出さない） */
+.rsvlist-btn,.rsv-back{display:none}
+.rsvlist-btn{align-items:center;gap:11px;width:100%;text-align:left;border:1.5px solid #f2d59b;background:#fff8ea;border-radius:13px;
+  padding:12px 16px;margin-bottom:12px;cursor:pointer;font-family:var(--jp);color:#7a4b00}
+.rsvlist-btn svg{width:24px;height:24px;flex:0 0 auto}
+.rsvlist-btn .nsb-txt{display:flex;flex-direction:column;gap:1px;flex:1;min-width:0}
+.rsvlist-btn .nsb-t{font-size:16px;font-weight:800}
+.rsvlist-btn .nsb-s{font-size:11px;color:#8a6a2c}
+.rsvlist-btn:active{transform:scale(.98)}
+.rsvlist-count{flex:0 0 auto;font-size:12.5px;font-weight:800;color:#fff;background:var(--accent);border-radius:999px;padding:3px 10px}
+.rsv-back{align-items:center;gap:4px;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:999px;
+  padding:9px 16px 9px 10px;margin-bottom:10px;font-family:var(--jp);font-size:14px;font-weight:800;cursor:pointer}
+.rsv-back svg{width:18px;height:18px}
+@media(max-width:760px){
+  .rsvlist-btn,.rsv-back{display:flex}
+  /* 予約の一覧：表をカード（1件＝1枚）にする */
+  #rsvList{padding:10px 10px 14px}
+  #rsvList .tbl-wrap{border:none;background:none;box-shadow:none;border-radius:0;overflow:visible}
+  .rsv-tbl thead{display:none}
+  .rsv-tbl,.rsv-tbl tbody,.rsv-tbl tr,.rsv-tbl td{display:block}
+  .rsv-tbl tr{border:1px solid var(--line-soft);border-radius:12px;padding:10px 12px;margin-bottom:8px;background:var(--panel)}
+  .dt.rsv-tbl td{border:none;padding:2px 0;text-align:left;white-space:normal}
+  .rsv-tbl td.rsv-name,.rsv-tbl td.rsv-job{display:inline-block;font-size:14px}
+  .rsv-tbl td.rsv-job{margin-left:8px;color:var(--ink-soft)}
+  .rsv-tbl td.rsv-mat{margin-top:3px}
+  .rsv-tbl td.rsv-len,.rsv-tbl td.rsv-loc{display:inline-block;margin-top:3px}
+  .rsv-tbl td.rsv-len::after{content:" mm"}
+  .rsv-tbl td.rsv-loc{margin-left:10px}
+  .rsv-tbl td.rsv-acts{display:flex;gap:8px;margin-top:9px}
+  .rsv-tbl .rsv-go{flex:1;justify-content:center;margin-right:0;padding:10px 12px;font-size:14px}
+  .rsv-tbl .rsv-go svg{width:16px;height:16px}
+  .rsv-tbl .rsv-del{padding:10px 14px;font-size:13px}
+}
 .rsv-today{font-size:11px;font-weight:800;color:#fff;background:var(--accent);border-radius:999px;padding:1px 9px}
 .tab-count{display:inline-block;min-width:18px;text-align:center;font-size:10.5px;font-weight:800;color:#fff;background:var(--accent);
   border-radius:999px;padding:1px 5px;margin-left:-2px}
@@ -858,6 +891,11 @@ tr.wl-warn td{background:var(--accent-soft)}
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 7v10l9 4 4.5-2"/><path d="M18 15v6M15 18h6"/></svg>
         <span class="nsb-txt"><span class="nsb-t" data-i18n="残材を登録">残材を登録</span><span class="nsb-s" data-i18n="今日納入された材料の残りなど、リストに無い材料はこちら">今日納入された材料の残りなど、リストに無い材料はこちら</span></span>
       </button>
+      <button class="rsvlist-btn server-only" id="btnRsvList">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M3 9.5h18M8 3v3M16 3v3"/></svg>
+        <span class="nsb-txt"><span class="nsb-t" data-i18n="予約の一覧">予約の一覧</span><span class="nsb-s" data-i18n="だれが・いつ・どの材料を使う予定か">だれが・いつ・どの材料を使う予定か</span></span>
+        <span class="rsvlist-count" id="rsvMobCount"></span>
+      </button>
       <div class="panel">
         <div class="panel-h">
           <h2><svg class="sec-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>持ち出す材料をさがす</h2>
@@ -879,6 +917,7 @@ tr.wl-warn td{background:var(--accent-soft)}
 
     <!-- ====== RESERVE VIEW（鋼材の予約の一覧・全員。サーバー版のみ） ====== -->
     <section class="view" id="view-reserve">
+      <button class="rsv-back" id="rsvBack"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg><span data-i18n="持ち出し画面に戻る">持ち出し画面に戻る</span></button>
       <div class="panel">
         <div class="panel-h">
           <h2><svg class="sec-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M3 9.5h18M8 3v3M16 3v3M8.5 14.5l2.3 2.3 4.7-4.7"/></svg><span data-i18n="予約の一覧">予約の一覧</span></h2>
@@ -12259,6 +12298,7 @@ const I18N_VI={
   "履歴はまだありません。「持ち出し」画面から記録すると、ここに残ります":"Chưa có lịch sử. Ghi nhận từ màn hình 「Lấy vật liệu」 sẽ hiện ở đây",
   "履歴を更新しました":"Đã cập nhật lịch sử",
   /* 鋼材の予約 */
+  "だれが・いつ・どの材料を使う予定か":"Ai sẽ dùng vật liệu nào, khi nào","持ち出し画面に戻る":"Quay lại màn hình lấy vật liệu",
   "予約":"Đặt trước","予約する":"Đặt trước","予約の一覧":"Danh sách đặt trước","この材料を予約":"Đặt trước vật liệu này",
   "この材料の持ち出し画面を開く":"Mở màn hình lấy vật liệu này",
   "だれが・いつ・どの案件で、どの材料を使う予定かの一覧です。「持ち出す」を押すと、その材料の持ち出し画面がすぐ開きます。予約するには「在庫検索」か「持ち出し」で、材料の「予約」ボタンを押してください。予約日を過ぎた予約は自動で消えます。":
@@ -12917,6 +12957,7 @@ async function cancelRsv(id){
 function renderReserve(){
   const td=todayStr(),list=reservations.filter(v=>v.date>=td&&records.some(r=>r.id===v.record_id));
   const cnt=$("#rsvCount");if(cnt){cnt.textContent=list.length?String(list.length):"";cnt.style.display=list.length?"":"none";}
+  const mc=$("#rsvMobCount");if(mc){mc.textContent=list.length+t("件");mc.style.display=list.length?"":"none";}
   const wrap=$("#rsvList");if(!wrap)return;
   if(!list.length){wrap.innerHTML=emptyState(t("予約はまだありません"));return;}
   const byDate=new Map();
@@ -12927,7 +12968,7 @@ function renderReserve(){
     h+=`<div class="tbl-wrap"><table class="dt rsv-tbl"><thead><tr><th>${t("名前")}</th><th>${t("案件名")}</th><th>${t("材料")}</th><th class="r">${t("長さ")}</th><th>${t("保管場所")}</th><th></th></tr></thead><tbody>`;
     for(const v of byDate.get(d)){
       const r=records.find(x=>x.id===v.record_id);
-      h+=`<tr><td><b>${escH(v.person)}</b></td><td>${escH(v.job)}</td><td><span class="pill mat ${matCls(r.mat)}">${IC.mat}${escH(r.mat)}</span>${shapeIco(r.koshu)}${escH(r.koshu)} <span class="tnum">${escH(r.spec)}</span> <span class="tnum muted">t${escH(r.thk)}</span></td><td class="r tnum">${Number(r.len).toLocaleString()}</td><td><span class="pill loc">${IC.loc}${escH(r.loc||"—")}</span></td><td class="r rsv-acts"><button type="button" class="rsv-go" data-rsvgo="${v.id}" title="${escH(t("この材料の持ち出し画面を開く"))}">${CO_ICO}${escH(t("持ち出す"))}</button><button type="button" class="rsv-del" data-rsvdel="${v.id}">${escH(t("取り消す"))}</button></td></tr>`;
+      h+=`<tr><td class="rsv-name"><b>${escH(v.person)}</b></td><td class="rsv-job">${escH(v.job)}</td><td class="rsv-mat"><span class="pill mat ${matCls(r.mat)}">${IC.mat}${escH(r.mat)}</span>${shapeIco(r.koshu)}${escH(r.koshu)} <span class="tnum">${escH(r.spec)}</span> <span class="tnum muted">t${escH(r.thk)}</span></td><td class="r tnum rsv-len">${Number(r.len).toLocaleString()}</td><td class="rsv-loc"><span class="pill loc">${IC.loc}${escH(r.loc||"—")}</span></td><td class="r rsv-acts"><button type="button" class="rsv-go" data-rsvgo="${v.id}" title="${escH(t("この材料の持ち出し画面を開く"))}">${CO_ICO}${escH(t("持ち出す"))}</button><button type="button" class="rsv-del" data-rsvdel="${v.id}">${escH(t("取り消す"))}</button></td></tr>`;
     }
     h+="</tbody></table></div></div>";
   }
@@ -14003,6 +14044,10 @@ async function init(){
   $("#btnSelClear").addEventListener("click",()=>{invSel.clear();renderInventory();});
   {let tm=null;$("#invFilter").addEventListener("input",()=>{clearTimeout(tm);tm=setTimeout(()=>{invFilter=$("#invFilter").value.trim();renderInventory();},200);});}
   $("#invLoc").addEventListener("change",()=>{invLoc=$("#invLoc").value;renderInventory();});  $("#btnQrKey").addEventListener("click",openKeyQr);
+  /* スマホ：持ち出し画面 ⇔ 予約の一覧（タブは隠れているので、タブを押したのと同じ動きにする） */
+  const goView=v=>{const tb=document.querySelector('.tab[data-view="'+v+'"]');if(tb)tb.click();window.scrollTo(0,0);};
+  $("#btnRsvList").addEventListener("click",()=>goView("reserve"));
+  $("#rsvBack").addEventListener("click",()=>goView("checkout"));
   $("#keyClose").addEventListener("click",closeKey);
   $("#btnKeyOut").addEventListener("click",()=>keyAction("out"));
   $("#btnKeyIn").addEventListener("click",()=>keyAction("in"));

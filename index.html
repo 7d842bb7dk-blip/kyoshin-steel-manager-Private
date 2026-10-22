@@ -136,6 +136,11 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 7v10l9 4 4.5-2"/><path d="M18 15v6M15 18h6"/></svg>
         <span class="nsb-txt"><span class="nsb-t" data-i18n="残材を登録">残材を登録</span><span class="nsb-s" data-i18n="今日納入された材料の残りなど、リストに無い材料はこちら">今日納入された材料の残りなど、リストに無い材料はこちら</span></span>
       </button>
+      <button class="rsvlist-btn server-only" id="btnRsvList">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M3 9.5h18M8 3v3M16 3v3"/></svg>
+        <span class="nsb-txt"><span class="nsb-t" data-i18n="予約の一覧">予約の一覧</span><span class="nsb-s" data-i18n="だれが・いつ・どの材料を使う予定か">だれが・いつ・どの材料を使う予定か</span></span>
+        <span class="rsvlist-count" id="rsvMobCount"></span>
+      </button>
       <div class="panel">
         <div class="panel-h">
           <h2><svg class="sec-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>持ち出す材料をさがす</h2>
@@ -157,6 +162,7 @@
 
     <!-- ====== RESERVE VIEW（鋼材の予約の一覧・全員。サーバー版のみ） ====== -->
     <section class="view" id="view-reserve">
+      <button class="rsv-back" id="rsvBack"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg><span data-i18n="持ち出し画面に戻る">持ち出し画面に戻る</span></button>
       <div class="panel">
         <div class="panel-h">
           <h2><svg class="sec-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M3 9.5h18M8 3v3M16 3v3M8.5 14.5l2.3 2.3 4.7-4.7"/></svg><span data-i18n="予約の一覧">予約の一覧</span></h2>
