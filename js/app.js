@@ -739,8 +739,9 @@ const I18N_VI={
   "履歴を更新しました":"Đã cập nhật lịch sử",
   /* 鋼材の予約 */
   "予約":"Đặt trước","予約する":"Đặt trước","予約の一覧":"Danh sách đặt trước","この材料を予約":"Đặt trước vật liệu này",
-  "だれが・いつ・どの案件で、どの材料を使う予定かの一覧です。予約するには「在庫検索」か「持ち出し」で、材料の「予約」ボタンを押してください。予約日を過ぎた予約は自動で消えます。":
-    "Danh sách ai sẽ dùng vật liệu nào, khi nào, cho công trình nào. Để đặt trước, hãy bấm nút 「Đặt trước」 của vật liệu ở màn hình 「Tìm kiếm tồn kho」 hoặc 「Lấy vật liệu」. Đặt trước đã quá ngày đặt trước sẽ tự động bị xóa.",
+  "この材料の持ち出し画面を開く":"Mở màn hình lấy vật liệu này",
+  "だれが・いつ・どの案件で、どの材料を使う予定かの一覧です。「持ち出す」を押すと、その材料の持ち出し画面がすぐ開きます。予約するには「在庫検索」か「持ち出し」で、材料の「予約」ボタンを押してください。予約日を過ぎた予約は自動で消えます。":
+    "Danh sách ai sẽ dùng vật liệu nào, khi nào, cho công trình nào. Bấm 「Lấy ra」 để mở ngay màn hình lấy vật liệu đó. Để đặt trước, hãy bấm nút 「Đặt trước」 của vật liệu ở màn hình 「Tìm kiếm tồn kho」 hoặc 「Lấy vật liệu」. Đặt trước đã quá ngày đặt trước sẽ tự động bị xóa.",
   "予約日":"Ngày đặt trước","案件名":"Tên công trình","閉じる":"Đóng","今日":"Hôm nay","材料":"Vật liệu","取り消す":"Hủy",
   "この材料は予約があります":"Vật liệu này đã có người đặt trước","すでに予約があります":"Đã có người đặt trước",
   "予約日を入れてください":"Hãy nhập ngày đặt trước","予約日は、今日かそれより後の日にしてください":"Ngày đặt trước phải là hôm nay hoặc sau hôm nay",
@@ -1405,12 +1406,27 @@ function renderReserve(){
     h+=`<div class="tbl-wrap"><table class="dt rsv-tbl"><thead><tr><th>${t("名前")}</th><th>${t("案件名")}</th><th>${t("材料")}</th><th class="r">${t("長さ")}</th><th>${t("保管場所")}</th><th></th></tr></thead><tbody>`;
     for(const v of byDate.get(d)){
       const r=records.find(x=>x.id===v.record_id);
-      h+=`<tr><td><b>${escH(v.person)}</b></td><td>${escH(v.job)}</td><td><span class="pill mat ${matCls(r.mat)}">${IC.mat}${escH(r.mat)}</span>${shapeIco(r.koshu)}${escH(r.koshu)} <span class="tnum">${escH(r.spec)}</span> <span class="tnum muted">t${escH(r.thk)}</span></td><td class="r tnum">${Number(r.len).toLocaleString()}</td><td><span class="pill loc">${IC.loc}${escH(r.loc||"—")}</span></td><td class="r"><button type="button" class="rsv-del" data-rsvdel="${v.id}">${escH(t("取り消す"))}</button></td></tr>`;
+      h+=`<tr><td><b>${escH(v.person)}</b></td><td>${escH(v.job)}</td><td><span class="pill mat ${matCls(r.mat)}">${IC.mat}${escH(r.mat)}</span>${shapeIco(r.koshu)}${escH(r.koshu)} <span class="tnum">${escH(r.spec)}</span> <span class="tnum muted">t${escH(r.thk)}</span></td><td class="r tnum">${Number(r.len).toLocaleString()}</td><td><span class="pill loc">${IC.loc}${escH(r.loc||"—")}</span></td><td class="r rsv-acts"><button type="button" class="rsv-go" data-rsvgo="${v.id}" title="${escH(t("この材料の持ち出し画面を開く"))}">${CO_ICO}${escH(t("持ち出す"))}</button><button type="button" class="rsv-del" data-rsvdel="${v.id}">${escH(t("取り消す"))}</button></td></tr>`;
     }
     h+="</tbody></table></div></div>";
   }
   wrap.innerHTML=h;
   wrap.querySelectorAll("[data-rsvdel]").forEach(b=>b.addEventListener("click",()=>cancelRsv(+b.dataset.rsvdel)));
+  wrap.querySelectorAll("[data-rsvgo]").forEach(b=>b.addEventListener("click",()=>openCoFromRsv(+b.dataset.rsvgo)));
+}
+const CO_ICO='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 17h8M18.5 13.5 22 17l-3.5 3.5"/><path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 7v10l7 3.1"/></svg>';
+/* 予約の一覧から、その材料の持ち出し画面を開く。名前は予約した人を入れておく（違う人が持ち出すときは選び直す）。
+ * 予約した本人が持ち出すと、その予約は消える（サーバー側） */
+function openCoFromRsv(rid){
+  const v=reservations.find(x=>x.id===rid);if(!v)return;
+  if(!records.some(r=>r.id===v.record_id)){toast(t("この在庫は見つかりません（すでに使い切った可能性があります）"));return;}
+  openCo(v.record_id);
+  const sel=$("#coPersonSel");
+  if(sel&&v.person){
+    if([...sel.options].some(o=>o.value===v.person))sel.value=v.person;
+    else{sel.value="__free";$("#coPerson").value=v.person;}
+    if(sel.onchange)sel.onchange();
+  }
 }
 function applyCoMode(){
   $("#coModeAll").classList.toggle("active",coMode==="all");
