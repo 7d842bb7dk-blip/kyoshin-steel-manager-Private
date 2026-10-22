@@ -557,17 +557,6 @@ select.m-in{width:auto;max-width:100%;cursor:pointer}
 .key-btn.out:hover{background:var(--accent);color:#fff}
 .key-btn.in{border-color:#1e6b43;color:#1e6b43}
 .key-btn.in:hover{background:#1e6b43;color:#fff}
-/* 状態で出し分け：鍵がある → 「借りる」だけ／持ち出し中 → 「返却」を大きく、「借りる」は小さく */
-.key-modal .key-btn.in,.key-modal .key-forgot{display:none}
-.key-modal.k-out .key-btn.in,.key-modal.k-unknown .key-btn.in{display:flex}
-.key-modal.k-out .key-btn.in{background:#1e6b43;color:#fff;padding:18px 12px;font-size:16px}
-.key-modal.k-out .key-btn.in:hover{background:#17573a}
-.key-modal.k-out .key-forgot{display:block;font-size:11.5px;color:var(--ink-soft);text-align:center;margin-top:6px;line-height:1.5}
-.key-modal.k-out .key-btn.out{padding:10px 12px;font-size:13px;margin-top:-4px}
-.key-modal.k-out .key-btn.out svg{width:16px;height:16px}
-.key-status.is-out{background:#fff6e0;border-color:#f0d78a;color:#6b4a00}
-.key-stale{font-size:11.5px;font-weight:700;margin-top:4px;color:#8a6100}
-.key-status.is-in{background:#ecf7f0;border-color:#bfe3cc;color:#1e6b43}
 .key-note{font-size:12px;color:var(--ink-soft);margin:14px 0 16px;line-height:1.6;background:#fdfaef;
   border:1px solid #efe6c6;border-radius:8px;padding:9px 12px}
 
@@ -592,13 +581,6 @@ select.m-in{width:auto;max-width:100%;cursor:pointer}
 .wl-item .shape-ic{margin-right:2px}
 .wl-sep{color:var(--ink-faint);margin:0 7px}
 .wl-keyout{display:inline-flex;align-items:center;gap:5px;font-weight:700}
-/* 鍵の欄：1段目＝持出、2段目＝返却（同じ行に記録） */
-.wl-kline{white-space:nowrap;line-height:1.9}
-.wl-keyin{display:inline-flex;align-items:center;gap:5px;font-weight:700;color:#1e6b43}
-.wl-keyin .wl-key{color:#1e6b43}
-.wl-dur{font-size:11.5px;color:var(--ink-soft);margin-left:3px}
-.wl-retby{font-size:11px;font-weight:700;color:#8a6100;background:#fff3cf;border-radius:6px;padding:1px 6px;margin-left:5px}
-.wl-kopen{font-size:12px;font-weight:800;color:#b26a00}
 .wl-key{width:14px;height:14px;color:var(--ink-soft);flex:0 0 auto}
 .wl-use{color:var(--accent-d);margin-left:4px}
 .wl-add{color:#1e6b43;margin-left:4px}

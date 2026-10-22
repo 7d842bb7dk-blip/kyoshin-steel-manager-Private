@@ -5,7 +5,7 @@
 //            PORT=3095 HOST=127.0.0.1 HTTPS_PORT=3495 HTTP80=0 AUTO_UPDATE_SEC=0 node server/index.js
 //   2) node capture-demo.js   … 見本の予約・材料をテスト用サーバーに入れる
 //   3) node capture.js shots  … shots/ に撮影（rects.json に部品の位置も出る）
-//        一部だけ撮り直す：ONLY=shot-key,shot-keyret node capture.js shots（別の番号のサーバーは APP_URL=http://127.0.0.1:3097/）
+//        一部だけ撮り直す：ONLY=shot-rsvmob,shot-rsvlist node capture.js shots（別の番号のサーバーは APP_URL=http://127.0.0.1:3097/）
 //   4) python crops.py        … 拡大図（shots/crop/）を作り直す → HTML を Edge で PDF にする
 // ─────────────────────────────────────────────────────────────
 // マニュアル用スクリーンショットを、本物の画面から自動で撮る（Edge ヘッドレス＋DevTools プロトコル）
@@ -89,13 +89,6 @@ const SHOTS = [
       invSel=new Set([...document.querySelectorAll("#invTable [data-sel]")].slice(0,3).map(c=>+c.dataset.sel)); renderInventory(); await new Promise(r=>setTimeout(r,150));
       document.scrollingElement.scrollTop=0;
       ({panel:__rect("#view-inventory .panel",0), tools:__rect("#view-inventory .panel-h",0), bar:__rect(".inv-tools",0)})` },
-  // 鋼材倉庫の鍵：鍵がある（借りる）／持ち出し中（返す）。状態は撮影用に固定する
-  { name: "shot-key", vp: MOBILE, js: `
-      await openKey(); keyState={out:false,person:"",ts:null}; renderKeyStatus(); __set("#keyPersonSel","山田 太郎");
-      ({modal:__rect("#keyOverlay .modal",0)})` },
-  { name: "shot-keyret", vp: MOBILE, js: `
-      await openKey(); keyState={out:true,person:"山田 太郎",ts:new Date(new Date().setHours(10,15,0,0)).getTime()}; renderKeyStatus(); __set("#keyPersonSel","山田 太郎");
-      ({modal:__rect("#keyOverlay .modal",0)})` },
   { name: "shot-wledit", vp: DESK, js: `
       isAdmin=true; applyAdmin(); document.querySelector('.tab[data-view="worklog"]').click(); await new Promise(r=>setTimeout(r,900));
       const x=history.find(e=>e.type==="checkout"&&!e.undone_at&&e.record_id!=null)||history.find(e=>e.type==="checkout");

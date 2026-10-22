@@ -569,17 +569,6 @@ select.m-in{width:auto;max-width:100%;cursor:pointer}
 .key-btn.out:hover{background:var(--accent);color:#fff}
 .key-btn.in{border-color:#1e6b43;color:#1e6b43}
 .key-btn.in:hover{background:#1e6b43;color:#fff}
-/* 状態で出し分け：鍵がある → 「借りる」だけ／持ち出し中 → 「返却」を大きく、「借りる」は小さく */
-.key-modal .key-btn.in,.key-modal .key-forgot{display:none}
-.key-modal.k-out .key-btn.in,.key-modal.k-unknown .key-btn.in{display:flex}
-.key-modal.k-out .key-btn.in{background:#1e6b43;color:#fff;padding:18px 12px;font-size:16px}
-.key-modal.k-out .key-btn.in:hover{background:#17573a}
-.key-modal.k-out .key-forgot{display:block;font-size:11.5px;color:var(--ink-soft);text-align:center;margin-top:6px;line-height:1.5}
-.key-modal.k-out .key-btn.out{padding:10px 12px;font-size:13px;margin-top:-4px}
-.key-modal.k-out .key-btn.out svg{width:16px;height:16px}
-.key-status.is-out{background:#fff6e0;border-color:#f0d78a;color:#6b4a00}
-.key-stale{font-size:11.5px;font-weight:700;margin-top:4px;color:#8a6100}
-.key-status.is-in{background:#ecf7f0;border-color:#bfe3cc;color:#1e6b43}
 .key-note{font-size:12px;color:var(--ink-soft);margin:14px 0 16px;line-height:1.6;background:#fdfaef;
   border:1px solid #efe6c6;border-radius:8px;padding:9px 12px}
 
@@ -604,13 +593,6 @@ select.m-in{width:auto;max-width:100%;cursor:pointer}
 .wl-item .shape-ic{margin-right:2px}
 .wl-sep{color:var(--ink-faint);margin:0 7px}
 .wl-keyout{display:inline-flex;align-items:center;gap:5px;font-weight:700}
-/* 鍵の欄：1段目＝持出、2段目＝返却（同じ行に記録） */
-.wl-kline{white-space:nowrap;line-height:1.9}
-.wl-keyin{display:inline-flex;align-items:center;gap:5px;font-weight:700;color:#1e6b43}
-.wl-keyin .wl-key{color:#1e6b43}
-.wl-dur{font-size:11.5px;color:var(--ink-soft);margin-left:3px}
-.wl-retby{font-size:11px;font-weight:700;color:#8a6100;background:#fff3cf;border-radius:6px;padding:1px 6px;margin-left:5px}
-.wl-kopen{font-size:12px;font-weight:800;color:#b26a00}
 .wl-key{width:14px;height:14px;color:var(--ink-soft);flex:0 0 auto}
 .wl-use{color:var(--accent-d);margin-left:4px}
 .wl-add{color:#1e6b43;margin-left:4px}
@@ -1205,17 +1187,15 @@ tr.wl-warn td{background:var(--accent-soft)}
       <button class="x" id="keyClose"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
     </div>
     <div class="co-body">
-      <div class="key-status" id="keyStatus">—</div>
+      <div class="key-status" data-i18n="これから鋼材倉庫へ行くことを記録します">これから鋼材倉庫へ行くことを記録します</div>
       <label class="co-lab"><span data-i18n="あなたの名前">あなたの名前</span><span class="req">*</span>
         <select id="keyPersonSel" class="co-input"></select>
         <input type="text" id="keyPerson" class="co-input" style="display:none;margin-top:7px" placeholder="例: 山田" autocomplete="off">
       </label>
       <div class="key-btns">
-        <button class="key-btn in" id="btnKeyIn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><path d="M10 17l-5-5 5-5M5 12h12"/></svg><span data-i18n="鍵を返却する">鍵を返却する</span></button>
-        <div class="key-forgot" id="keyForgot" data-i18n="前の人が返却を記録し忘れていて、これから自分が借りるときは ↓">前の人が返却を記録し忘れていて、これから自分が借りるときは ↓</div>
-        <button class="key-btn out" id="btnKeyOut"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5M21 12H9"/></svg><span data-i18n="鍵を借りて倉庫へ行く">鍵を借りて倉庫へ行く</span></button>
+        <button class="key-btn out" id="btnKeyOut"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5M21 12H9"/></svg><span data-i18n="記録して倉庫へ行く">記録して倉庫へ行く</span></button>
       </div>
-      <div class="key-note">鍵を<b>借りるとき</b>と<b>返すとき</b>の2回、このQRをかざしてください。倉庫で材料を使ったら、材料のQRを読んで<b>残りの長さの登録</b>も忘れずに。</div>
+      <div class="key-note">倉庫で材料を使ったら、材料のQRを読んで<b>残りの長さの登録</b>を。鍵は使い終わったらフックに戻すだけでOK（返却の操作はありません）。</div>
     </div>
   </div>
 </div>
@@ -12281,9 +12261,6 @@ const I18N_VI={
   "名前を入力してください":"Hãy nhập tên",
   "鍵の持ち出しを記録しました。行ってらっしゃい！":"Đã ghi nhận mượn chìa khóa. Chúc làm việc tốt!",
   "鍵の返却を記録しました。おつかれさまでした":"Đã ghi nhận trả chìa khóa. Cảm ơn bạn!",
-  "返却の記録がありません。借りるのか返すのかを選んでください":"Chưa có ghi nhận trả. Hãy chọn mượn hay trả",
-  "前の人が返却を記録し忘れていて、これから自分が借りるときは ↓":"Nếu người trước quên ghi nhận trả và bây giờ bạn mượn thì bấm ↓",
-  "鍵を借りるときと返すときの2回、このQRをかざしてください。倉庫で材料を使ったら、材料のQRを読んで残りの長さの登録も忘れずに。":"Quét mã QR này 2 lần: khi mượn và khi trả chìa khóa. Dùng vật liệu xong, nhớ quét QR của vật liệu và nhập chiều dài còn lại.",
   "残りの長さを入力してください":"Hãy nhập chiều dài còn lại",
   "今の長さより短い値を入力してください":"Hãy nhập giá trị ngắn hơn chiều dài hiện tại",
   "今の長さより短い値を入力してください（変わっていない場合は登録不要です）":"Hãy nhập giá trị ngắn hơn chiều dài hiện tại",
@@ -13135,44 +13112,26 @@ function renderWorklog(){
   const byDate=new Map();
   for(const e of asc){const d=fmtDateJ(e.ts);if(!byDate.has(d))byDate.set(d,[]);byDate.get(d).push(e);}
   const KEY_ICO='<svg class="wl-key" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="7.5" cy="15.5" r="4.5"/><path d="M10.7 12.3 21 2M15 8l3 3"/></svg>';
-  const RET_ICO='<svg class="wl-key" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 17l-5-5 5-5M5 12h12"/><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/></svg>';
-  const kp=keyPairs(asc);
-  const kBtns=e=>`<button type="button" class="wl-undo" data-undo="${e.id}" title="この鍵の記録を取り消す">元に戻す</button>`+wlEditedTag(e)+wlEditBtn(e);
-  /* 鍵の欄：1段目＝持出、2段目＝返却（返却がまだ／無いときはその旨） */
-  const keyCell=r=>{
-    if(r.retOnly)return `<div class="wl-kline"><span class="wl-keyin">${RET_ICO}${fmtTime(r.retOnly.ts)} 返却</span>${kBtns(r.retOnly)}</div><div class="wl-kline muted" style="font-size:11.5px">持出の記録なし</div>`;
-    if(!r.key)return '<span class="muted">鍵なし</span>';
-    const k=r.keyEv;
-    if(k.undone_at)return `<div class="wl-kline"><span class="wl-keyout wl-undone">${KEY_ICO}${fmtTime(r.key)} 持出</span><span class="wl-undone-tag">取り消し済み</span>${wlEditedTag(k)}${wlEditBtn(k)}</div>`;
-    let s=`<div class="wl-kline"><span class="wl-keyout">${KEY_ICO}${fmtTime(r.key)} 持出</span>${kBtns(k)}</div>`;
-    if(r.ret){
-      const e=r.ret,when=fmtDateJ(e.ts)===fmtDateJ(k.ts)?fmtTime(e.ts):fmtTs(e.ts).slice(5);
-      const by=(e.person||"—")!==(k.person||"—")?`<span class="wl-retby">${escH(e.person||"—")} が返却</span>`:"";
-      s+=`<div class="wl-kline"><span class="wl-keyin">${RET_ICO}${when} 返却</span><span class="wl-dur">（${fmtDur(e.ts-k.ts)}）</span>${by}${kBtns(e)}</div>`;
-    }else if(r.retMissing)s+='<div class="wl-kline wl-bad">返却の記録なし ⚠</div>';
-    else if(k.ts>=KEYIN_SINCE)s+='<div class="wl-kline wl-kopen">持ち出し中</div>';
-    return s;
-  };
   let h="";
   for(const d of [...byDate.keys()].reverse()){
-    const rows=worklogRows(byDate.get(d),kp);
+    const rows=worklogRows(byDate.get(d));
     h+=`<div class="wl-day"><div class="wl-date">${d}<span class="wl-daycount">${rows.length}行・${byDate.get(d).length}件</span></div>`;
-    h+='<div class="tbl-wrap"><table class="dt wl-tbl"><thead><tr><th style="width:58px">時刻</th><th style="width:150px">名前</th><th style="width:230px">鍵（持出・返却）</th><th>使った材料・どれだけ</th></tr></thead><tbody>';
+    h+='<div class="tbl-wrap"><table class="dt wl-tbl"><thead><tr><th style="width:58px">時刻</th><th style="width:150px">名前</th><th style="width:108px">鍵</th><th>使った材料・どれだけ</th></tr></thead><tbody>';
     rows.forEach(r=>{
       const recent=(Date.now()-r.start)<3600e3;
       const keyUndone=!!(r.keyEv&&r.keyEv.undone_at);
-      /* 鍵を返したのに材料の記録が無い／持ち出して1時間たっても記録が無い */
-      const noRec=r.key&&!keyUndone&&!r.items.some(i=>i.type!=="undo"&&!i.undone_at)&&(!!r.ret||!recent);
-      r.retMissing=!!(r.key&&!keyUndone&&!r.ret&&r.keyEv.ts>=KEYIN_SINCE&&(kp.superseded.has(r.keyEv.id)||Date.now()-r.keyEv.ts>KEY_LATE_MS));
-      const key=keyCell(r);
+      const noRec=r.key&&!keyUndone&&!r.items.some(i=>i.type!=="undo"&&!i.undone_at)&&!recent;
+      const key=!r.key?'<span class="muted">鍵なし</span>'
+        :(keyUndone?`<span class="wl-keyout wl-undone">${KEY_ICO}${fmtTime(r.key)} 持出</span><span class="wl-undone-tag">取り消し済み</span>`
+        :`<span class="wl-keyout">${KEY_ICO}${fmtTime(r.key)} 持出</span><button type="button" class="wl-undo" data-undo="${r.keyEv.id}" title="この鍵の記録を取り消す">元に戻す</button>`)
+        +wlEditedTag(r.keyEv)+wlEditBtn(r.keyEv);
       let items;
-      if(r.retOnly)items='<span class="muted">—</span>';
-      else if(!r.items.length)items=noRec?'<span class="wl-bad">使った材料の記録なし ⚠</span>':'<span class="muted">（作業中）</span>';
+      if(!r.items.length)items=noRec?'<span class="wl-bad">使った材料の記録なし ⚠</span>':'<span class="muted">（作業中）</span>';
       else{
         const MAX=6,shown=r.items.length>MAX?r.items.slice(0,MAX-1):r.items;
         items=shown.map(wlItem).join('<span class="wl-sep">／</span>')+(r.items.length>MAX?`<span class="wl-sep">／</span><span class="muted">ほか ${r.items.length-shown.length} 件</span>`:"");
       }
-      h+=`<tr class="${noRec||r.retMissing?"wl-warn":""}"><td class="tnum">${fmtTime(r.start)}</td><td><b>${escH(r.person)}</b></td><td style="white-space:nowrap">${key}</td><td class="wl-items">${items}</td></tr>`;
+      h+=`<tr class="${noRec?"wl-warn":""}"><td class="tnum">${fmtTime(r.start)}</td><td><b>${escH(r.person)}</b></td><td style="white-space:nowrap">${key}</td><td class="wl-items">${items}</td></tr>`;
     });
     h+="</tbody></table></div></div>";
   }
@@ -13183,45 +13142,22 @@ function renderWorklog(){
 /* 作業ログからの取り消し（管理者）：何日前の記録でも、在庫をその記録の前の状態に戻す */
 async function undoFromLog(hid){
   const x=history.find(e=>e.id===hid);if(!x)return;
-  const what=x.type==="keyout"?"鍵の持出":x.type==="keyin"?"鍵の返却":[x.mat,x.koshu,x.spec,x.thk!=null&&x.thk!==""?"t"+x.thk:""].filter(Boolean).join(" ");
+  const what=x.type==="keyout"?"鍵の持出":[x.mat,x.koshu,x.spec,x.thk!=null&&x.thk!==""?"t"+x.thk:""].filter(Boolean).join(" ");
   const label=(HTYPE[x.type]||[x.type])[0];
   if(!confirm(`この記録を取り消して、元に戻しますか？\n\n${fmtTs(x.ts)}　${x.person||"—"}\n${label}：${what}${x.type==="checkout"&&!(Number(x.len_after)>0)?"\n（全部持ち出し → 在庫を同じ番号で復活させます）":""}`))return;
   try{await runUndo(hid,true);toast("元に戻しました");}
   catch(e){toast(e.message,6000);}
 }
-/* 鍵の返却をQRで記録する運用に戻した日時。これより前の持出は返却が無くても「返却の記録なし」と出さない
- * （2026-09-23〜この日までは返却の操作が無い運用だったため） */
-const KEYIN_SINCE=new Date(2026,9,14,20,0).getTime();
-const KEY_LATE_MS=3*3600e3; /* 持ち出してから3時間たっても返却が無ければ「返却の記録なし」 */
-const KEY_AFTER_MS=15*60e3; /* 返却のあと15分以内の材料の記録は、同じ行に入れる（返してから記録した人のため） */
-function fmtDur(ms){const m=Math.max(0,Math.round(ms/60e3));return m<60?m+"分":Math.floor(m/60)+"時間"+(m%60?m%60+"分":"");}
-/* 鍵の持出と返却の組み合わせ（全期間・時刻順）。返却は、その時点でまだ返していない最後の持出に付ける。
- * 取り消した記録は数えない。返却より先に次の持出があった持出は「返し忘れ」（superseded） */
-function keyPairs(asc){
-  const ret=new Map(),paired=new Set(),superseded=new Set();let cur=null;
-  for(const e of asc){
-    if(e.undone_at)continue;
-    if(e.type==="keyout"){if(cur)superseded.add(cur.id);cur=e;}
-    else if(e.type==="keyin"&&cur){ret.set(cur.id,e);paired.add(e.id);cur=null;}
-  }
-  return {ret,paired,superseded};
-}
 /* 1日分の記録を「1行＝1人の1回の作業」にまとめる。
- * 鍵の持出（keyout）と、その返却（keyin・別の人が返しても同じ行）を1行にして、
- * 同じ人の在庫記録（持ち出し・登録・編集・削除）を、返却の15分後まで（返却が無ければ次に鍵を持ち出すまで）同じ行に入れる。
- * 鍵を持ち出していない人の記録は、その人の「鍵なし」の行にまとめる */
-function worklogRows(evs,kp){
+ * 鍵の持出（keyout）から、同じ人が次に鍵を持ち出すまでの在庫記録（持ち出し・登録・編集・削除）を同じ行に入れる。
+ * 鍵を持ち出していない人の記録は、その人の「鍵なし」の行にまとめる（返却の操作は無い運用・2026-09-23〜） */
+function worklogRows(evs){
   const rows=[],open=new Map();
   for(const e of evs){
     const p=e.person||"—";
-    if(e.type==="keyout"){const r={person:p,start:e.ts,key:e.ts,keyEv:e,ret:kp.ret.get(e.id)||null,items:[]};rows.push(r);open.set(p,r);continue;}
-    if(e.type==="keyin"){
-      /* 持出の行にまとめて表示。取り消した返却は出さない。持出が見つからない返却だけ1行にする */
-      if(!kp.paired.has(e.id)&&!e.undone_at)rows.push({person:p,start:e.ts,key:null,retOnly:e,items:[]});
-      continue;
-    }
+    if(e.type==="keyout"){const r={person:p,start:e.ts,key:e.ts,keyEv:e,items:[]};rows.push(r);open.set(p,r);continue;}
+    if(e.type==="keyin")continue; /* 旧運用の返却記録は表示しない */
     let r=open.get(p);
-    if(r&&r.ret&&e.ts>r.ret.ts+KEY_AFTER_MS)r=null;
     if(!r){r={person:p,start:e.ts,key:null,items:[]};rows.push(r);open.set(p,r);}
     r.items.push(e);
   }
@@ -13289,7 +13225,7 @@ function openWlEdit(hid){
   const x=history.find(e=>e.id===hid);if(!x)return;
   wlEditId=hid;
   const label=(HTYPE[x.type]||[x.type])[0];
-  const body=x.type==="keyout"?"鋼材倉庫の鍵を持ち出し":x.type==="keyin"?"鋼材倉庫の鍵を返却":x.type==="bulk"?`CSVから一括取込 ${(x.qty||0).toLocaleString()}件`:wlWhat(x);
+  const body=x.type==="keyout"?"鋼材倉庫の鍵を持ち出し":x.type==="bulk"?`CSVから一括取込 ${(x.qty||0).toLocaleString()}件`:wlWhat(x);
   $("#wlEditWhat").innerHTML=`<span class="wl-edit-type">${escH(label)}</span>${body}${x.undone_at?'<span class="wl-undone-tag">取り消し済み</span>':""}`;
   $("#we_person").value=x.person||"";
   $("#we_people").innerHTML=personOptions().map(p=>`<option value="${escH(p)}"></option>`).join("");
@@ -13317,7 +13253,7 @@ async function saveWlEdit(){
   const body={pin:ADMIN_PIN};
   const person=$("#we_person").value.trim();
   if(person!==(x.person||""))body.person=person;
-  if((x.type==="checkout"||x.type==="keyout"||x.type==="keyin")&&!person){toast("名前を入れてください");$("#we_person").focus();return;}
+  if((x.type==="checkout"||x.type==="keyout")&&!person){toast("名前を入れてください");$("#we_person").focus();return;}
   const tsv=$("#we_ts").value;
   if(!tsv){toast("日時を入れてください");$("#we_ts").focus();return;}
   if(tsv!==$("#we_ts").dataset.orig){const ts=new Date(tsv).getTime();if(!isFinite(ts)){toast("日時が正しくありません");return;}body.ts=ts;}
@@ -13349,7 +13285,7 @@ async function saveWlEdit(){
 async function deleteWlEdit(){
   const x=history.find(e=>e.id===wlEditId);if(!x){closeWlEdit();return;}
   const label=(HTYPE[x.type]||[x.type])[0];
-  const what=x.type==="keyout"?"鋼材倉庫の鍵の持出":x.type==="keyin"?"鋼材倉庫の鍵の返却":x.type==="bulk"?"CSV取込":[x.mat,x.koshu,x.spec,x.thk!=null&&x.thk!==""?"t"+x.thk:""].filter(Boolean).map(escH).join(" ");
+  const what=x.type==="keyout"?"鋼材倉庫の鍵の持出":x.type==="bulk"?"CSV取込":[x.mat,x.koshu,x.spec,x.thk!=null&&x.thk!==""?"t"+x.thk:""].filter(Boolean).map(escH).join(" ");
   const stockNote=(["checkout","add","edit","delete"].includes(x.type)&&!x.undone_at&&x.record_id!=null)
     ?"<br>在庫も記録の前に戻したいときは、削除せずに「元に戻す」を使ってください。":"";
   const ok=await askConfirm({title:"この記録を削除しますか？",
@@ -13419,48 +13355,24 @@ async function submitNs(){
 }
 
 /* ===================== 鋼材倉庫の鍵（QRから開く） ===================== */
-/* 鍵置き場のQRから開く。借りるとき・返すときの2回かざす（2026-10-14〜。9/23〜は返却の操作が無かった）。
- * 鍵がある → 「鍵を借りて倉庫へ行く」だけ。持ち出し中 → 「鍵を返却する」を大きく出す
- * （前の人が返し忘れたときのために「借りる」も小さく残す）。作業ログでは持出と返却を同じ行に出す */
-let keyState=null;
+/* 鍵置き場のQRから開く。「これから倉庫へ行く」ことを記録するだけ（返却の操作は無し。
+ * 鍵はフックに戻すだけでよい。2026-09-23 仕様変更） */
 async function openKey(){
   if(MODE!=="server"){toast("鍵の記録はサーバー版でのみ使えます");return;}
-  keyState=null;renderKeyStatus(t("状態を確認中…"));
   $("#keyOverlay").classList.add("show");
   setupPersonPicker("#keyPersonSel","#keyPerson");
-  try{keyState=await apiGET("/api/key");renderKeyStatus();}
-  catch(e){renderKeyStatus(t("状態を取得できませんでした"));}
 }
 function closeKey(){$("#keyOverlay").classList.remove("show");}
-function renderKeyStatus(msg){
-  const el=$("#keyStatus"),m=$("#keyOverlay .key-modal");if(!el||!m)return;
-  /* 前の日から持ち出し中のまま（返し忘れの可能性が高い）→ 借りる・返すを同じ大きさで出して選んでもらう */
-  const stale=!!(keyState&&keyState.out&&keyState.ts&&fmtDateJ(keyState.ts)!==fmtDateJ(Date.now()));
-  m.classList.toggle("k-out",!!(keyState&&keyState.out)&&!stale);
-  m.classList.toggle("k-unknown",stale||(!keyState&&!!msg&&msg!==t("状態を確認中…")));
-  el.classList.toggle("is-out",!!(keyState&&keyState.out));
-  el.classList.toggle("is-in",!!(keyState&&!keyState.out));
-  if(!keyState){el.textContent=msg||"—";return;}
-  if(keyState.out){
-    const ts=keyState.ts,when=ts?(fmtDateJ(ts)===fmtDateJ(Date.now())?fmtTime(ts):fmtTs(ts)):"";
-    el.innerHTML=`<b>${escH(keyState.person||"？")}</b> ${t("さんが鍵を持ち出し中")}${when?"（"+when+"〜）":""}`
-      +(stale?`<div class="key-stale">${t("返却の記録がありません。借りるのか返すのかを選んでください")}</div>`:"");
-  }else el.textContent=t("🔑 鍵はあります（持ち出しできます）");
-}
-async function keyAction(action){
+async function keyAction(){
   const person=pickerValue("#keyPersonSel","#keyPerson");
   if(!person){toast(t("名前を入力してください"));$("#keyPersonSel").focus();return;}
   try{localStorage.setItem(PERSON_KEY,person);}catch(e){}
   try{
-    const j=await apiSend("POST","/api/key",{action,person});
-    keyState=j.status;renderKeyStatus();
+    const j=await apiSend("POST","/api/key",{action:"out",person});
     loadHistory();
-    offerUndo(j.hid,t(action==="out"?"鍵の持ち出しを記録しました。行ってらっしゃい！":"鍵の返却を記録しました。おつかれさまでした"));
+    offerUndo(j.hid,t("鍵の持ち出しを記録しました。行ってらっしゃい！"));
     setTimeout(closeKey,1400);
-  }catch(e){
-    toast(t(e.message));
-    try{keyState=await apiGET("/api/key");renderKeyStatus();}catch(e2){}
-  }
+  }catch(e){toast(e.message);}
 }
 
 /* ===================== QR読み取り（スマホ：撮影→解析。HTTP環境でも動く方式） =====================
@@ -13817,9 +13729,9 @@ async function markPrinted(){
 }
 function openKeyQr(){
   qrTargetIds=null;
-  $("#qrNote").innerHTML="このラベルを<b>鋼材倉庫の鍵の保管場所に貼ってください</b>。鍵を<b>借りるとき</b>と<b>返すとき</b>にスマホでかざすと「鋼材倉庫の鍵」画面が開き、誰がいつ借りて・いつ返したかが記録されます。";
+  $("#qrNote").innerHTML="このラベルを<b>鋼材倉庫の鍵の保管場所に貼ってください</b>。スマホでかざすと「鋼材倉庫の鍵」画面が開き、誰がいつ倉庫へ行ったかが記録されます（返却の操作はありません）。";
   let q="";try{q=QR.svg(qrServerBase()+"?key=1","Q");}catch(e){}
-  $("#qrSheet").innerHTML=`<div class="qr-label"><div class="qr-svg">${q}</div><div class="qr-txt"><b>鋼材倉庫の鍵</b><span>借りる時・返す時に</span><span>スマホでかざす</span><span class="qr-id">KEY</span></div></div>`;
+  $("#qrSheet").innerHTML=`<div class="qr-label"><div class="qr-svg">${q}</div><div class="qr-txt"><b>鋼材倉庫の鍵</b><span>倉庫へ行く前に</span><span>スマホでかざす</span><span class="qr-id">KEY</span></div></div>`;
   $("#qrCount").textContent="1 枚";
   $("#qrOverlay").classList.add("show");
 }
@@ -14049,10 +13961,9 @@ async function init(){
   $("#btnRsvList").addEventListener("click",()=>goView("reserve"));
   $("#rsvBack").addEventListener("click",()=>goView("checkout"));
   $("#keyClose").addEventListener("click",closeKey);
-  $("#btnKeyOut").addEventListener("click",()=>keyAction("out"));
-  $("#btnKeyIn").addEventListener("click",()=>keyAction("in"));
+  $("#btnKeyOut").addEventListener("click",keyAction);
   $("#keyOverlay").addEventListener("click",e=>{if(e.target===$("#keyOverlay"))closeKey();});
-  $("#keyPerson").addEventListener("keydown",e=>{if(e.key==="Enter")keyAction(keyState&&keyState.out?"in":"out");});
+  $("#keyPerson").addEventListener("keydown",e=>{if(e.key==="Enter")keyAction();});
   $("#btnWorklogRefresh").addEventListener("click",()=>{loadHistory();toast("作業ログを更新しました");});
   $("#btnExportWorklog").addEventListener("click",exportWorklogCSV);
   $("#wlEditClose").addEventListener("click",closeWlEdit);
